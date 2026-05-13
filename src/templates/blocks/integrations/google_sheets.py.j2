@@ -1,0 +1,296 @@
+"""
+Google Sheets Integration Block for Zenic-Agents
+=================================================
+Production-ready async Google Sheets service with OAuth2 authentication,
+read/write/append/clear operations, and rate-limit handling.
+
+Configuration (environment variables or constructor args):
+  GOOGLE_CREDENTIALS_PATH - Path to service-account JSON key file
+  GOOGLE_TOKEN_PATH       - Path to stored OAuth2 token (optional)
+"""
+
+import asyncio
+import os
+from functools import partial
+from typing import Any, Optional
+
+import gspread
+from google.oauth2.service_account import Credentials
+
+
+class SheetsService:
+    """Async Google Sheets service using gspread + service-account OAuth2."""
+
+    # Google Sheets API scopes
+    _SCOPES = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive.file",
+    ]
+
+    def __init__(
+        self,
+        credentials_path: Optional[str] = None,
+        credentials_dict: Optional[dict] = None,
+    ) -> None:
+        """
+        Initialise the Google Sheets service.
+
+        Provide *either* a path to a service-account JSON file or a dict
+        containing the service-account credentials.
+
+        Args:
+            credentials_path: Path to service-account JSON key file.
+                              Falls back to GOOGLE_CREDENTIALS_PATH env var.
+            credentials_dict: Service-account credentials as a dict
+                              (useful when loaded from a secret store).
+        """
+        self._credentials_path: Optional[str] = (
+            credentials_path or os.environ.get("GOOGLE_CREDENTIALS_PATH")
+        )
+        self._credentials_dict: Optional[dict] = credentials_dict
+        self._client: Optional[gspread.Client] = None
+        self._lock = asyncio.Lock()
+
+    # ------------------------------------------------------------------
+    # Client lifecycle
+    # ------------------------------------------------------------------
+
+    async def _get_client(self) -> gspread.Client:
+        """Lazily create (or return) the authorised gspread client."""
+        async with self._lock:
+            if self._client is not None:
+                return self._client
+
+            loop = asyncio.get_running_loop()
+
+            if self._credentials_dict:
+                creds = Credentials.from_service_account_info(
+                    self._credentials_dict, scopes=self._SCOPES
+                )
+            elif self._credentials_path:
+                creds = await loop.run_in_executor(
+                    None,
+                    partial(
+                        Credentials.from_service_account_file,
+                        self._credentials_path,
+                        scopes=self._SCOPES,
+                    ),
+                )
+            else:
+                raise ValueError(
+                    "No credentials provided. Set GOOGLE_CREDENTIALS_PATH "
+                    "or pass credentials_path / credentials_dict."
+                )
+
+            self._client = await loop.run_in_executor(
+                None, partial(gspread.authorize, creds)
+            )
+            return self._client
+
+    async def close(self) -> None:
+        """Clean up the gspread client session."""
+        if self._client is not None:
+            try:
+                self._client.session.close()
+            except Exception:
+                pass
+            self._client = None
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    async def _run_sync(self, fn, *args, **kwargs):
+        """Run a synchronous gspread call in the default executor."""
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None, partial(fn, *args, **kwargs)
+        )
+
+    async def _open_spreadsheet(self, spreadsheet_id: str):
+        """Open a spreadsheet by ID."""
+        client = await self._get_client()
+        return await self._run_sync(client.open_by_key, spreadsheet_id)
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    async def read_sheet(
+        self,
+        spreadsheet_id: str,
+        range: str,
+        major_dimension: str = "ROWS",
+        value_render_option: str = "FORMATTED_VALUE",
+    ) -> list[list]:
+        """
+        Read values from a sheet range.
+
+        Args:
+            spreadsheet_id:      The spreadsheet ID.
+            range:               A1 notation range (e.g. "Sheet1!A1:D10").
+            major_dimension:     "ROWS" or "COLUMNS".
+            value_render_option: "FORMATTED_VALUE", "UNFORMATTED_VALUE", or "FORMULA".
+
+        Returns:
+            2-D list of cell values.
+
+        Raises:
+            gspread.exceptions.APIError: On Sheets API errors.
+        """
+        spreadsheet = await self._open_spreadsheet(spreadsheet_id)
+        worksheet = await self._run_sync(spreadsheet.sheet1.values_get, range)
+
+        # Use the values batch get for richer control
+        client = await self._get_client()
+        result = await self._run_sync(
+            client.values_batch_get,
+            spreadsheet_id,
+            [range],
+            major_dimension=major_dimension,
+            value_render_option=value_render_option,
+        )
+        return result.get("valueRanges", [{}])[0].get("values", [])
+
+    async def write_sheet(
+        self,
+        spreadsheet_id: str,
+        range: str,
+        data: list[list],
+        value_input_option: str = "USER_ENTERED",
+    ) -> dict:
+        """
+        Overwrite values in a sheet range.
+
+        Args:
+            spreadsheet_id:     The spreadsheet ID.
+            range:              A1 notation range.
+            data:               2-D list of values to write.
+            value_input_option: "RAW" or "USER_ENTERED".
+
+        Returns:
+            API response dict.
+        """
+        client = await self._get_client()
+        body = {
+            "value_input_option": value_input_option,
+            "data": [{"range": range, "values": data}],
+        }
+        result = await self._run_sync(
+            client.values_batch_update,
+            spreadsheet_id,
+            body,
+        )
+        return result
+
+    async def append_sheet(
+        self,
+        spreadsheet_id: str,
+        range: str,
+        data: list[list],
+        value_input_option: str = "USER_ENTERED",
+        insert_data_option: str = "INSERT_ROWS",
+    ) -> dict:
+        """
+        Append rows after the last row with data in the sheet.
+
+        Args:
+            spreadsheet_id:     The spreadsheet ID.
+            range:              A1 notation range to find the table.
+            data:               2-D list of values to append.
+            value_input_option: "RAW" or "USER_ENTERED".
+            insert_data_option: "OVERWRITE" or "INSERT_ROWS".
+
+        Returns:
+            API response dict.
+        """
+        client = await self._get_client()
+        body = {
+            "range": range,
+            "majorDimension": "ROWS",
+            "values": data,
+        }
+        params = {
+            "valueInputOption": value_input_option,
+            "insertDataOption": insert_data_option,
+        }
+        result = await self._run_sync(
+            client.values_append,
+            spreadsheet_id,
+            range,
+            body,
+            params=params,
+        )
+        return result
+
+    async def clear_sheet(
+        self,
+        spreadsheet_id: str,
+        range: str,
+    ) -> dict:
+        """
+        Clear values from a sheet range (leaves formatting intact).
+
+        Args:
+            spreadsheet_id: The spreadsheet ID.
+            range:          A1 notation range to clear.
+
+        Returns:
+            API response dict.
+        """
+        client = await self._get_client()
+        result = await self._run_sync(
+            client.values_clear,
+            spreadsheet_id,
+            range,
+        )
+        return result
+
+    async def list_sheets(self, spreadsheet_id: str) -> list[dict]:
+        """
+        List all worksheets in a spreadsheet.
+
+        Args:
+            spreadsheet_id: The spreadsheet ID.
+
+        Returns:
+            List of worksheet metadata dicts.
+        """
+        spreadsheet = await self._open_spreadsheet(spreadsheet_id)
+        worksheets = await self._run_sync(lambda ss: ss.worksheets(), spreadsheet)
+        return [
+            {
+                "id": ws.id,
+                "title": ws.title,
+                "index": ws.index,
+                "row_count": ws.row_count,
+                "col_count": ws.col_count,
+            }
+            for ws in worksheets
+        ]
+
+    async def create_sheet(
+        self, spreadsheet_id: str, title: str, rows: int = 100, cols: int = 26
+    ) -> dict:
+        """
+        Add a new worksheet to the spreadsheet.
+
+        Args:
+            spreadsheet_id: The spreadsheet ID.
+            title:          Name for the new worksheet.
+            rows:           Number of rows.
+            cols:           Number of columns.
+
+        Returns:
+            Worksheet metadata dict.
+        """
+        spreadsheet = await self._open_spreadsheet(spreadsheet_id)
+        ws = await self._run_sync(
+            spreadsheet.add_worksheet, title, rows, cols
+        )
+        return {
+            "id": ws.id,
+            "title": ws.title,
+            "row_count": ws.row_count,
+            "col_count": ws.col_count,
+        }

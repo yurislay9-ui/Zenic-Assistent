@@ -1,0 +1,176 @@
+niche:
+  name: "payroll"
+  domain: "business"
+  subdomain: "compensation"
+  description: "Sistema de nóminas para gestión de empleados, salarios, deducciones, recibos de pago, tramos fiscales, horas extras, bonificaciones y cuentas bancarias con cumplimiento regulatorio"
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - invoice_calculator
+    - pdf_generator
+    - email_smtp
+    - notification_manager
+    - crud_service
+    - report_generator
+    - backup_restore
+  variables:
+    project_name: "payroll"
+    app_name: "Payroll"
+    template_type: "finance"
+    db_name: "payroll.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Employee"
+    fields:
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "ssn_encrypted:str"
+      - "department:str"
+      - "position:str"
+      - "hire_date:date"
+      - "employment_type:str"
+      - "status:str"
+      - "bank_account_id:int"
+      - "tax_filing_status:str"
+      - "allowances:int"
+
+  - name: "Salary"
+    fields:
+      - "employee_id:int"
+      - "base_amount:float"
+      - "type:str"
+      - "currency:str"
+      - "effective_date:date"
+      - "end_date:date"
+      - "frequency:str"
+      - "last_review:date"
+      - "next_review:date"
+      - "change_reason:str"
+
+  - name: "Deduction"
+    fields:
+      - "employee_id:int"
+      - "name:str"
+      - "type:str"
+      - "amount:float"
+      - "percentage:float"
+      - "pre_tax:bool"
+      - "frequency:str"
+      - "effective_date:date"
+      - "end_date:date"
+      - "vendor:str"
+      - "active:bool"
+
+  - name: "PaySlip"
+    fields:
+      - "employee_id:int"
+      - "period_start:date"
+      - "period_end:date"
+      - "gross_pay:float"
+      - "total_deductions:float"
+      - "taxes:float"
+      - "net_pay:float"
+      - "status:str"
+      - "payment_date:date"
+      - "payment_method:str"
+      - "document_path:str"
+      - "generated_at:datetime"
+
+  - name: "TaxBracket"
+    fields:
+      - "name:str"
+      - "filing_status:str"
+      - "min_income:float"
+      - "max_income:float"
+      - "rate:float"
+      - "fixed_amount:float"
+      - "jurisdiction:str"
+      - "year:int"
+      - "effective_date:date"
+
+  - name: "Overtime"
+    fields:
+      - "employee_id:int"
+      - "date:date"
+      - "hours:float"
+      - "rate_multiplier:float"
+      - "amount:float"
+      - "type:str"
+      - "approved_by:str"
+      - "status:str"
+      - "project:str"
+      - "notes:text"
+
+  - name: "Bonus"
+    fields:
+      - "employee_id:int"
+      - "type:str"
+      - "amount:float"
+      - "reason:text"
+      - "taxable:bool"
+      - "discretionary:bool"
+      - "approved_by:str"
+      - "status:str"
+      - "payment_date:date"
+      - "created_at:datetime"
+
+  - name: "BankAccount"
+    fields:
+      - "employee_id:int"
+      - "bank_name:str"
+      - "account_type:str"
+      - "account_number_encrypted:str"
+      - "routing_number:str"
+      - "primary:bool"
+      - "deposit_pct:float"
+      - "verified:bool"
+      - "created_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Iniciar período de nómina → Recopilar horas trabajadas → Calcular salario bruto → Aplicar deducciones → Calcular impuestos → Generar recibo → Procesar pagos"
+    - "Empleado registra horas extras → Manager aprueba → Calcular con multiplicador → Incluir en próxima nómina → Pagar"
+    - "Definir tramos fiscales → Configurar deducciones por empleado → Validar cálculos → Generar reportes fiscales → Declarar impuestos"
+  triggers:
+    - "payroll_period_start:Iniciar automáticamente el ciclo de procesamiento de nóminas al inicio del período configurado"
+    - "overtime_submitted:Notificar al manager para aprobación cuando un empleado registra horas extras"
+    - "bonus_approved:Incluir la bonificación en el próximo ciclo de nómina al ser aprobada"
+    - "tax_bracket_update:Recalcular proyecciones fiscales cuando se actualizan los tramos de retención"
+    - "payslip_generated:Enviar el recibo de pago por email al empleado automáticamente tras su generación"
+
+features:
+  core:
+    - "Cálculo automatizado de nóminas con soporte para salarios fijos y por hora"
+    - "Gestión de deducciones pre-tax y post-tax con configuración por empleado"
+    - "Cálculo de impuestos basado en tramos progresivos con soporte multi-jurisdicción"
+    - "Generación de recibos de pago en PDF con desglose detallado de percepciones y deducciones"
+    - "Administración de depósitos directos con distribución multi-cuenta"
+    - "Gestión de horas extras con diferentes multiplicadores y aprobación jerárquica"
+  advanced:
+    - "Motor de cálculo flexible con soporte para compensaciones complejas y retroactivas"
+    - "Cumplimiento automático de regulaciones laborales con actualización de tramos fiscales"
+    - "Dashboard de costos laborales con análisis de tendencias y comparativas inter-períodos"
+    - "Integración con sistemas de tiempo y asistencia para cálculo automático de horas"
+    - "Auditoría de nóminas con trazabilidad completa de cambios y cálculos"
+  optional:
+    - "Portal de autoservicio para empleados con acceso a recibos históricos y formularios W-4"
+    - "Integración con proveedores de beneficios para sincronización de deducciones"
+    - "Módulo de compensación variable con comisiones y bonos por desempeño"
+    - "API para integración con sistemas de contabilidad y ERP"
+    - "Reportes regulatorios automatizados para presentación ante autoridades fiscales"
+
+risk_assessment:
+  data_sensitivity: "critical"
+  compliance: [GDPR, Tax Code, PCI-DSS]
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

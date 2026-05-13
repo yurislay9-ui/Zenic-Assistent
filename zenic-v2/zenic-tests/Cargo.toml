@@ -1,0 +1,15 @@
+[package]
+name = "zenic-tests"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Integration tests for Zenic-Agents"
+
+[dependencies]
+zenic-proto = { workspace = true }
+zenic-graph = { workspace = true }
+zenic-runtime = { path = "../zenic-runtime" }
+zenic-flow = { path = "../zenic-flow" }
+zenic-policy = { path = "../zenic-policy" }
+zenic-core = { path = "../zenic-core" }

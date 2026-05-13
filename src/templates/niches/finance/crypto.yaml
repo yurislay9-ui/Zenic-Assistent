@@ -1,0 +1,173 @@
+niche:
+  name: "crypto"
+  domain: "finance"
+  subdomain: "crypto"
+  description: "Plataforma de gestión criptográfica para administración de wallets, tokens, transacciones descentralizadas, intercambios y staking con seguridad avanzada"
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - api_key_auth
+    - data_analyzer
+    - notification_manager
+    - email_smtp
+    - crud_service
+    - webhook_server
+    - report_generator
+  variables:
+    project_name: "crypto"
+    app_name: "Crypto"
+    template_type: "niche"
+    db_name: "crypto.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Wallet"
+    fields:
+      - "wallet_id:uuid"
+      - "address:str"
+      - "label:str"
+      - "wallet_type:str"
+      - "network:str"
+      - "derivation_path:str"
+      - "balance:decimal"
+      - "currency:str"
+      - "is_hardware:bool"
+      - "last_synced_at:datetime"
+      - "created_at:datetime"
+      - "owner_id:uuid"
+
+  - name: "Token"
+    fields:
+      - "token_id:uuid"
+      - "symbol:str"
+      - "name:str"
+      - "contract_address:str"
+      - "network:str"
+      - "token_type:str"
+      - "decimals:int"
+      - "total_supply:decimal"
+      - "current_price:decimal"
+      - "market_cap:decimal"
+      - "volume_24h:decimal"
+      - "price_change_24h:decimal"
+
+  - name: "Transaction"
+    fields:
+      - "transaction_id:uuid"
+      - "tx_hash:str"
+      - "from_address:str"
+      - "to_address:str"
+      - "amount:decimal"
+      - "token_symbol:str"
+      - "gas_price:decimal"
+      - "gas_used:decimal"
+      - "network_fee:decimal"
+      - "status:str"
+      - "block_number:int"
+      - "confirmed_at:datetime"
+
+  - name: "Exchange"
+    fields:
+      - "exchange_id:uuid"
+      - "name:str"
+      - "code:str"
+      - "api_base_url:str"
+      - "supported_pairs:list"
+      - "trading_fees:decimal"
+      - "withdrawal_fees:json"
+      - "is_active:bool"
+      - "verification_level:str"
+      - "volume_24h:decimal"
+      - "last_sync_at:datetime"
+      - "credentials_encrypted:str"
+
+  - name: "Portfolio"
+    fields:
+      - "portfolio_id:uuid"
+      - "name:str"
+      - "owner_id:uuid"
+      - "total_value_usd:decimal"
+      - "total_cost_basis:decimal"
+      - "unrealized_pnl:decimal"
+      - "realized_pnl:decimal"
+      - "strategy:str"
+      - "risk_level:str"
+      - "created_at:datetime"
+      - "updated_at:datetime"
+      - "rebalance_threshold:decimal"
+
+  - name: "Alert"
+    fields:
+      - "alert_id:uuid"
+      - "token_symbol:str"
+      - "alert_type:str"
+      - "condition:str"
+      - "threshold_value:decimal"
+      - "timeframe:str"
+      - "is_active:bool"
+      - "triggered_at:datetime"
+      - "notification_channel:str"
+      - "message:str"
+      - "priority:str"
+      - "created_at:datetime"
+
+  - name: "Staking"
+    fields:
+      - "staking_id:uuid"
+      - "wallet_id:uuid"
+      - "token_symbol:str"
+      - "amount_staked:decimal"
+      - "apy:decimal"
+      - "validator:str"
+      - "lock_period_days:int"
+      - "rewards_earned:decimal"
+      - "status:str"
+      - "started_at:datetime"
+      - "unlock_at:datetime"
+      - "last_reward_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Crear wallet → Comprar tokens → Gestionar portafolio → Configurar staking → Monitorear rendimientos"
+    - "Configurar alerta → Detectar condición de mercado → Ejecutar operación en exchange → Registrar transacción"
+    - "Depositar fondos → Seleccionar par de trading → Ejecutar intercambio → Retirar a wallet → Generar reporte"
+  triggers:
+    - "token_price_alert:Notificar cuando el precio de un token cruza el umbral configurado"
+    - "staking_reward_distributed:Registrar recompensas de staking y actualizar balance del portafolio"
+    - "large_transaction_detected:Alertar sobre transacciones inusuales por monto o patrón"
+    - "wallet_balance_change:Sincronizar y notificar cambios significativos en balance de wallet"
+    - "exchange_order_filled:Actualizar posiciones del portafolio tras ejecución de orden"
+
+features:
+  core:
+    - "Gestión multi-wallet con soporte para múltiples redes blockchain"
+    - "Seguimiento de portafolio cripto en tiempo real con cálculo de PnL"
+    - "Sistema de alertas de precio, volumen y métricas on-chain"
+    - "Integración con exchanges centralizados y descentralizados"
+    - "Módulo de staking con seguimiento de recompensas y validadores"
+  advanced:
+    - "Análisis on-chain con métricas de actividad de red y flujo de whales"
+    - "Motor de arbitraje para detección de oportunidades entre exchanges"
+    - "Seguimiento fiscal automatizado con cálculo de ganancias/pérdidas"
+    - "Dashboard DeFi con seguimiento de liquidity pools y yield farming"
+  optional:
+    - "Trading algorítmico con estrategias DCA y grid trading"
+    - "Integración con hardware wallets para almacenamiento en frío"
+    - "Notificaciones vía Telegram y Discord para alertas críticas"
+    - "Módulo NFT para seguimiento y gestión de colecciones"
+    - "API pública para integración con herramientas de terceros"
+
+risk_assessment:
+  data_sensitivity: "critical"
+  compliance:
+    - "AML"
+    - "KYC"
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

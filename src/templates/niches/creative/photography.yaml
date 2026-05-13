@@ -1,0 +1,159 @@
+niche:
+  name: "photography"
+  domain: "creative"
+  subdomain: "photography_services"
+  description: "Plataforma de gestión para estudios de fotografía con administración de galerías, sesiones fotográficas, contratos, facturación, pedidos de impresión y archivo organizado de fotos."
+  scale: "small"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - email_smtp
+    - pdf_generator
+    - invoice_calculator
+    - crud_service
+    - notification_manager
+    - backup_restore
+  variables:
+    project_name: "photography"
+    app_name: "Photography"
+    template_type: "niche"
+    db_name: "photography.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Photo"
+    fields:
+      - "title:str"
+      - "filepath:str"
+      - "thumbnail:str"
+      - "album_id:int"
+      - "session_id:int"
+      - "camera:str"
+      - "lens:str"
+      - "aperture:str"
+      - "shutter_speed:str"
+      - "iso:int"
+      - "tags:json"
+      - "created_at:datetime"
+  - name: "Album"
+    fields:
+      - "name:str"
+      - "description:text"
+      - "cover_photo_id:int"
+      - "client_id:int"
+      - "is_public:bool"
+      - "password:str"
+      - "photo_count:int"
+      - "created_at:datetime"
+  - name: "Client"
+    fields:
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "address:str"
+      - "event_type:str"
+      - "notes:text"
+      - "is_active:bool"
+      - "created_at:datetime"
+  - name: "Session"
+    fields:
+      - "client_id:int"
+      - "photographer_id:int"
+      - "session_type:str"
+      - "location:str"
+      - "scheduled_at:datetime"
+      - "duration:int"
+      - "status:str"
+      - "notes:text"
+      - "price:float"
+      - "created_at:datetime"
+  - name: "Contract"
+    fields:
+      - "client_id:int"
+      - "session_id:int"
+      - "template:str"
+      - "terms:text"
+      - "usage_rights:str"
+      - "total_amount:float"
+      - "deposit:float"
+      - "signed_at:datetime"
+      - "status:str"
+      - "created_at:datetime"
+  - name: "Invoice"
+    fields:
+      - "client_id:int"
+      - "session_id:int"
+      - "invoice_number:str"
+      - "items:json"
+      - "subtotal:float"
+      - "tax:float"
+      - "total:float"
+      - "status:str"
+      - "due_date:date"
+      - "created_at:datetime"
+  - name: "Gallery"
+    fields:
+      - "name:str"
+      - "session_id:int"
+      - "is_password_protected:bool"
+      - "password:str"
+      - "expiry_date:date"
+      - "view_count:int"
+      - "download_count:int"
+      - "is_active:bool"
+      - "created_at:datetime"
+  - name: "Print"
+    fields:
+      - "photo_id:int"
+      - "client_id:int"
+      - "size:str"
+      - "material:str"
+      - "quantity:int"
+      - "price:float"
+      - "status:str"
+      - "order_date:date"
+      - "delivery_date:date"
+
+workflow:
+  typical_paths:
+    - "Cliente solicita sesión → Fotógrafo programa → Firma contrato → Realiza sesión → Selecciona fotos → Entrega"
+    - "Fotógrafo importa fotos → Organiza en álbum → Crea galería para cliente → Cliente selecciona → Descarga o pide impresión"
+    - "Sesión completada → Se genera factura → Cliente paga → Se liberan archivos de alta resolución"
+  triggers:
+    - "session_scheduled:Enviar confirmación al cliente con detalles de la sesión fotográfica"
+    - "gallery_published:Notificar al cliente que la galería de selección está disponible para revisión"
+    - "invoice_created:Enviar factura al cliente después de completada la sesión"
+    - "print_order_placed:Notificar al laboratorio de impresión sobre nuevo pedido de impresión"
+
+features:
+  core:
+    - "Gestión de sesiones fotográficas con calendario y recordatorios"
+    - "Galerías de cliente con protección por contraseña y expiración"
+    - "Sistema de contratos con plantillas y firma digital"
+    - "Facturación con cálculo automático de impuestos y seguimiento de pagos"
+    - "Organización de fotos en álbumes con etiquetado y metadatos EXIF"
+  advanced:
+    - "Generación de contratos y facturas en PDF con branding del estudio"
+    - "Sistema de pedidos de impresión con múltiples formatos y materiales"
+    - "Backup automático de archivos fotográficos con restauración selectiva"
+    - "Dashboard de reportes con ingresos por sesión y cliente más frecuentes"
+  optional:
+    - "Portal del cliente con galerías, descargas y pedidos de impresión"
+    - "Marca de agua automática para galerías de selección"
+    - "Integración con laboratorios de impresión para envío directo"
+    - "Sistema de favoritos para que el cliente marque fotos preferidas"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance:
+    - GDPR
+    - DMCA
+  backup_frequency: "daily"
+  access_control: "basic"
+  audit_trail: true

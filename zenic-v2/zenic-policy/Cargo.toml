@@ -1,0 +1,18 @@
+[package]
+name = "zenic-policy"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Policy engine with RBAC, safety veto, and criticality gates for Zenic-Agents"
+
+[dependencies]
+zenic-proto = { workspace = true }
+zenic-graph = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+indexmap = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]

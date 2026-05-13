@@ -1,0 +1,160 @@
+niche:
+  name: "event_management"
+  domain: "sports"
+  subdomain: "event_operations"
+  description: "Plataforma de gestión de eventos deportivos con administración de sedes, venta de entradas, coordinación de participantes, programación, patrocinios y gestión de personal."
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - stripe_payments
+    - email_smtp
+    - notification_manager
+    - pdf_generator
+    - crud_service
+    - report_generator
+    - task_scheduler
+  variables:
+    project_name: "event_management"
+    app_name: "EventManagement"
+    template_type: "niche"
+    db_name: "event_management.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Event"
+    fields:
+      - "name:str"
+      - "description:text"
+      - "sport:str"
+      - "category:str"
+      - "venue_id:int"
+      - "start_date:datetime"
+      - "end_date:datetime"
+      - "capacity:int"
+      - "status:str"
+      - "is_public:bool"
+      - "created_at:datetime"
+  - name: "Venue"
+    fields:
+      - "name:str"
+      - "address:str"
+      - "city:str"
+      - "capacity:int"
+      - "facilities:json"
+      - "contact_phone:str"
+      - "contact_email:str"
+      - "is_available:bool"
+      - "created_at:datetime"
+  - name: "Ticket"
+    fields:
+      - "event_id:int"
+      - "type:str"
+      - "price:float"
+      - "seat_section:str"
+      - "seat_number:str"
+      - "status:str"
+      - "purchaser_name:str"
+      - "purchaser_email:str"
+      - "qr_code:str"
+      - "purchased_at:datetime"
+  - name: "Participant"
+    fields:
+      - "event_id:int"
+      - "name:str"
+      - "email:str"
+      - "team:str"
+      - "category:str"
+      - "registration_date:datetime"
+      - "bib_number:str"
+      - "status:str"
+      - "medical_clearance:bool"
+      - "created_at:datetime"
+  - name: "Schedule"
+    fields:
+      - "event_id:int"
+      - "activity:str"
+      - "location:str"
+      - "start_time:datetime"
+      - "end_time:datetime"
+      - "responsible:str"
+      - "status:str"
+      - "notes:text"
+  - name: "Sponsor"
+    fields:
+      - "name:str"
+      - "logo:str"
+      - "website:str"
+      - "contact_name:str"
+      - "contact_email:str"
+      - "contribution:float"
+      - "package:str"
+      - "is_active:bool"
+      - "contract_start:date"
+      - "contract_end:date"
+  - name: "Result"
+    fields:
+      - "event_id:int"
+      - "participant_id:int"
+      - "position:int"
+      - "score:str"
+      - "time:str"
+      - "medal:str"
+      - "disqualified:bool"
+      - "notes:text"
+      - "recorded_at:datetime"
+  - name: "Staff"
+    fields:
+      - "event_id:int"
+      - "name:str"
+      - "email:str"
+      - "role:str"
+      - "department:str"
+      - "shift_start:datetime"
+      - "shift_end:datetime"
+      - "is_verified:bool"
+      - "created_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Organizador crea evento → Asigna sede → Configura entradas → Abre registro → Participantes se inscriben"
+    - "Participante se registra → Paga inscripción → Recibe confirmación y entrada → Asiste al evento"
+    - "Evento finalizado → Se registran resultados → Se generan reportes → Se cierra evento y清算"
+  triggers:
+    - "event_created:Notificar al equipo de operaciones sobre nuevo evento para iniciar preparativos"
+    - "ticket_purchased:Enviar confirmación de compra y entrada digital al comprador por email"
+    - "event_reminder:Recordar a participantes y asistentes 48 horas antes del evento"
+    - "results_published:Notificar a participantes sobre resultados oficiales disponibles"
+    - "payment_received:Confirmar recepción de pago y actualizar estado de inscripción"
+
+features:
+  core:
+    - "Gestión completa de eventos deportivos con calendario visual"
+    - "Venta de entradas con integración de pagos Stripe y entradas QR"
+    - "Sistema de registro de participantes con categorías y verificación"
+    - "Administración de sedes con disponibilidad y facilidades"
+    - "Gestión de patrocinadores con paquetes y contratos"
+  advanced:
+    - "Generación de entradas en PDF con código QR para control de acceso"
+    - "Programación automatizada de actividades con asignación de personal"
+    - "Dashboard financiero con ingresos, gastos y rentabilidad por evento"
+    - "Sistema de resultados en tiempo real con clasificaciones"
+  optional:
+    - "Transmisión en vivo integrada con marcador actualizado"
+    - "App móvil para check-in de participantes y control de acceso"
+    - "Encuestas post-evento para evaluación de experiencia"
+    - "Integración con redes sociales para promoción automática de eventos"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance:
+    - PCI-DSS
+    - GDPR
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

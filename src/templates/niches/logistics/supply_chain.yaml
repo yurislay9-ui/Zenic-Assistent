@@ -1,0 +1,175 @@
+niche:
+  name: "supply_chain"
+  domain: "logistics"
+  subdomain: "supply_chain_management"
+  description: "Plataforma de gestión de cadena de suministro para la planificación de demanda, adquisiciones, control de inventario y monitoreo de KPIs de proveedores y contratos"
+  scale: "large"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - inventory_tracker
+    - data_analyzer
+    - report_generator
+    - email_smtp
+    - notification_manager
+    - crud_service
+    - pdf_generator
+    - backup_restore
+  variables:
+    project_name: "supply_chain"
+    app_name: "SupplyChain"
+    template_type: "niche"
+    db_name: "supply_chain.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Supplier"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "tax_id:str"
+      - "country:str"
+      - "lead_time_days:int"
+      - "payment_terms:str"
+      - "quality_rating:float"
+      - "delivery_rating:float"
+      - "contact_email:str"
+      - "contact_phone:str"
+      - "status:str"
+
+  - name: "PurchaseOrder"
+    fields:
+      - "id:uuid"
+      - "po_number:str"
+      - "supplier_id:uuid"
+      - "items:json"
+      - "total_amount:float"
+      - "currency:str"
+      - "status:str"
+      - "order_date:date"
+      - "expected_delivery:date"
+      - "approved_by:uuid"
+
+  - name: "Shipment"
+    fields:
+      - "id:uuid"
+      - "po_id:uuid"
+      - "supplier_id:uuid"
+      - "origin:str"
+      - "destination:str"
+      - "carrier:str"
+      - "tracking_number:str"
+      - "status:str"
+      - "shipped_date:date"
+      - "eta:date"
+
+  - name: "Inventory"
+    fields:
+      - "id:uuid"
+      - "sku:str"
+      - "product_name:str"
+      - "warehouse_id:uuid"
+      - "quantity:int"
+      - "reserved:int"
+      - "available:int"
+      - "reorder_point:int"
+      - "safety_stock:int"
+      - "unit_cost:float"
+      - "last_updated:datetime"
+
+  - name: "Demand"
+    fields:
+      - "id:uuid"
+      - "product_sku:str"
+      - "period:str"
+      - "quantity:int"
+      - "source:str"
+      - "confidence:float"
+      - "region:str"
+      - "created_at:datetime"
+      - "status:str"
+
+  - name: "Forecast"
+    fields:
+      - "id:uuid"
+      - "product_sku:str"
+      - "period_start:date"
+      - "period_end:date"
+      - "predicted_quantity:int"
+      - "model_type:str"
+      - "accuracy:float"
+      - "parameters:json"
+      - "created_at:datetime"
+
+  - name: "Contract"
+    fields:
+      - "id:uuid"
+      - "supplier_id:uuid"
+      - "title:str"
+      - "type:str"
+      - "value:float"
+      - "currency:str"
+      - "start_date:date"
+      - "end_date:date"
+      - "terms:json"
+      - "status:str"
+      - "renewal_auto:bool"
+
+  - name: "KPI"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "category:str"
+      - "target_value:float"
+      - "actual_value:float"
+      - "unit:str"
+      - "period:str"
+      - "supplier_id:uuid"
+      - "trend:str"
+      - "status:str"
+
+workflow:
+  typical_paths:
+    - "Análisis de demanda → Generación de pronóstico → Creación de orden de compra → Aprobación → Envío al proveedor → Seguimiento de envío → Recepción → Actualización de inventario"
+    - "Evaluación de proveedor → Negociación de contrato → Firma → Monitoreo de KPIs → Renovación o finalización"
+    - "Alerta de stock bajo → Verificación de pronóstico → Orden de reabastecimiento automática → Aprobación → Seguimiento hasta recepción"
+  triggers:
+    - "inventory_below_reorder_point:Generación automática de alerta y sugerencia de orden de compra"
+    - "forecast_deviation_high:Notificación cuando la desviación del pronóstico supera el umbral aceptable"
+    - "contract_expiring_soon:Aviso de contrato próximo a expirar para renovación o renegociación"
+    - "supplier_kpi_below_threshold:Alerta cuando el KPI de un proveedor cae por debajo del mínimo aceptable"
+    - "purchase_order_delayed:Notificación cuando una orden de compra retrasa su fecha de entrega estimada"
+
+features:
+  core:
+    - "Gestión de proveedores con evaluación de desempeño"
+    - "Creación y seguimiento de órdenes de compra"
+    - "Control de inventario con puntos de reorden y stock de seguridad"
+    - "Pronóstico de demanda con modelos estadísticos"
+    - "Gestión de contratos con proveedores"
+    - "Dashboard de KPIs de cadena de suministro"
+  advanced:
+    - "Análisis predictivo de demanda con machine learning"
+    - "Optimización automática de niveles de inventario"
+    - "Evaluación multicriterio de proveedores (costo, calidad, entrega)"
+    - "Simulación de escenarios de cadena de suministro"
+    - "Integración con sistemas ERP y WMS externos"
+  optional:
+    - "Módulo de gestión de riesgos de suministro"
+    - "Blockchain para trazabilidad de cadena de suministro"
+    - "Soporte multi-divisa y multi-idioma"
+    - "Reportes regulatorios SOX automatizados"
+    - "Análisis de sostenibilidad y huella de carbono"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance: [SOX, GDPR]
+  backup_frequency: "hourly"
+  access_control: "abac"
+  audit_trail: true

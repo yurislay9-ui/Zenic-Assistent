@@ -1,0 +1,183 @@
+niche:
+  name: "energy_trading"
+  domain: "energy"
+  subdomain: "energy_markets"
+  description: "Plataforma de negociación y comercio de energía para gestión de contratos, posiciones de mercado, liquidaciones y evaluación de riesgos en mercados eléctricos mayoristas."
+  scale: "enterprise"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - data_analyzer
+    - invoice_calculator
+    - notification_manager
+    - email_smtp
+    - crud_service
+    - report_generator
+    - pdf_generator
+    - backup_restore
+  variables:
+    project_name: "energy_trading"
+    app_name: "EnergyTrading"
+    template_type: "niche"
+    db_name: "energy_trading.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Trade"
+    fields:
+      - "trade_id:uuid"
+      - "buyer_id:uuid"
+      - "seller_id:uuid"
+      - "contract_id:uuid"
+      - "market_id:uuid"
+      - "volume_mwh:float"
+      - "price_per_mwh:float"
+      - "total_value:float"
+      - "trade_date:datetime"
+      - "delivery_start:datetime"
+      - "delivery_end:datetime"
+      - "status:str"
+      - "trade_type:str"
+
+  - name: "Contract"
+    fields:
+      - "contract_id:uuid"
+      - "name:str"
+      - "contract_type:str"
+      - "counterparty_id:uuid"
+      - "volume_mwh:float"
+      - "price_per_mwh:float"
+      - "start_date:date"
+      - "end_date:date"
+      - "status:str"
+      - "settlement_frequency:str"
+      - "terms:str"
+      - "credit_support:float"
+
+  - name: "Market"
+    fields:
+      - "market_id:uuid"
+      - "name:str"
+      - "market_type:str"
+      - "currency:str"
+      - "timezone:str"
+      - "operating_hours:str"
+      - "min_volume_mwh:float"
+      - "max_volume_mwh:float"
+      - "price_unit:str"
+      - "clearing_mechanism:str"
+      - "status:str"
+
+  - name: "Participant"
+    fields:
+      - "participant_id:uuid"
+      - "name:str"
+      - "type:str"
+      - "registration_number:str"
+      - "country:str"
+      - "credit_rating:str"
+      - "trading_limit_mwh:float"
+      - "credit_limit:float"
+      - "status:str"
+      - "contact_email:str"
+      - "contact_phone:str"
+
+  - name: "Position"
+    fields:
+      - "position_id:uuid"
+      - "participant_id:uuid"
+      - "market_id:uuid"
+      - "contract_id:uuid"
+      - "volume_mwh:float"
+      - "direction:str"
+      - "entry_price:float"
+      - "current_price:float"
+      - "unrealized_pnl:float"
+      - "realized_pnl:float"
+      - "valuation_date:date"
+
+  - name: "Settlement"
+    fields:
+      - "settlement_id:uuid"
+      - "trade_id:uuid"
+      - "contract_id:uuid"
+      - "period_start:date"
+      - "period_end:date"
+      - "volume_mwh:float"
+      - "settlement_price:float"
+      - "amount:float"
+      - "currency:str"
+      - "status:str"
+      - "settlement_date:date"
+      - "invoice_id:uuid"
+
+  - name: "Price"
+    fields:
+      - "price_id:uuid"
+      - "market_id:uuid"
+      - "timestamp:datetime"
+      - "price_value:float"
+      - "currency:str"
+      - "price_type:str"
+      - "volume_mwh:float"
+      - "source:str"
+
+  - name: "Risk"
+    fields:
+      - "risk_id:uuid"
+      - "participant_id:uuid"
+      - "position_id:uuid"
+      - "risk_type:str"
+      - "var_value:float"
+      - "cvar_value:float"
+      - "exposure:float"
+      - "limit:float"
+      - "utilization_pct:float"
+      - "assessment_date:date"
+      - "status:str"
+
+workflow:
+  typical_paths:
+    - "Registro de participante → Apertura de posición → Ejecución de operación → Liquidación → Conciliación → Informe de posición"
+    - "Creación de contrato → Negociación de términos → Firma → Registro de operaciones asociadas → Ciclo de liquidación"
+    - "Evaluación de riesgo → Monitoreo de exposición → Alerta de límite → Ajuste de posición → Reporte regulatorio"
+  triggers:
+    - "price_threshold:Alerta cuando el precio de mercado alcanza un umbral configurado"
+    - "risk_limit_breach:Notificación inmediata al superar el límite de riesgo de un participante"
+    - "settlement_due:Generación automática de liquidaciones al cierre del periodo de entrega"
+    - "margin_call:Aviso de requerimiento de margen cuando la exposición supera el crédito disponible"
+    - "trade_execution:Registro y confirmación automática tras la ejecución de una operación"
+
+features:
+  core:
+    - "Registro y gestión completa de operaciones de compraventa de energía"
+    - "Seguimiento de posiciones abiertas con cálculo de P&L en tiempo real"
+    - "Motor de liquidación automática con soporte para múltiples periodos y mecanismos de compensación"
+    - "Evaluación de riesgo con Value at Risk y exposición por participante"
+    - "Gestión de contratos con seguimiento de términos, garantías y cumplimiento"
+    - "Libro de precios de mercado con historial completo y fuentes múltiples"
+  advanced:
+    - "Análisis de valoración de riesgo condicional (CVaR) y simulación Monte Carlo"
+    - "Optimización de cartera de contratos basada en predicción de precios"
+    - "Hedging automático con estrategias configurables por perfil de riesgo"
+    - "Integración con sistemas de despacho y programación de generación"
+  optional:
+    - "Módulo de trading algorítmico con estrategias personalizables"
+    - "Soporte para mercados de carbono y certificados de origen renovable"
+    - "Interfaz de subastas para mercados day-ahead e intraday"
+    - "Cumplimiento regulatorio automatizado con generación de reportes FERC/REMIT"
+
+risk_assessment:
+  data_sensitivity: "critical"
+  compliance:
+    - "FERC"
+    - "REMIT"
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

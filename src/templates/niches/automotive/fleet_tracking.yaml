@@ -1,0 +1,183 @@
+niche:
+  name: "fleet_tracking"
+  domain: "automotive"
+  subdomain: "fleet_management"
+  description: "Plataforma de gestión y seguimiento de flotas vehiculares con monitorización GPS, registro de viajes, control de combustible, mantenimiento programado, alertas y generación de informes operativos."
+  scale: "large"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - data_analyzer
+    - notification_manager
+    - task_scheduler
+    - crud_service
+    - report_generator
+    - pdf_generator
+    - email_smtp
+  variables:
+    project_name: "fleet_tracking"
+    app_name: "FleetTracking"
+    template_type: "niche"
+    db_name: "fleet_tracking.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Vehicle"
+    fields:
+      - "vehicle_id:uuid"
+      - "vin:str"
+      - "make:str"
+      - "model:str"
+      - "year:int"
+      - "license_plate:str"
+      - "vehicle_type:str"
+      - "fuel_type:str"
+      - "capacity_tons:float"
+      - "status:str"
+      - "current_mileage:int"
+      - "acquisition_date:date"
+
+  - name: "Driver"
+    fields:
+      - "driver_id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "license_number:str"
+      - "license_expiry:date"
+      - "license_class:str"
+      - "status:str"
+      - "assigned_vehicle_id:uuid"
+      - "hire_date:date"
+      - "safety_score:float"
+
+  - name: "Trip"
+    fields:
+      - "trip_id:uuid"
+      - "vehicle_id:uuid"
+      - "driver_id:uuid"
+      - "origin:str"
+      - "destination:str"
+      - "start_time:datetime"
+      - "end_time:datetime"
+      - "distance_km:float"
+      - "fuel_consumed_l:float"
+      - "status:str"
+      - "purpose:str"
+      - "notes:str"
+
+  - name: "FuelLog"
+    fields:
+      - "fuel_log_id:uuid"
+      - "vehicle_id:uuid"
+      - "driver_id:uuid"
+      - "date:datetime"
+      - "fuel_type:str"
+      - "quantity_l:float"
+      - "cost_per_unit:float"
+      - "total_cost:float"
+      - "odometer_reading:int"
+      - "station:str"
+      - "location:str"
+
+  - name: "Maintenance"
+    fields:
+      - "maintenance_id:uuid"
+      - "vehicle_id:uuid"
+      - "type:str"
+      - "description:str"
+      - "scheduled_date:date"
+      - "completed_date:date"
+      - "cost:float"
+      - "vendor:str"
+      - "status:str"
+      - "priority:str"
+      - "odometer_at_service:int"
+      - "next_service_mileage:int"
+
+  - name: "GPSPoint"
+    fields:
+      - "gps_point_id:uuid"
+      - "vehicle_id:uuid"
+      - "timestamp:datetime"
+      - "latitude:float"
+      - "longitude:float"
+      - "speed_kmh:float"
+      - "heading:float"
+      - "altitude:float"
+      - "ignition:bool"
+      - "event_type:str"
+
+  - name: "Alert"
+    fields:
+      - "alert_id:uuid"
+      - "vehicle_id:uuid"
+      - "driver_id:uuid"
+      - "type:str"
+      - "severity:str"
+      - "message:str"
+      - "timestamp:datetime"
+      - "location_lat:float"
+      - "location_lon:float"
+      - "acknowledged:bool"
+      - "resolved:bool"
+
+  - name: "Report"
+    fields:
+      - "report_id:uuid"
+      - "report_type:str"
+      - "period_start:date"
+      - "period_end:date"
+      - "generated_date:datetime"
+      - "generated_by:str"
+      - "parameters:str"
+      - "file_path:str"
+      - "status:str"
+      - "format:str"
+
+workflow:
+  typical_paths:
+    - "Asignación de vehículo a conductor → Inicio de viaje → Monitorización GPS en tiempo real → Registro de consumo → Fin de viaje → Generación de informe de viaje"
+    - "Programación de mantenimiento → Aviso al conductor → Entrada al taller → Ejecución del servicio → Actualización de odómetro → Próximo servicio programado"
+    - "Detección de alerta → Evaluación de severidad → Notificación al gestor de flota → Acción correctiva → Registro de resolución → Actualización de estado"
+  triggers:
+    - "speeding:Alerta cuando un vehículo supera el límite de velocidad configurado"
+    - "geofence_violation:Notificación cuando un vehículo entra o sale de una zona geográfica restringida"
+    - "maintenance_due:Aviso cuando el odómetro alcanza el intervalo de mantenimiento programado"
+    - "license_expiry:Alerta cuando la licencia de un conductor está próxima a vencer"
+    - "idle_excessive:Notificación cuando un vehículo permanece inactivo por encima del umbral configurado"
+
+features:
+  core:
+    - "Seguimiento GPS en tiempo real con visualización en mapa interactivo de todos los vehículos"
+    - "Registro automático de viajes con cálculo de distancia, tiempo y consumo de combustible"
+    - "Gestión de mantenimiento preventivo y correctivo con programación por odómetro o fecha"
+    - "Sistema de alertas configurables por velocidad, geocercas, inactividad y eventos de vehículo"
+    - "Control de combustible con registro de cargas y análisis de eficiencia por vehículo"
+    - "Gestión de conductores con asignación de vehículos y seguimiento de puntuación de seguridad"
+  advanced:
+    - "Análisis de comportamiento de conducción con scoring de seguridad por conductor"
+    - "Optimización de rutas basada en históricos de tráfico y consumo de combustible"
+    - "Predicción de fallos mecánicos basada en patrones de uso y datos de mantenimiento"
+    - "Dashboard ejecutivo con KPIs de flota: utilización, costo por km, eficiencia energética"
+  optional:
+    - "Integración con sistemas ELD para cumplimiento de regulaciones de horas de servicio"
+    - "Módulo de gestión de documentos con seguimiento de seguros, inspecciones y registros"
+    - "Geocercas dinámicas con reglas basadas en horarios y tipos de carga"
+    - "Integración con sistemas de gestión de carga y logística de última milla"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance:
+    - "GDPR"
+    - "DOT"
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

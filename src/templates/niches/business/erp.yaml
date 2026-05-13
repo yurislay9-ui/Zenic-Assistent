@@ -1,0 +1,215 @@
+niche:
+  name: "erp"
+  domain: "business"
+  subdomain: "enterprise"
+  description: "Sistema de planificación de recursos empresariales para gestión integrada de módulos, departamentos, empleados, productos, órdenes, facturación, pagos, proveedores, clientes y almacenes"
+  scale: "enterprise"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - invoice_calculator
+    - inventory_tracker
+    - report_generator
+    - notification_manager
+    - email_smtp
+    - pdf_generator
+    - crud_service
+    - backup_restore
+    - data_analyzer
+  variables:
+    project_name: "erp"
+    app_name: "ERP"
+    template_type: "enterprise"
+    db_name: "erp.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Module"
+    fields:
+      - "name:str"
+      - "code:str"
+      - "description:text"
+      - "version:str"
+      - "active:bool"
+      - "dependencies:json"
+      - "configuration:json"
+      - "license_type:str"
+      - "installed_at:datetime"
+      - "updated_at:datetime"
+
+  - name: "Department"
+    fields:
+      - "name:str"
+      - "code:str"
+      - "head_id:int"
+      - "budget:float"
+      - "cost_center:str"
+      - "location:str"
+      - "parent_id:int"
+      - "description:text"
+      - "active:bool"
+      - "created_at:datetime"
+
+  - name: "Employee"
+    fields:
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "department_id:int"
+      - "position:str"
+      - "hire_date:date"
+      - "status:str"
+      - "manager_id:int"
+      - "work_location:str"
+      - "salary:float"
+      - "skills:json"
+
+  - name: "Product"
+    fields:
+      - "sku:str"
+      - "name:str"
+      - "description:text"
+      - "category:str"
+      - "type:str"
+      - "unit_price:float"
+      - "cost_price:float"
+      - "unit:str"
+      - "tax_category:str"
+      - "track_inventory:bool"
+      - "reorder_level:int"
+      - "supplier_id:int"
+      - "active:bool"
+
+  - name: "Order"
+    fields:
+      - "order_number:str"
+      - "customer_id:int"
+      - "type:str"
+      - "status:str"
+      - "order_date:datetime"
+      - "required_date:date"
+      - "subtotal:float"
+      - "tax_amount:float"
+      - "total:float"
+      - "line_items:json"
+      - "shipping_address:json"
+      - "notes:text"
+
+  - name: "Invoice"
+    fields:
+      - "invoice_number:str"
+      - "order_id:int"
+      - "customer_id:int"
+      - "type:str"
+      - "issue_date:date"
+      - "due_date:date"
+      - "subtotal:float"
+      - "tax_amount:float"
+      - "total:float"
+      - "status:str"
+      - "line_items:json"
+      - "payment_terms:str"
+
+  - name: "Payment"
+    fields:
+      - "invoice_id:int"
+      - "amount:float"
+      - "method:str"
+      - "reference:str"
+      - "status:str"
+      - "payment_date:date"
+      - "currency:str"
+      - "bank_account:str"
+      - "created_by:str"
+      - "created_at:datetime"
+
+  - name: "Supplier"
+    fields:
+      - "name:str"
+      - "code:str"
+      - "contact_name:str"
+      - "email:str"
+      - "phone:str"
+      - "address:json"
+      - "payment_terms:str"
+      - "tax_id:str"
+      - "rating:float"
+      - "lead_time_days:int"
+      - "active:bool"
+      - "categories:json"
+
+  - name: "Customer"
+    fields:
+      - "name:str"
+      - "code:str"
+      - "contact_name:str"
+      - "email:str"
+      - "phone:str"
+      - "address:json"
+      - "credit_limit:float"
+      - "payment_terms:str"
+      - "tax_id:str"
+      - "segment:str"
+      - "active:bool"
+      - "created_at:datetime"
+
+  - name: "Warehouse"
+    fields:
+      - "name:str"
+      - "code:str"
+      - "location:str"
+      - "address:json"
+      - "capacity:float"
+      - "used_capacity:float"
+      - "manager_id:int"
+      - "type:str"
+      - "active:bool"
+      - "zones:json"
+
+workflow:
+  typical_paths:
+    - "Recibir orden → Verificar inventario → Reservar stock → Generar factura → Procesar pago → Despachar desde almacén → Actualizar inventario → Entregar"
+    - "Detectar stock bajo → Generar orden de compra → Aprobar → Enviar a proveedor → Recibir mercancía → Actualizar inventario → Conciliar factura"
+    - "Registrar cliente → Crear orden → Facturar → Recibir pago → Conciliar → Generar reporte de ventas → Análisis de rentabilidad"
+  triggers:
+    - "order_placed:Verificar inventario disponible y reservar stock automáticamente al recibir una nueva orden"
+    - "inventory_low:Generar orden de compra sugerida cuando el inventario cae por debajo del nivel de reorden"
+    - "invoice_overdue:Notificar al cliente y al equipo de cobranza cuando una factura supera la fecha de vencimiento"
+    - "payment_received:Actualizar estado de factura y liberar crédito del cliente al recibir un pago"
+    - "warehouse_capacity_warning:Alertar cuando un almacén alcanza el 90% de su capacidad"
+
+features:
+  core:
+    - "Gestión integrada de módulos con configuración modular y dependencias entre componentes"
+    - "Administración de productos con SKU, precios, costos y categorización por tipo"
+    - "Procesamiento de órdenes con flujo completo desde pedido hasta entrega"
+    - "Facturación automática con cálculo de impuestos y términos de pago configurables"
+    - "Gestión de inventario multi-almacén con tracking en tiempo real y reservas"
+    - "Administración de proveedores y clientes con crédito, rating y segmentación"
+  advanced:
+    - "MRP básico con planificación de requerimientos de materiales y compras sugeridas"
+    - "Análisis de rentabilidad por producto, cliente y centro de costo"
+    - "Dashboard ejecutivo con KPIs de ventas, inventario, cobranza y producción"
+    - "Workflow de aprobaciones configurables por monto y departamento"
+    - "Consolidación multi-sucursal con reportes centralizados y sincronización"
+    - "Motor de reglas de negocio para automatización de decisiones operativas"
+  optional:
+    - "Integración con marketplaces y canales de venta online (Shopify, Amazon)"
+    - "Módulo de CRM integrado con gestión de oportunidades y pipeline de ventas"
+    - "API REST completa para integración con sistemas de terceros"
+    - "Business Intelligence con cubos OLAP y reportes ad-hoc"
+    - "App móvil para gestión de almacén con código de barras y RFID"
+    - "Integración con sistemas de logística y transporte para seguimiento de envíos"
+
+risk_assessment:
+  data_sensitivity: "critical"
+  compliance: [SOX, GDPR, ISO27001]
+  backup_frequency: "realtime"
+  access_control: "rbac"
+  audit_trail: true

@@ -1,0 +1,19 @@
+[package]
+name = "zenic-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Main orchestrator with fractal loader and hierarchical router for Zenic-Agents"
+
+[dependencies]
+zenic-proto = { workspace = true }
+zenic-graph = { workspace = true }
+zenic-runtime = { path = "../zenic-runtime" }
+zenic-flow = { path = "../zenic-flow" }
+zenic-policy = { path = "../zenic-policy" }
+serde = { workspace = true }
+serde_json = { version = "1.0" }
+thiserror = { workspace = true }
+indexmap = { workspace = true }
+tracing = { workspace = true }

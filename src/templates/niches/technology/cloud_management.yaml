@@ -1,0 +1,174 @@
+niche:
+  name: "cloud_management"
+  domain: "technology"
+  subdomain: "cloud"
+  description: "Plataforma de gestión cloud para administración de recursos, instancias, volúmenes, redes, snapshots, costos y políticas con etiquetado y gobernanza multi-nube"
+  scale: "enterprise"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - notification_manager
+    - data_analyzer
+    - crud_service
+    - report_generator
+    - pdf_generator
+    - email_smtp
+  variables:
+    project_name: "cloud_management"
+    app_name: "CloudManagement"
+    template_type: "management"
+    db_name: "cloud_management.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Resource"
+    fields:
+      - "resource_id:str"
+      - "type:str"
+      - "provider:str"
+      - "region:str"
+      - "name:str"
+      - "state:str"
+      - "tags:json"
+      - "created_at:datetime"
+      - "cost_per_hour:float"
+      - "owner:str"
+      - "project:str"
+
+  - name: "Instance"
+    fields:
+      - "instance_id:str"
+      - "name:str"
+      - "type:str"
+      - "provider:str"
+      - "region:str"
+      - "os_image:str"
+      - "vcpu:int"
+      - "ram_gb:float"
+      - "status:str"
+      - "private_ip:str"
+      - "public_ip:str"
+      - "security_groups:json"
+
+  - name: "Volume"
+    fields:
+      - "volume_id:str"
+      - "name:str"
+      - "type:str"
+      - "size_gb:int"
+      - "iops:int"
+      - "encrypted:bool"
+      - "instance_id:str"
+      - "availability_zone:str"
+      - "status:str"
+      - "snapshot_count:int"
+      - "created_at:datetime"
+
+  - name: "Network"
+    fields:
+      - "network_id:str"
+      - "name:str"
+      - "cidr:str"
+      - "region:str"
+      - "type:str"
+      - "subnets:json"
+      - "security_rules:json"
+      - "peering_connections:json"
+      - "status:str"
+      - "created_at:datetime"
+
+  - name: "Snapshot"
+    fields:
+      - "snapshot_id:str"
+      - "volume_id:str"
+      - "name:str"
+      - "description:text"
+      - "size_gb:int"
+      - "type:str"
+      - "status:str"
+      - "encrypted:bool"
+      - "created_by:str"
+      - "created_at:datetime"
+      - "expiry_at:datetime"
+
+  - name: "Cost"
+    fields:
+      - "resource_id:str"
+      - "provider:str"
+      - "service:str"
+      - "amount:float"
+      - "currency:str"
+      - "period_start:datetime"
+      - "period_end:datetime"
+      - "tags:json"
+      - "project:str"
+      - "department:str"
+
+  - name: "Policy"
+    fields:
+      - "name:str"
+      - "description:text"
+      - "type:str"
+      - "rules:json"
+      - "scope:str"
+      - "enforcement:str"
+      - "exceptions:json"
+      - "active:bool"
+      - "created_by:str"
+      - "created_at:datetime"
+
+  - name: "Tag"
+    fields:
+      - "key:str"
+      - "value:str"
+      - "resource_type:str"
+      - "resource_id:str"
+      - "mandatory:bool"
+      - "created_by:str"
+      - "created_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Provisionar recurso → Aplicar tags → Asignar políticas → Monitorear estado → Optimizar costos → Generar reporte"
+    - "Detectar recurso sin etiquetar → Aplicar política de gobernanza → Notificar propietario → Remediar o escalar"
+    - "Recopilar datos de costos → Analizar tendencias → Identificar recursos ineficientes → Aplicar recomendaciones → Verificar ahorro"
+  triggers:
+    - "resource_created:Registrar y etiquetar automáticamente nuevos recursos detectados en la nube"
+    - "cost_anomaly_detected:Alertar cuando el gasto cloud supera el umbral esperado para un servicio o proyecto"
+    - "policy_violation:Notificar y remediar cuando un recurso no cumple con las políticas de gobernanza configuradas"
+    - "unused_resource_detected:Generar recomendación de eliminación para recursos sin actividad durante el período configurado"
+    - "snapshot_expiry:Solicitar aprobación antes de eliminar snapshots que están por expirar"
+
+features:
+  core:
+    - "Inventario unificado de recursos multi-nube con descubrimiento automático y clasificación"
+    - "Gestión de instancias con ciclo de vida completo: provisioning, scaling, termination"
+    - "Administración de volúmenes y snapshots con políticas de backup y retención"
+    - "Seguimiento de costos en tiempo real con desglose por servicio, proyecto y departamento"
+    - "Sistema de etiquetado obligatorio con validación y gobernanza de tags"
+    - "Gestión de redes y seguridad con visualización de topología y reglas"
+  advanced:
+    - "Análisis de costos con recomendaciones de optimización y right-sizing automático"
+    - "Políticas de gobernanza con enforcement automático y excepciones gestionadas"
+    - "Detección de recursos huérfanos y no utilizados con sugerencias de eliminación"
+    - "Forecasting de costos basado en tendencias históricas con alertas de presupuesto"
+    - "FinOps dashboard con chargeback y showback por centro de costos"
+  optional:
+    - "Integración con Terraform y CloudFormation para infraestructura como código"
+    - "Portal self-service para equipos de desarrollo con aprovisionamiento controlado"
+    - "Reportes de sostenibilidad con métricas de huella de carbono por recurso"
+    - "Integración con sistemas de ticketing para aprobaciones de provisioning"
+    - "Exportación de datos de costos a herramientas de BI corporativas"
+
+risk_assessment:
+  data_sensitivity: "critical"
+  compliance: [SOC2, ISO27001]
+  backup_frequency: "realtime"
+  access_control: "rbac"
+  audit_trail: true

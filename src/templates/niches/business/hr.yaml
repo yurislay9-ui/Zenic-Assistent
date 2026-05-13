@@ -1,0 +1,190 @@
+niche:
+  name: "hr"
+  domain: "business"
+  subdomain: "human_resources"
+  description: "Sistema de gestión de recursos humanos para administración de empleados, departamentos, posiciones, permisos, nóminas, evaluaciones, beneficios, capacitaciones y asistencia"
+  scale: "large"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - email_smtp
+    - pdf_generator
+    - notification_manager
+    - task_scheduler
+    - crud_service
+    - report_generator
+    - backup_restore
+  variables:
+    project_name: "hr"
+    app_name: "HR"
+    template_type: "management"
+    db_name: "hr.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Employee"
+    fields:
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "department_id:int"
+      - "position_id:int"
+      - "hire_date:date"
+      - "status:str"
+      - "manager_id:int"
+      - "work_location:str"
+      - "emergency_contact:json"
+      - "personal_info_encrypted:json"
+
+  - name: "Department"
+    fields:
+      - "name:str"
+      - "code:str"
+      - "head_id:int"
+      - "budget:float"
+      - "location:str"
+      - "description:text"
+      - "parent_department_id:int"
+      - "employee_count:int"
+      - "created_at:datetime"
+
+  - name: "Position"
+    fields:
+      - "title:str"
+      - "department_id:int"
+      - "grade:str"
+      - "salary_min:float"
+      - "salary_max:float"
+      - "description:text"
+      - "requirements:json"
+      - "responsibilities:json"
+      - "status:str"
+      - "created_at:datetime"
+
+  - name: "Leave"
+    fields:
+      - "employee_id:int"
+      - "type:str"
+      - "start_date:date"
+      - "end_date:date"
+      - "days:float"
+      - "status:str"
+      - "reason:text"
+      - "approved_by:int"
+      - "requested_at:datetime"
+      - "approved_at:datetime"
+      - "balance_remaining:float"
+
+  - name: "Payroll"
+    fields:
+      - "employee_id:int"
+      - "period_start:date"
+      - "period_end:date"
+      - "base_salary:float"
+      - "overtime:float"
+      - "deductions:float"
+      - "taxes:float"
+      - "net_pay:float"
+      - "status:str"
+      - "payment_date:date"
+      - "processed_at:datetime"
+
+  - name: "Review"
+    fields:
+      - "employee_id:int"
+      - "reviewer_id:int"
+      - "period:str"
+      - "rating:float"
+      - "goals:json"
+      - "achievements:text"
+      - "feedback:text"
+      - "development_plan:text"
+      - "status:str"
+      - "submitted_at:datetime"
+
+  - name: "Benefit"
+    fields:
+      - "name:str"
+      - "type:str"
+      - "description:text"
+      - "employee_contribution:float"
+      - "employer_contribution:float"
+      - "eligibility:str"
+      - "provider:str"
+      - "plan_id:str"
+      - "active:bool"
+      - "effective_date:date"
+
+  - name: "Training"
+    fields:
+      - "title:str"
+      - "type:str"
+      - "description:text"
+      - "provider:str"
+      - "duration_hours:int"
+      - "start_date:date"
+      - "end_date:date"
+      - "capacity:int"
+      - "enrolled:json"
+      - "status:str"
+      - "certification:bool"
+      - "location:str"
+
+  - name: "Attendance"
+    fields:
+      - "employee_id:int"
+      - "date:date"
+      - "check_in:datetime"
+      - "check_out:datetime"
+      - "hours_worked:float"
+      - "overtime_hours:float"
+      - "status:str"
+      - "notes:text"
+      - "location:str"
+
+workflow:
+  typical_paths:
+    - "Empleado solicita permiso → Notificar al manager → Manager aprueba/rechaza → Actualizar balance → Notificar al empleado → Programar cobertura"
+    - "Iniciar período de evaluación → Empleado completa autoevaluación → Manager revisa → Reunión de feedback → Establecer metas → Cerrar evaluación"
+    - "Programar capacitación → Inscribir empleados → Realizar formación → Registrar asistencia → Evaluar resultados → Emitir certificación"
+  triggers:
+    - "leave_requested:Notificar al manager y verificar balance de permisos al recibir una solicitud de permiso"
+    - "review_period_start:Iniciar automáticamente el ciclo de evaluación y notificar a empleados y managers"
+    - "payroll_processing:Calcular y procesar nóminas automáticamente al cierre del período de pago"
+    - "training_enrollment:Confirmar inscripción y enviar detalles de la capacitación al empleado"
+    - "attendance_anomaly:Alertar al manager cuando se detecta una anomalía en el registro de asistencia"
+
+features:
+  core:
+    - "Gestión integral de empleados con perfil completo, historial laboral y documentos"
+    - "Sistema de permisos con balances por tipo, aprobación jerárquica y calendario de ausencias"
+    - "Procesamiento de nóminas con cálculo automático de deducciones, impuestos y pagos netos"
+    - "Evaluaciones de desempeño con autoevaluación, feedback 360 y planes de desarrollo"
+    - "Administración de beneficios con gestión de elegibilidad y contribuciones"
+    - "Registro de asistencia con tracking de horas, overtime y ubicación"
+  advanced:
+    - "Análisis de retención de talento con predicción de riesgo de salida por empleado"
+    - "Dashboard de diversidad e inclusión con métricas demográficas y brechas salariales"
+    - "Onboarding automatizado con checklist de tareas y asignación de recursos"
+    - "Planificación de sucesión con identificación de candidatos internos para posiciones clave"
+    - "Reportes de costos laborales con análisis de headcount, turnover y cost per hire"
+  optional:
+    - "Portal de autoservicio para empleados con actualización de datos y acceso a constancias"
+    - "Integración con sistemas de reclutamiento y ATS para flujo de hiring completo"
+    - "Módulo de encuestas de clima organizacional con análisis de sentimiento"
+    - "API de integración con proveedores de beneficios y seguros"
+    - "App móvil para registro de asistencia geolocalizado y aprobaciones"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance: [GDPR, EEOC]
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

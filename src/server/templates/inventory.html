@@ -1,0 +1,251 @@
+<!--
+  Zenic-Agents Asistente — Inventory Management Page
+  Product list with search/filter (Alpine.js), stock level indicators,
+  low stock alerts from SNA, create/edit product modal (HTMX).
+-->
+{% extends "base.html" %}
+{% block title %}Inventario — Zenic-Agents{% endblock %}
+
+{% block content %}
+<div x-data="inventoryStore()">
+  <!-- ── Stats Cards ────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+      <div class="card zenic-kpi h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Productos</p>
+          <h3 class="mb-0" x-text="stats.total_products">--</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="card zenic-kpi h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Stock Bajo</p>
+          <h3 class="mb-0 text-warning" x-text="stats.low_stock">--</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="card zenic-kpi h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Valor Total</p>
+          <h3 class="mb-0" x-text="'$' + stats.total_value">--</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="card zenic-kpi h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Categorías</p>
+          <h3 class="mb-0" x-text="stats.categories">--</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Product List Card ────────────────────────────── -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h6 class="mb-0"><i class="bi bi-box-seam me-2"></i>Productos</h6>
+      <div class="d-flex gap-2">
+        <div class="input-group input-group-sm" style="width: 250px;">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input type="text" x-model="search" @input="filterProducts()" class="form-control" placeholder="Buscar producto...">
+        </div>
+        <select x-model="filterCategory" @change="filterProducts()" class="form-select form-select-sm" style="width: 150px;">
+          <option value="">Todas</option>
+          <template x-for="cat in categories" :key="cat">
+            <option :value="cat" x-text="cat"></option>
+          </template>
+        </select>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#productModal" @click="openAddProduct()">
+          <i class="bi bi-plus-lg me-1"></i>Producto
+        </button>
+      </div>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>SKU</th>
+              <th>Nombre</th>
+              <th>Categoría</th>
+              <th>Stock</th>
+              <th>Stock Mín</th>
+              <th>Precio</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="p in filteredProducts" :key="p.id || p.sku">
+              <tr>
+                <td class="font-monospace small" x-text="p.sku"></td>
+                <td x-text="p.name"></td>
+                <td><span class="badge bg-secondary" x-text="p.category"></span></td>
+                <td>
+                  <span class="d-flex align-items-center gap-2">
+                    <span x-text="p.stock"></span>
+                    <div class="progress flex-grow-1" style="height: 6px; min-width: 40px;">
+                      <div class="progress-bar" :class="stockBarClass(p)" :style="'width:' + stockBarWidth(p) + '%'"></div>
+                    </div>
+                  </span>
+                </td>
+                <td x-text="p.min_stock"></td>
+                <td x-text="'$' + Number(p.price).toFixed(2)"></td>
+                <td>
+                  <span class="badge" :class="p.stock <= p.min_stock ? 'bg-danger' : 'bg-success'"
+                        x-text="p.stock <= p.min_stock ? 'Stock Bajo' : 'OK'"></span>
+                </td>
+                <td>
+                  <button class="btn btn-sm btn-outline-light" @click="editProduct(p)"><i class="bi bi-pencil"></i></button>
+                </td>
+              </tr>
+            </template>
+            <tr x-show="filteredProducts.length === 0">
+              <td colspan="8" class="text-center text-muted py-4">Sin productos</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Low Stock Alerts ──────────────────────────────── -->
+  <div class="card mt-3" x-show="lowStockAlerts.length > 0">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h6 class="mb-0 text-warning"><i class="bi bi-exclamation-triangle me-2"></i>Alertas de Stock Bajo</h6>
+    </div>
+    <div class="card-body">
+      <div id="low-stock-alerts" hx-get="/htmx/inventory/low-stock-alerts" hx-trigger="load, every 60s" hx-swap="innerHTML">
+        <p class="text-muted">Cargando alertas...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Product Modal ──────────────────────────────── -->
+<div class="modal fade" id="productModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" x-text="editingProduct ? 'Editar Producto' : 'Nuevo Producto'"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form hx-post="/htmx/inventory/add" hx-target="#product-result" hx-swap="innerHTML">
+        <div class="modal-body">
+          <div id="product-result"></div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Nombre</label>
+              <input type="text" name="name" x-model="form.name" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">SKU</label>
+              <input type="text" name="sku" x-model="form.sku" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Precio</label>
+              <input type="number" step="0.01" name="price" x-model="form.price" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Stock</label>
+              <input type="number" name="stock" x-model="form.stock" class="form-control" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Stock Mínimo</label>
+              <input type="number" name="min_stock" x-model="form.min_stock" class="form-control">
+            </div>
+            <div class="col-12">
+              <label class="form-label">Categoría</label>
+              <input type="text" name="category" x-model="form.category" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">
+            <span x-show="!editingProduct">Crear Producto</span>
+            <span x-show="editingProduct">Guardar Cambios</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function inventoryStore() {
+  return {
+    products: [],
+    filteredProducts: [],
+    stats: { total_products: 0, low_stock: 0, total_value: '0', categories: 0 },
+    categories: [],
+    search: '',
+    filterCategory: '',
+    lowStockAlerts: [],
+    editingProduct: null,
+    form: { name: '', sku: '', price: 0, stock: 0, min_stock: 5, category: '' },
+
+    init() { this.loadProducts(); this.loadStats(); },
+
+    async loadProducts() {
+      try {
+        const r = await fetch('/htmx/inventory/products');
+        if (r.ok) {
+          this.products = await r.json();
+          this.categories = [...new Set(this.products.map(p => p.category).filter(Boolean))];
+          this.filterProducts();
+        }
+      } catch(e) { console.error('Load products error', e); }
+    },
+
+    async loadStats() {
+      try {
+        const r = await fetch('/htmx/inventory/stats');
+        if (r.ok) this.stats = await r.json();
+      } catch(e) {}
+    },
+
+    filterProducts() {
+      let result = this.products;
+      if (this.search) {
+        const q = this.search.toLowerCase();
+        result = result.filter(p => (p.name||'').toLowerCase().includes(q) || (p.sku||'').toLowerCase().includes(q));
+      }
+      if (this.filterCategory) {
+        result = result.filter(p => p.category === this.filterCategory);
+      }
+      this.filteredProducts = result;
+    },
+
+    stockBarClass(p) {
+      const ratio = p.min_stock > 0 ? p.stock / p.min_stock : 1;
+      if (ratio <= 1) return 'bg-danger';
+      if (ratio <= 2) return 'bg-warning';
+      return 'bg-success';
+    },
+
+    stockBarWidth(p) {
+      const max = Math.max(p.min_stock * 3, 1);
+      return Math.min(100, (p.stock / max) * 100);
+    },
+
+    openAddProduct() {
+      this.editingProduct = null;
+      this.form = { name: '', sku: '', price: 0, stock: 0, min_stock: 5, category: '' };
+    },
+
+    editProduct(p) {
+      this.editingProduct = p;
+      this.form = { ...p };
+      new bootstrap.Modal(document.getElementById('productModal')).show();
+    },
+  };
+}
+</script>
+{% endblock %}

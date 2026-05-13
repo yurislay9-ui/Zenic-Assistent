@@ -1,0 +1,159 @@
+niche:
+  name: "mental_health"
+  domain: "health"
+  subdomain: "behavioral_health"
+  description: "Plataforma de salud mental para gestión de pacientes, terapeutas, sesiones terapéuticas, planes de tratamiento y registros de estado de ánimo con cumplimiento HIPAA y 42CFR."
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - email_smtp
+    - notification_manager
+    - crud_service
+    - pdf_generator
+    - backup_restore
+  variables:
+    project_name: "mental_health"
+    app_name: "MentalHealth"
+    template_type: "health"
+    db_name: "mental_health.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Patient"
+    fields:
+      - "id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "date_of_birth:date"
+      - "gender:str"
+      - "phone:str"
+      - "email:str"
+      - "emergency_contact:str"
+      - "crisis_hotline_access:bool"
+      - "consent_form_signed:bool"
+      - "assigned_therapist_id:uuid"
+      - "created_at:datetime"
+
+  - name: "Therapist"
+    fields:
+      - "id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "license_number:str"
+      - "specialty:str"
+      - "therapy_modalities:str"
+      - "email:str"
+      - "phone:str"
+      - "availability_schedule:str"
+      - "session_rate:float"
+      - "accepts_insurance:bool"
+      - "active:bool"
+
+  - name: "Session"
+    fields:
+      - "id:uuid"
+      - "patient_id:uuid"
+      - "therapist_id:uuid"
+      - "session_date:datetime"
+      - "duration_minutes:int"
+      - "session_type:str"
+      - "modality:str"
+      - "status:str"
+      - "session_notes:str"
+      - "homework_assigned:str"
+      - "next_session_date:datetime"
+      - "created_at:datetime"
+
+  - name: "TreatmentPlan"
+    fields:
+      - "id:uuid"
+      - "patient_id:uuid"
+      - "therapist_id:uuid"
+      - "diagnosis:str"
+      - "goals:str"
+      - "objectives:str"
+      - "interventions:str"
+      - "target_completion_date:date"
+      - "progress_rating:float"
+      - "status:str"
+      - "review_date:date"
+      - "created_at:datetime"
+
+  - name: "MoodLog"
+    fields:
+      - "id:uuid"
+      - "patient_id:uuid"
+      - "mood_score:int"
+      - "mood_label:str"
+      - "anxiety_level:int"
+      - "sleep_hours:float"
+      - "sleep_quality:str"
+      - "activities:str"
+      - "triggers:str"
+      - "journal_entry:str"
+      - "logged_at:datetime"
+      - "created_at:datetime"
+
+  - name: "CrisisAlert"
+    fields:
+      - "id:uuid"
+      - "patient_id:uuid"
+      - "alert_type:str"
+      - "severity:str"
+      - "description:str"
+      - "detected_from:str"
+      - "therapist_notified:bool"
+      - "emergency_contact_notified:bool"
+      - "resolution_status:str"
+      - "resolution_notes:str"
+      - "detected_at:datetime"
+      - "resolved_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Paciente registra estado de ánimo -> Detección de patrón negativo -> Alerta al terapeuta -> Intervención temprana -> Ajuste de plan de tratamiento"
+    - "Terapeuta crea plan de tratamiento -> Definición de objetivos y metas -> Sesiones regulares -> Evaluación de progreso -> Ajuste de intervenciones"
+    - "Registro de crisis -> Notificación inmediata al terapeuta -> Contacto de emergencia -> Seguimiento post-crisis -> Actualización de plan de seguridad"
+  triggers:
+    - "mood_decline_detected:Analiza tendencia negativa en registros de ánimo y notifica al terapeuta asignado"
+    - "crisis_alert_triggered:Envía notificación inmediata al terapeuta y contacto de emergencia, activa protocolo de seguridad"
+    - "session_completed:Actualiza plan de tratamiento, registra progreso y programa siguiente sesión"
+    - "treatment_plan_review_due:Recordatorio al terapeuta para revisar y actualizar plan de tratamiento del paciente"
+    - "homework_overdue:Notifica al paciente sobre tareas terapéuticas pendientes y reporta al terapeuta"
+
+features:
+  core:
+    - "Registro diario de estado de ánimo con métricas de ansiedad, sueño y actividades"
+    - "Gestión de planes de tratamiento con objetivos medibles y seguimiento de progreso"
+    - "Sistema de alertas de crisis con notificación inmediata a terapeutas y contactos de emergencia"
+    - "Agendamiento de sesiones terapéuticas con manejo de disponibilidad del terapeuta"
+    - "Control de acceso basado en roles con separación estricta de datos entre terapeutas"
+    - "Generación de informes de progreso en PDF para pacientes y profesionales"
+  advanced:
+    - "Análisis de patrones de estado de ánimo con detección temprana de deterioro emocional"
+    - "Cifrado de datos de salud mental con protección adicional bajo normativa 42CFR"
+    - "Protocolo de seguridad personalizado por paciente con contactos de emergencia y recursos"
+    - "Dashboard clínico con tendencias de progreso, adherencia al tratamiento y métricas de resultado"
+    - "Backup cifrado con cumplimiento estricto de confidencialidad para datos de salud mental"
+  optional:
+    - "Módulo de mindfulness y ejercicios de respiración guiados entre sesiones"
+    - "Integración con líneas de crisis nacionales y recursos de emergencia locales"
+    - "Portal de paciente con acceso a tareas terapéuticas y recursos psychoeducativos"
+    - "Teleterapia integrada para sesiones virtuales seguras"
+    - "Reportes anonimizados para investigación clínica y estudios de eficacia terapéutica"
+
+risk_assessment:
+  data_sensitivity: "critical"
+  compliance:
+    - "HIPAA"
+    - "42CFR"
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

@@ -1,0 +1,189 @@
+niche:
+  name: "rental"
+  domain: "real_estate"
+  subdomain: "rental"
+  description: "Plataforma de alquiler de propiedades para gestión de listados, aplicaciones de inquilinos, arrendamientos, pagos, inspecciones y depósitos con flujo de aprobación completo"
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - email_smtp
+    - stripe_payments
+    - pdf_generator
+    - notification_manager
+    - crud_service
+    - report_generator
+    - backup_restore
+  variables:
+    project_name: "rental"
+    app_name: "Rental"
+    template_type: "marketplace"
+    db_name: "rental.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Property"
+    fields:
+      - "title:str"
+      - "address:str"
+      - "city:str"
+      - "state:str"
+      - "zip_code:str"
+      - "type:str"
+      - "bedrooms:int"
+      - "bathrooms:float"
+      - "square_feet:float"
+      - "rent:float"
+      - "deposit:float"
+      - "pet_policy:str"
+      - "amenities:json"
+      - "images:json"
+      - "available_from:date"
+      - "status:str"
+
+  - name: "Listing"
+    fields:
+      - "property_id:int"
+      - "title:str"
+      - "description:text"
+      - "highlights:json"
+      - "photos:json"
+      - "virtual_tour_url:str"
+      - "published:bool"
+      - "featured:bool"
+      - "views_count:int"
+      - "inquiries_count:int"
+      - "published_at:datetime"
+      - "expires_at:datetime"
+
+  - name: "Tenant"
+    fields:
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "date_of_birth:date"
+      - "income:float"
+      - "employment_verified:bool"
+      - "background_check_status:str"
+      - "credit_score:int"
+      - "references:json"
+      - "status:str"
+      - "created_at:datetime"
+
+  - name: "Application"
+    fields:
+      - "property_id:int"
+      - "tenant_id:int"
+      - "status:str"
+      - "move_in_date:date"
+      - "lease_term_months:int"
+      - "monthly_income:float"
+      - "employer:str"
+      - "previous_landlord:str"
+      - "notes:text"
+      - "submitted_at:datetime"
+      - "reviewed_at:datetime"
+      - "documents:json"
+
+  - name: "Lease"
+    fields:
+      - "property_id:int"
+      - "tenant_id:int"
+      - "application_id:int"
+      - "start_date:date"
+      - "end_date:date"
+      - "monthly_rent:float"
+      - "security_deposit:float"
+      - "pet_deposit:float"
+      - "status:str"
+      - "terms:text"
+      - "document_path:str"
+      - "signed_at:datetime"
+
+  - name: "Payment"
+    fields:
+      - "lease_id:int"
+      - "tenant_id:int"
+      - "amount:float"
+      - "type:str"
+      - "method:str"
+      - "status:str"
+      - "due_date:date"
+      - "paid_date:date"
+      - "stripe_id:str"
+      - "late_fee_applied:bool"
+      - "reference:str"
+
+  - name: "Inspection"
+    fields:
+      - "property_id:int"
+      - "lease_id:int"
+      - "type:str"
+      - "conducted_by:str"
+      - "status:str"
+      - "checklist:json"
+      - "findings:text"
+      - "photos:json"
+      - "scheduled_at:datetime"
+      - "completed_at:datetime"
+      - "damage_cost:float"
+
+  - name: "Deposit"
+    fields:
+      - "lease_id:int"
+      - "tenant_id:int"
+      - "type:str"
+      - "amount:float"
+      - "status:str"
+      - "held_in_trust:bool"
+      - "deductions:json"
+      - "refund_amount:float"
+      - "refund_date:date"
+      - "interest_earned:float"
+      - "created_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Publicar propiedad → Crear listado → Recibir aplicaciones → Verificar antecedentes → Aprobar aplicación → Firmar arrendamiento → Recibir depósito → Entregar unidad"
+    - "Inquilino aplica → Verificar ingresos y antecedentes → Aprobar/Rechazar → Generar contrato → Recibir firma → Activar arrendamiento"
+    - "Programar inspección → Realizar walkthrough → Documentar hallazgos → Calcular deducciones → Devolver depósito → Cerrar arrendamiento"
+  triggers:
+    - "application_submitted:Notificar al propietario y enviar confirmación al aplicante al recibir nueva solicitud"
+    - "background_check_complete:Actualizar estado de la aplicación y notificar al revisor cuando la verificación finaliza"
+    - "payment_due_reminder:Enviar recordatorio al inquilino 5 días antes de la fecha de vencimiento del pago"
+    - "lease_ending:Notificar al inquilino y propietario 30 días antes del fin del arrendamiento para renovación"
+    - "inspection_completed:Calcular deducciones del depósito y notificar al inquilino con el resultado de la inspección"
+
+features:
+  core:
+    - "Gestión de listados de propiedades con fotos, descripciones y tours virtuales"
+    - "Sistema de aplicaciones con verificación de antecedentes e ingresos automatizada"
+    - "Generación de contratos de arrendamiento en PDF con firmas digitales"
+    - "Procesamiento de pagos y depósitos con Stripe y retención en fideicomiso"
+    - "Inspecciones de entrada y salida con checklists digitales y documentación fotográfica"
+    - "Gestión de depósitos de seguridad con cálculo de deducciones y devoluciones"
+  advanced:
+    - "Matching inteligente entre inquilinos y propiedades basado en preferencias y perfil"
+    - "Verificación automática de antecedentes con integración a servicios de screening"
+    - "Calendario de disponibilidad con gestión de overlaps y períodos de transición"
+    - "Análisis de mercado para sugerir precios de renta competitivos por zona"
+    - "Dashboard de ocupación con métricas de vacancia y tiempo medio de alquiler"
+  optional:
+    - "Portal de inquilinos con portal de pagos, solicitudes de mantenimiento y comunicación"
+    - "Integración con Zillow y Apartments.com para syndicación de listados"
+    - "Sistema de referencias entre inquilinos con recompensas"
+    - "Módulo de seguros de alquiler integrado con proveedores"
+    - "Notificaciones por SMS para recordatorios de pagos y citas de inspección"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance: [GDPR, Fair Housing]
+  backup_frequency: "daily"
+  access_control: "basic"
+  audit_trail: true

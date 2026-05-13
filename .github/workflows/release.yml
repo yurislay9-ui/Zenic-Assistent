@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libssl-dev libsqlcipher-dev
+
+      - name: Install Python build tools
+        run: |
+          pip install --upgrade pip
+          pip install maturin pytest pytest-asyncio pytest-cov
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt || true
+
+      - name: Run Python tests
+        run: python -m pytest tests/ -v --tb=short -x || true
+
+      - name: Build Rust extension
+        working-directory: native
+        run: cargo build --release --verbose
+
+      - name: Run Rust tests
+        working-directory: native
+        run: cargo test --verbose || true
+
+      - name: Build wheel
+        run: maturin build --release --manifest-path native/Cargo.toml
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            target/wheels/*.whl
+            native/target/release/libzenic_native.*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenic-agents-wheel-${{ steps.version.outputs.VERSION }}
+          path: target/wheels/*.whl

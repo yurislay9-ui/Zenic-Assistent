@@ -1,0 +1,171 @@
+niche:
+  name: "budgeting"
+  domain: "finance"
+  subdomain: "budgeting"
+  description: "Aplicación de gestión presupuestaria personal y empresarial para control de gastos, ingresos, metas de ahorro y reportes financieros con análisis inteligente"
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - data_analyzer
+    - pdf_generator
+    - email_smtp
+    - notification_manager
+    - crud_service
+    - report_generator
+  variables:
+    project_name: "budgeting"
+    app_name: "Budgeting"
+    template_type: "niche"
+    db_name: "budgeting.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Budget"
+    fields:
+      - "budget_id:uuid"
+      - "name:str"
+      - "description:str"
+      - "period:str"
+      - "start_date:date"
+      - "end_date:date"
+      - "total_income:decimal"
+      - "total_expenses:decimal"
+      - "total_savings:decimal"
+      - "currency:str"
+      - "owner_id:uuid"
+      - "is_active:bool"
+
+  - name: "Category"
+    fields:
+      - "category_id:uuid"
+      - "name:str"
+      - "icon:str"
+      - "color:str"
+      - "category_type:str"
+      - "budget_limit:decimal"
+      - "current_spent:decimal"
+      - "parent_category_id:uuid"
+      - "is_essential:bool"
+      - "sort_order:int"
+      - "is_active:bool"
+      - "owner_id:uuid"
+
+  - name: "Expense"
+    fields:
+      - "expense_id:uuid"
+      - "budget_id:uuid"
+      - "category_id:uuid"
+      - "amount:decimal"
+      - "currency:str"
+      - "description:str"
+      - "expense_date:date"
+      - "payment_method:str"
+      - "merchant:str"
+      - "receipt_url:str"
+      - "is_recurring:bool"
+      - "created_at:datetime"
+
+  - name: "Income"
+    fields:
+      - "income_id:uuid"
+      - "budget_id:uuid"
+      - "category_id:uuid"
+      - "amount:decimal"
+      - "currency:str"
+      - "description:str"
+      - "income_date:date"
+      - "source:str"
+      - "is_recurring:bool"
+      - "frequency:str"
+      - "tax_withheld:decimal"
+      - "created_at:datetime"
+
+  - name: "Goal"
+    fields:
+      - "goal_id:uuid"
+      - "name:str"
+      - "description:str"
+      - "target_amount:decimal"
+      - "current_amount:decimal"
+      - "currency:str"
+      - "deadline:date"
+      - "priority:str"
+      - "status:str"
+      - "monthly_contribution:decimal"
+      - "owner_id:uuid"
+      - "created_at:datetime"
+
+  - name: "Recurring"
+    fields:
+      - "recurring_id:uuid"
+      - "name:str"
+      - "amount:decimal"
+      - "currency:str"
+      - "frequency:str"
+      - "category_id:uuid"
+      - "transaction_type:str"
+      - "next_occurrence:date"
+      - "end_date:date"
+      - "is_active:bool"
+      - "owner_id:uuid"
+      - "created_at:datetime"
+
+  - name: "Report"
+    fields:
+      - "report_id:uuid"
+      - "budget_id:uuid"
+      - "report_type:str"
+      - "period_start:date"
+      - "period_end:date"
+      - "total_income:decimal"
+      - "total_expenses:decimal"
+      - "net_savings:decimal"
+      - "savings_rate:decimal"
+      - "top_categories:json"
+      - "generated_at:datetime"
+      - "file_path:str"
+
+workflow:
+  typical_paths:
+    - "Crear presupuesto → Definir categorías → Registrar gastos e ingresos → Monitorear progreso → Ajustar límites"
+    - "Establecer meta de ahorro → Calcular aporte mensual → Registrar contribuciones → Alcanzar meta → Generar reporte"
+    - "Configurar transacción recurrente → Programar ocurrencias → Registrar automáticamente → Revisar periódicamente"
+  triggers:
+    - "budget_limit_exceeded:Notificar cuando el gasto en una categoría supera el límite presupuestado"
+    - "recurring_transaction_due:Registrar automáticamente transacciones recurrentes programadas"
+    - "goal_deadline_approaching:Alertar cuando una meta de ahorro se acerca a su fecha límite"
+    - "monthly_report_ready:Generar y enviar reporte mensual de situación presupuestaria"
+    - "savings_rate_declining:Notificar cuando la tasa de ahorro cae por debajo del objetivo"
+
+features:
+  core:
+    - "Gestión de presupuestos con categorías personalizables y límites configurables"
+    - "Registro detallado de gastos e ingresos con clasificación automática"
+    - "Sistema de metas de ahorro con seguimiento de progreso y proyecciones"
+    - "Transacciones recurrentes con programación y ejecución automática"
+  advanced:
+    - "Análisis de patrones de gasto con detección de tendencias y anomalías"
+    - "Dashboard interactivo con gráficos de distribución y evolución temporal"
+    - "Predicción de gastos futuros basada en historial y patrones estacionales"
+    - "Comparación presupuestaria entre períodos con análisis de variaciones"
+    - "Motor de recomendaciones para optimización de gastos y ahorro"
+  optional:
+    - "Integración con cuentas bancarias para importación automática de movimientos"
+    - "Presupuesto colaborativo para familias y equipos"
+    - "Exportación de reportes en PDF y hojas de cálculo"
+    - "Notificaciones inteligentes vía email y push"
+    - "Modo offline con sincronización posterior"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance:
+    - "GDPR"
+  backup_frequency: "daily"
+  access_control: "basic"
+  audit_trail: false

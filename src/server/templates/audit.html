@@ -1,0 +1,245 @@
+<!--
+  Zenic-Agents Asistente — Audit Trail Page
+  Filterable log table (date, user, action type, result), Merkle chain verification,
+  export to CSV/JSON, pagination, detail expansion (HTMX).
+-->
+{% extends "base.html" %}
+{% block title %}Audit Trail — Zenic-Agents{% endblock %}
+
+{% block content %}
+<div x-data="auditStore()">
+  <!-- ── Merkle Chain Status ────────────────────────── -->
+  <div class="card mb-3">
+    <div class="card-body d-flex justify-content-between align-items-center">
+      <div class="d-flex align-items-center gap-3">
+        <i class="bi bi-link-45th fs-4 text-primary"></i>
+        <div>
+          <h6 class="mb-0">Cadena Merkle</h6>
+          <span class="badge" :class="merkleValid ? 'bg-success' : 'bg-danger'"
+                x-text="merkleValid ? 'Verificada' : 'No verificada'"></span>
+          <span class="text-muted small ms-2" x-text="merkleEntries + ' entradas'"></span>
+        </div>
+      </div>
+      <button class="btn btn-outline-light btn-sm" @click="verifyMerkle()">
+        <i class="bi bi-shield-check me-1"></i>Verificar Cadena
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Filters ─────────────────────────────────── -->
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h6 class="mb-0"><i class="bi bi-funnel me-2"></i>Filtros</h6>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-light" @click="exportAudit('csv')">
+          <i class="bi bi-filetype-csv me-1"></i>CSV
+        </button>
+        <button class="btn btn-sm btn-outline-light" @click="exportAudit('json')">
+          <i class="bi bi-filetype-json me-1"></i>JSON
+        </button>
+      </div>
+    </div>
+    <div class="card-body">
+      <form @submit.prevent="loadAudit()">
+        <div class="row g-3">
+          <div class="col-md-2">
+            <label class="form-label">Tipo Acción</label>
+            <select x-model="filters.action_type" class="form-select form-select-sm">
+              <option value="">Todas</option>
+              <option value="email">Email</option>
+              <option value="database">Base de Datos</option>
+              <option value="http">HTTP</option>
+              <option value="file">Archivo</option>
+              <option value="notification">Notificación</option>
+              <option value="schedule">Agendado</option>
+              <option value="webhook">Webhook</option>
+              <option value="transform">Transformación</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Veredicto</label>
+            <select x-model="filters.verdict" class="form-select form-select-sm">
+              <option value="">Todos</option>
+              <option value="ALLOW">Permitido</option>
+              <option value="CONFIRM">Confirmado</option>
+              <option value="DENY">Denegado</option>
+              <option value="RATE_LIMITED">Rate Limited</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Fecha Desde</label>
+            <input type="date" x-model="filters.date_from" class="form-control form-control-sm">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Usuario ID</label>
+            <input type="number" x-model="filters.user_id" class="form-control form-control-sm" placeholder="Cualquiera">
+          </div>
+          <div class="col-md-2">
+            <label class="form-label">Categoría</label>
+            <select x-model="filters.category" class="form-select form-select-sm">
+              <option value="">Todas</option>
+              <option value="destructive">Destructiva</option>
+              <option value="financial">Financiera</option>
+              <option value="communication">Comunicación</option>
+              <option value="system">Sistema</option>
+            </select>
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary btn-sm w-100"><i class="bi bi-search me-1"></i>Buscar</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Results Table ──────────────────────────────── -->
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h6 class="mb-0"><i class="bi bi-table me-2"></i>Resultados (<span x-text="totalResults"></span>)</h6>
+      <span class="htmx-indicator"><div class="spinner-border spinner-border-sm"></div></span>
+    </div>
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th style="width:30px;"></th>
+              <th>Timestamp</th>
+              <th>Acción</th>
+              <th>Operación</th>
+              <th>Executor</th>
+              <th>Veredicto</th>
+              <th>Risk</th>
+              <th>Usuario</th>
+            </tr>
+          </thead>
+          <tbody>
+            <template x-for="entry in entries" :key="entry.entry_id">
+              <tr>
+                <td>
+                  <button class="btn btn-sm btn-link p-0" @click="toggleDetail(entry.entry_id)">
+                    <i class="bi" :class="expandedEntry === entry.entry_id ? 'bi-chevron-down' : 'bi-chevron-right'"></i>
+                  </button>
+                </td>
+                <td class="font-monospace small" x-text="formatDate(entry.timestamp)"></td>
+                <td x-text="entry.action_type"></td>
+                <td x-text="entry.operation"></td>
+                <td x-text="entry.executor_class"></td>
+                <td>
+                  <span class="badge" :class="verdictClass(entry.verdict)" x-text="entry.verdict"></span>
+                </td>
+                <td>
+                  <span class="small" :class="entry.risk_score > 0.7 ? 'text-danger fw-bold' : ''"
+                        x-text="(entry.risk_score * 100).toFixed(0) + '%'"></span>
+                </td>
+                <td x-text="entry.user_id || '-'"></td>
+              </tr>
+              <!-- Detail Expansion -->
+              <tr x-show="expandedEntry === entry.entry_id">
+                <td colspan="8" class="bg-body-secondary">
+                  <div class="p-3" hx-get="/htmx/audit/detail/" hx-vals='{"entry_id": ""}'
+                       @click="loadDetail(entry.entry_id, $event)">
+                    <div x-show="detailLoading !== entry.entry_id" class="small">
+                      <template x-if="entryDetails[entry.entry_id]">
+                        <div x-html="entryDetails[entry.entry_id]"></div>
+                      </template>
+                      <template x-if="!entryDetails[entry.entry_id]">
+                        <span class="text-muted">Click para cargar detalles</span>
+                      </template>
+                    </div>
+                    <div x-show="detailLoading === entry.entry_id" class="text-center">
+                      <div class="spinner-border spinner-border-sm"></div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
+            <tr x-show="entries.length === 0">
+              <td colspan="8" class="text-center text-muted py-4">Sin resultados</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- ── Pagination ──────────────────────────────── -->
+    <div class="card-footer d-flex justify-content-between align-items-center" x-show="totalResults > pageSize">
+      <span class="text-muted small">
+        Página <span x-text="page + 1"></span> de <span x-text="Math.ceil(totalResults / pageSize)"></span>
+      </span>
+      <div class="d-flex gap-2">
+        <button class="btn btn-sm btn-outline-light" @click="prevPage()" :disabled="page === 0">
+          <i class="bi bi-chevron-left"></i> Anterior
+        </button>
+        <button class="btn btn-sm btn-outline-light" @click="nextPage()" :disabled="page >= Math.ceil(totalResults / pageSize) - 1">
+          Siguiente <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function auditStore() {
+  return {
+    entries: [], totalResults: 0, page: 0, pageSize: 50,
+    filters: { action_type: '', verdict: '', date_from: '', user_id: '', category: '' },
+    merkleValid: false, merkleEntries: 0,
+    expandedEntry: null, entryDetails: {}, detailLoading: null,
+
+    init() { this.loadAudit(); this.checkMerkle(); },
+
+    async loadAudit() {
+      const params = new URLSearchParams({ page: this.page, page_size: this.pageSize, ...this.filters });
+      try {
+        const r = await fetch('/htmx/audit/entries?' + params);
+        if (r.ok) { const d = await r.json(); this.entries = d.entries || []; this.totalResults = d.total || 0; }
+      } catch(e) { console.error('Audit load error', e); }
+    },
+
+    async checkMerkle() {
+      try {
+        const r = await fetch('/htmx/audit/merkle-status');
+        if (r.ok) { const d = await r.json(); this.merkleValid = d.valid; this.merkleEntries = d.total_entries; }
+      } catch(e) {}
+    },
+
+    async verifyMerkle() {
+      try {
+        const r = await fetch('/htmx/audit/merkle-verify', { method: 'POST' });
+        if (r.ok) { const d = await r.json(); this.merkleValid = d.valid; }
+      } catch(e) {}
+    },
+
+    verdictClass(v) {
+      return { ALLOW: 'bg-success', CONFIRM: 'bg-info', DENY: 'bg-danger', RATE_LIMITED: 'bg-warning text-dark' }[v] || 'bg-secondary';
+    },
+
+    formatDate(ts) { return ts ? new Date(ts * 1000).toLocaleString('es') : '--'; },
+
+    prevPage() { if (this.page > 0) { this.page--; this.loadAudit(); } },
+    nextPage() { this.page++; this.loadAudit(); },
+
+    exportAudit(format) {
+      const params = new URLSearchParams({ format, ...this.filters });
+      window.location.href = '/htmx/audit/export?' + params;
+    },
+
+    toggleDetail(entryId) {
+      this.expandedEntry = this.expandedEntry === entryId ? null : entryId;
+    },
+
+    async loadDetail(entryId, event) {
+      if (this.entryDetails[entryId]) return;
+      this.detailLoading = entryId;
+      try {
+        const r = await fetch('/htmx/audit/detail/' + entryId);
+        if (r.ok) this.entryDetails[entryId] = await r.text();
+      } catch(e) { this.entryDetails[entryId] = '<span class="text-danger">Error cargando detalles</span>'; }
+      this.detailLoading = null;
+    },
+  };
+}
+</script>
+{% endblock %}

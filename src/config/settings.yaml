@@ -1,0 +1,69 @@
+project_dir: "."
+engine_limits:
+  solver_timeout_ms: 15000        # 15s quirurgico como especifica el documento
+  solver_fast_timeout_ms: 5000    # 5s para operaciones no quirurgicas
+  sandbox_timeout_s: 5            # Timeout del sandbox
+  mcts_max_depth: 5               # Profundidad maxima MCTS
+  mcts_max_simulations: 100       # Maximo de simulaciones MCTS
+  max_k_paths: 10                 # Radio de K-Paths
+# ── Smart Scraper Configuration ──────────────────────────────
+# Configuracion del Scraper Inteligente multi-fuente.
+# NOTA: Los valores en .env tienen prioridad sobre estos defaults.
+scraper:
+  timeout: 10                      # Timeout global por fuente (segundos)
+  max_retries: 2                   # Reintentos por fuente
+  max_chars: 2000                  # Maximo de caracteres retornados por fuente
+  preferred_source: "auto"         # auto | github | devdocs | iconstack | picsum
+  github:
+    # Sin token: 60 req/h | Con token (via .env): 5000 req/h
+    per_page: 5                    # Resultados por busqueda GitHub
+    branches:                      # Branches a probar al fetch raw code
+      - "main"
+      - "master"
+  devdocs:
+    # 100% gratuito, 0 registro, 0 API key
+    default_languages:
+      - "python~3.12"
+      - "kotlin"
+      - "javascript"
+      - "typescript"
+      - "html"
+      - "css"
+  iconstack:
+    # 100% gratuito, 0 registro, 0 API key
+    default_style: "material"      # Estilo de iconos por defecto
+  picsum:
+    # 100% gratuito, 0 registro, 0 API key
+    # Ejemplo: https://picsum.photos/800/600
+    default_width: 800
+    default_height: 600
+    max_width: 1920
+    max_height: 1080
+critical_nodes:
+  - "auth"
+  - "login"
+  - "signin"
+  - "signup"
+  - "password"
+  - "token"
+  - "crypto"
+  - "cipher"
+  - "encrypt"
+  - "decrypt"
+  - "hash"
+  - "salt"
+  - "payment"
+  - "stripe"
+  - "paypal"
+  - "transaction"
+  - "billing"
+  - "db"
+  - "database"
+  - "sql"
+  - "migration"
+  - "schema"
+  - "session"
+  - "cookie"
+  - "jwt"
+  - "oauth"
+  - "saml"

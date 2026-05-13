@@ -1,0 +1,140 @@
+niche:
+  name: "telemedicine"
+  domain: "health"
+  subdomain: "virtual_care"
+  description: "Plataforma de telemedicina para consultas virtuales entre pacientes y médicos, con gestión de sesiones de video, notas médicas y cumplimiento normativo HIPAA."
+  scale: "large"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - email_smtp
+    - notification_manager
+    - webhook_server
+    - crud_service
+  variables:
+    project_name: "telemedicine"
+    app_name: "Telemedicine"
+    template_type: "health"
+    db_name: "telemedicine.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Patient"
+    fields:
+      - "id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "date_of_birth:date"
+      - "gender:str"
+      - "phone:str"
+      - "email:str"
+      - "address:str"
+      - "insurance_provider:str"
+      - "medical_id:str"
+      - "preferred_language:str"
+      - "created_at:datetime"
+
+  - name: "VirtualConsultation"
+    fields:
+      - "id:uuid"
+      - "patient_id:uuid"
+      - "doctor_id:uuid"
+      - "video_session_id:uuid"
+      - "scheduled_time:datetime"
+      - "start_time:datetime"
+      - "end_time:datetime"
+      - "status:str"
+      - "consultation_type:str"
+      - "chief_complaint:str"
+      - "follow_up_required:bool"
+      - "created_at:datetime"
+
+  - name: "Doctor"
+    fields:
+      - "id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "specialty:str"
+      - "license_number:str"
+      - "email:str"
+      - "phone:str"
+      - "availability_schedule:str"
+      - "consultation_fee:float"
+      - "rating:float"
+      - "active:bool"
+      - "created_at:datetime"
+
+  - name: "VideoSession"
+    fields:
+      - "id:uuid"
+      - "consultation_id:uuid"
+      - "meeting_url:str"
+      - "recording_url:str"
+      - "status:str"
+      - "duration_minutes:int"
+      - "connection_quality:str"
+      - "participant_count:int"
+      - "started_at:datetime"
+      - "ended_at:datetime"
+      - "created_at:datetime"
+
+  - name: "MedicalNote"
+    fields:
+      - "id:uuid"
+      - "consultation_id:uuid"
+      - "doctor_id:uuid"
+      - "patient_id:uuid"
+      - "subjective:str"
+      - "objective:str"
+      - "assessment:str"
+      - "plan:str"
+      - "prescriptions:str"
+      - "note_date:datetime"
+      - "created_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Paciente solicita consulta virtual -> Verificación de disponibilidad -> Creación de sesión de video -> Consulta -> Notas médicas -> Seguimiento"
+    - "Médico revisa historial previo -> Inicia sesión de video -> Diagnóstico y plan de tratamiento -> Emisión de receta electrónica"
+    - "Paciente cancela consulta -> Notificación al médico -> Reembolso si aplica -> Reprogramación automática"
+  triggers:
+    - "consultation_scheduled:Envía enlace de video y recordatorio al paciente y al médico por correo"
+    - "consultation_started:Activa grabación de sesión y registra inicio en el historial del paciente"
+    - "consultation_completed:Genera notas médicas, actualiza historial y envía resumen al paciente"
+    - "video_session_failed:Notifica al paciente y médico, ofrece opción de reconexión o reprogramación"
+    - "follow_up_required:Programa automáticamente cita de seguimiento y envía recordatorio"
+
+features:
+  core:
+    - "Gestión de consultas virtuales con enlace de video seguro y sala de espera digital"
+    - "Registro de pacientes con verificación de identidad y datos de seguro médico"
+    - "Notas médicas estructuradas con formato SOAP (Subjetivo, Objetivo, Assessment, Plan)"
+    - "Sesiones de video con grabación opcional y evaluación de calidad de conexión"
+    - "Sistema de calificación y retroalimentación post-consulta para médicos"
+    - "Control de acceso basado en roles para médicos, pacientes y administradores"
+  advanced:
+    - "Cifrado extremo a extremo para todas las comunicaciones de video y mensajes"
+    - "Webhooks para integración con sistemas EHR externos y plataformas de facturación"
+    - "Dashboard en tiempo real con métricas de consultas, tiempos de espera y satisfacción"
+    - "Detección automática de urgencias basada en síntomas reportados por el paciente"
+    - "Registro de auditoría completo con cumplimiento HIPAA para todas las interacciones"
+  optional:
+    - "Chat en tiempo real pre y post consulta para aclaraciones entre médico y paciente"
+    - "Integración con dispositivos wearable para monitoreo remoto de signos vitales"
+    - "Módulo de recetas electrónicas con envío directo a farmacias asociadas"
+    - "Traducción en tiempo real para consultas multilingües"
+    - "Portal de paciente con historial de consultas, documentos y pagos"
+
+risk_assessment:
+  data_sensitivity: "critical"
+  compliance:
+    - "HIPAA"
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

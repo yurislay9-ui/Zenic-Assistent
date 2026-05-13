@@ -1,0 +1,163 @@
+niche:
+  name: "monitoring"
+  domain: "technology"
+  subdomain: "observability"
+  description: "Sistema de monitorización integral para seguimiento de targets, métricas, alertas y dashboards con gestión de umbrales e incidentes automatizada"
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - notification_manager
+    - webhook_server
+    - data_analyzer
+    - crud_service
+    - report_generator
+    - email_smtp
+    - pdf_generator
+  variables:
+    project_name: "monitoring"
+    app_name: "Monitoring"
+    template_type: "monitoring"
+    db_name: "monitoring.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Target"
+    fields:
+      - "name:str"
+      - "type:str"
+      - "endpoint:str"
+      - "check_interval:int"
+      - "status:str"
+      - "last_check:datetime"
+      - "uptime_pct:float"
+      - "response_time_ms:float"
+      - "labels:json"
+      - "active:bool"
+
+  - name: "Metric"
+    fields:
+      - "name:str"
+      - "target_id:int"
+      - "value:float"
+      - "unit:str"
+      - "metric_type:str"
+      - "labels:json"
+      - "timestamp:datetime"
+      - "aggregation:str"
+
+  - name: "Alert"
+    fields:
+      - "name:str"
+      - "severity:str"
+      - "threshold_id:int"
+      - "status:str"
+      - "message:text"
+      - "fired_at:datetime"
+      - "acknowledged_at:datetime"
+      - "resolved_at:datetime"
+      - "notification_id:int"
+
+  - name: "Dashboard"
+    fields:
+      - "name:str"
+      - "description:text"
+      - "layout:json"
+      - "widgets:json"
+      - "owner:str"
+      - "shared:bool"
+      - "refresh_interval:int"
+      - "created_at:datetime"
+      - "updated_at:datetime"
+
+  - name: "Threshold"
+    fields:
+      - "name:str"
+      - "metric_name:str"
+      - "operator:str"
+      - "value:float"
+      - "duration_sec:int"
+      - "severity:str"
+      - "notification_channel:str"
+      - "cooldown_min:int"
+      - "active:bool"
+
+  - name: "Incident"
+    fields:
+      - "title:str"
+      - "severity:str"
+      - "status:str"
+      - "alert_ids:json"
+      - "assigned_to:str"
+      - "description:text"
+      - "root_cause:text"
+      - "resolution:text"
+      - "started_at:datetime"
+      - "resolved_at:datetime"
+
+  - name: "Notification"
+    fields:
+      - "channel:str"
+      - "recipient:str"
+      - "subject:str"
+      - "message:text"
+      - "status:str"
+      - "alert_id:int"
+      - "sent_at:datetime"
+      - "delivered_at:datetime"
+
+  - name: "Report"
+    fields:
+      - "name:str"
+      - "type:str"
+      - "period_start:datetime"
+      - "period_end:datetime"
+      - "data:json"
+      - "format:str"
+      - "generated_by:str"
+      - "file_path:str"
+      - "created_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Registrar target → Configurar checks → Recopilar métricas → Evaluar umbrales → Generar alertas → Notificar → Crear incidente"
+    - "Definir umbrales → Asignar severidad → Configurar canales de notificación → Activar monitorización → Recibir alertas"
+    - "Crear dashboard → Agregar widgets → Configurar fuentes de datos → Compartir con equipo → Generar reportes periódicos"
+  triggers:
+    - "threshold_exceeded:Generar alerta cuando una métrica supera el umbral configurado durante el período definido"
+    - "target_unreachable:Crear incidente y notificar cuando un target no responde al check de salud"
+    - "alert_acknowledged:Asignar responsable y detener notificaciones repetitivas al reconocer una alerta"
+    - "report_scheduled:Generar y distribuir reportes automáticamente según la programación configurada"
+    - "incident_resolved:Cerrar alertas asociadas y actualizar métricas de uptime al resolver un incidente"
+
+features:
+  core:
+    - "Monitorización continua de targets con checks de salud configurables por intervalo"
+    - "Sistema de métricas con soporte para múltiples tipos y agregaciones temporales"
+    - "Alertas inteligentes con umbrales configurables y niveles de severidad escalonados"
+    - "Dashboards personalizables con widgets de visualización en tiempo real"
+    - "Gestión de incidentes con seguimiento completo del ciclo de vida"
+  advanced:
+    - "Detección de anomalías basada en análisis estadístico de series temporales"
+    - "Correlación automática de alertas para agrupar incidentes relacionados"
+    - "Escalamiento inteligente de notificaciones basado en tiempo sin resolución"
+    - "Análisis predictivo de tendencias para anticipar problemas de capacidad"
+    - "Reportes automatizados en PDF con resumen ejecutivo y métricas detalladas"
+  optional:
+    - "Integración con PagerDuty y Opsgenie para gestión de guardias"
+    - "Mapa topológico de dependencias entre servicios monitorizados"
+    - "API pública para integración con herramientas de terceros"
+    - "Modo maintenance para silenciar alertas durante ventanas programadas"
+    - "Exportación de datos a data lakes para análisis histórico a largo plazo"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance: [SOC2]
+  backup_frequency: "daily"
+  access_control: "basic"
+  audit_trail: true

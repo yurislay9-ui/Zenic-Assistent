@@ -1,0 +1,166 @@
+niche:
+  name: "warehouse"
+  domain: "logistics"
+  subdomain: "warehouse_management"
+  description: "Plataforma de gestión de almacenes para el control de inventario, zonificación, movimientos de stock y optimización de operaciones de picking y almacenaje"
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - inventory_tracker
+    - task_scheduler
+    - notification_manager
+    - crud_service
+    - report_generator
+    - pdf_generator
+    - backup_restore
+  variables:
+    project_name: "warehouse"
+    app_name: "Warehouse"
+    template_type: "niche"
+    db_name: "warehouse.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Warehouse"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "address:str"
+      - "city:str"
+      - "country:str"
+      - "capacity:float"
+      - "used_capacity:float"
+      - "status:str"
+      - "manager_id:uuid"
+      - "timezone:str"
+
+  - name: "Zone"
+    fields:
+      - "id:uuid"
+      - "warehouse_id:uuid"
+      - "name:str"
+      - "type:str"
+      - "temperature_range:str"
+      - "capacity:float"
+      - "used_capacity:float"
+      - "status:str"
+      - "aisle_count:int"
+
+  - name: "Shelf"
+    fields:
+      - "id:uuid"
+      - "zone_id:uuid"
+      - "code:str"
+      - "level:int"
+      - "position:int"
+      - "max_weight:float"
+      - "current_weight:float"
+      - "status:str"
+
+  - name: "Product"
+    fields:
+      - "id:uuid"
+      - "sku:str"
+      - "name:str"
+      - "description:str"
+      - "category:str"
+      - "unit:str"
+      - "weight:float"
+      - "dimensions:json"
+      - "shelf_id:uuid"
+      - "quantity:int"
+      - "min_stock:int"
+      - "barcode:str"
+
+  - name: "StockMovement"
+    fields:
+      - "id:uuid"
+      - "product_id:uuid"
+      - "warehouse_id:uuid"
+      - "type:str"
+      - "quantity:int"
+      - "reference:str"
+      - "origin:str"
+      - "destination:str"
+      - "timestamp:datetime"
+      - "worker_id:uuid"
+
+  - name: "PickOrder"
+    fields:
+      - "id:uuid"
+      - "order_number:str"
+      - "warehouse_id:uuid"
+      - "worker_id:uuid"
+      - "priority:str"
+      - "status:str"
+      - "items:json"
+      - "created_at:datetime"
+      - "completed_at:datetime"
+
+  - name: "Worker"
+    fields:
+      - "id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "role:str"
+      - "shift:str"
+      - "warehouse_id:uuid"
+      - "certification:str"
+      - "status:str"
+      - "hire_date:date"
+
+  - name: "Equipment"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "type:str"
+      - "warehouse_id:uuid"
+      - "serial_number:str"
+      - "status:str"
+      - "last_inspection:date"
+      - "next_inspection:date"
+      - "operator_id:uuid"
+
+workflow:
+  typical_paths:
+    - "Recepción de mercancía → Verificación → Ubicación en zona → Asignación de estantería → Registro de stock → Actualización de inventario"
+    - "Orden de picking → Asignación a trabajador → Recolección de productos → Verificación → Empaquetado → Despacho"
+    - "Alerta de stock bajo → Generación de orden de reabastecimiento → Recepción → Actualización de inventario"
+  triggers:
+    - "stock_below_minimum:Alerta cuando el stock de un producto cae por debajo del mínimo definido"
+    - "pick_order_assigned:Notificación al trabajador cuando se le asigna una orden de picking"
+    - "zone_capacity_exceeded:Aviso cuando una zona supera su capacidad máxima"
+    - "equipment_inspection_due:Recordatorio de inspección de equipo próxima a vencer"
+    - "stock_movement_recorded:Registro automático al detectar movimiento de inventario"
+
+features:
+  core:
+    - "Gestión de inventario en tiempo real por almacén y zona"
+    - "Control de ubicaciones y estanterías con capacidad"
+    - "Registro de movimientos de stock (entrada, salida, transferencia)"
+    - "Gestión de órdenes de picking con priorización"
+    - "Seguimiento de trabajadores y turnos"
+  advanced:
+    - "Optimización de rutas de picking dentro del almacén"
+    - "Alertas de reabastecimiento automático basadas en mínimos"
+    - "Dashboard de ocupación y utilización de espacio"
+    - "Trazabilidad completa de movimientos de stock"
+  optional:
+    - "Integración con sistemas de código de barras y RFID"
+    - "Módulo de gestión de devoluciones"
+    - "Soporte para almacenes con temperatura controlada"
+    - "Reportes de productividad por trabajador"
+    - "Integración con transporte y logística de última milla"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance: [OSHA]
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

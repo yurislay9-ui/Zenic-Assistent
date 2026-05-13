@@ -1,0 +1,192 @@
+niche:
+  name: "accounting"
+  domain: "business"
+  subdomain: "finance"
+  description: "Sistema de contabilidad para gestión de cuentas, asientos contables, partidas, facturas, pagos, impuestos, reportes financieros, períodos y conciliaciones bancarias"
+  scale: "large"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - invoice_calculator
+    - pdf_generator
+    - email_smtp
+    - data_analyzer
+    - crud_service
+    - report_generator
+    - backup_restore
+  variables:
+    project_name: "accounting"
+    app_name: "Accounting"
+    template_type: "finance"
+    db_name: "accounting.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Account"
+    fields:
+      - "code:str"
+      - "name:str"
+      - "type:str"
+      - "subtype:str"
+      - "parent_account_id:int"
+      - "normal_balance:str"
+      - "description:text"
+      - "active:bool"
+      - "currency:str"
+      - "opening_balance:float"
+      - "created_at:datetime"
+
+  - name: "Journal"
+    fields:
+      - "number:str"
+      - "type:str"
+      - "description:text"
+      - "status:str"
+      - "period_id:int"
+      - "created_by:str"
+      - "posted_at:datetime"
+      - "reference:str"
+      - "source:str"
+      - "total_debit:float"
+      - "total_credit:float"
+      - "created_at:datetime"
+
+  - name: "Entry"
+    fields:
+      - "journal_id:int"
+      - "account_id:int"
+      - "type:str"
+      - "amount:float"
+      - "description:text"
+      - "reference:str"
+      - "cost_center:str"
+      - "tax_code:str"
+      - "reconciled:bool"
+      - "created_at:datetime"
+
+  - name: "Invoice"
+    fields:
+      - "number:str"
+      - "type:str"
+      - "customer:str"
+      - "vendor:str"
+      - "issue_date:date"
+      - "due_date:date"
+      - "subtotal:float"
+      - "tax_amount:float"
+      - "total:float"
+      - "status:str"
+      - "line_items:json"
+      - "payment_terms:str"
+      - "notes:text"
+
+  - name: "Payment"
+    fields:
+      - "invoice_id:int"
+      - "amount:float"
+      - "method:str"
+      - "reference:str"
+      - "status:str"
+      - "payment_date:date"
+      - "bank_account:str"
+      - "currency:str"
+      - "exchange_rate:float"
+      - "created_by:str"
+
+  - name: "Tax"
+    fields:
+      - "name:str"
+      - "code:str"
+      - "rate:float"
+      - "type:str"
+      - "jurisdiction:str"
+      - "effective_date:date"
+      - "expiry_date:date"
+      - "taxable_accounts:json"
+      - "filing_frequency:str"
+      - "active:bool"
+
+  - name: "Report"
+    fields:
+      - "name:str"
+      - "type:str"
+      - "period_start:date"
+      - "period_end:date"
+      - "data:json"
+      - "format:str"
+      - "generated_by:str"
+      - "file_path:str"
+      - "status:str"
+      - "created_at:datetime"
+
+  - name: "Period"
+    fields:
+      - "name:str"
+      - "start_date:date"
+      - "end_date:date"
+      - "status:str"
+      - "fiscal_year:int"
+      - "quarter:int"
+      - "closed_by:str"
+      - "closed_at:datetime"
+      - "adjusting_entries:bool"
+
+  - name: "Reconciliation"
+    fields:
+      - "account_id:int"
+      - "period_id:int"
+      - "bank_balance:float"
+      - "book_balance:float"
+      - "difference:float"
+      - "status:str"
+      - "matching_transactions:json"
+      - "unmatched_items:json"
+      - "reconciled_by:str"
+      - "reconciled_at:datetime"
+      - "notes:text"
+
+workflow:
+  typical_paths:
+    - "Crear asiento contable → Agregar partidas (débito/crédito) → Validar balance → Postear al libro mayor → Actualizar cuentas → Cerrar período"
+    - "Emitir factura → Registrar en diario → Recibir pago → Conciliar → Generar comprobante fiscal → Actualizar balance"
+    - "Iniciar conciliación → Importar estado bancario → Comparar transacciones → Identificar discrepancias → Ajustar → Cerrar conciliación"
+  triggers:
+    - "period_closing:Validar que todos los asientos están balanceados antes de permitir el cierre del período contable"
+    - "invoice_overdue:Generar recordatorio automático y calcular mora cuando una factura supera la fecha de vencimiento"
+    - "payment_received:Registrar entrada contable y actualizar estado de factura al recibir un pago"
+    - "tax_filing_due:Notificar al equipo contable 15 días antes de la fecha de presentación de obligaciones fiscales"
+    - "reconciliation_discrepancy:Alertar cuando la diferencia entre balance bancario y contable supera el umbral configurado"
+
+features:
+  core:
+    - "Plan de cuentas jerárquico con soporte para múltiples tipos y subtipos contables"
+    - "Registro de asientos con doble partida y validación automática de balance débito/crédito"
+    - "Gestión de facturas de clientes y proveedores con cálculo automático de impuestos"
+    - "Conciliación bancaria con importación de estados y matching automático de transacciones"
+    - "Gestión de períodos contables con control de cierre y protección de datos históricos"
+    - "Cálculo y seguimiento de obligaciones fiscales con calendario de presentaciones"
+  advanced:
+    - "Generación automática de estados financieros: Balance General, P&L, Flujo de Efectivo"
+    - "Contabilidad multi-moneda con conversión automática y registro de ganancias/pérdidas cambiarias"
+    - "Centros de costo y dimensiones analíticas para reporting segmentado"
+    - "Análisis de antigüedad de cuentas por cobrar y pagar con proyección de flujo de caja"
+    - "Auditoría continua con detección de anomalías en transacciones y patrones inusuales"
+  optional:
+    - "Integración con bancos para obtención automática de extractos y pagos"
+    - "Módulo de presupuesto con comparación presupuesto vs real y análisis de variaciones"
+    - "API de integración con ERP y sistemas de facturación electrónica"
+    - "Dashboard financiero con KPIs en tiempo real: liquidez, endeudamiento, rentabilidad"
+    - "Exportación a formato XBRL para reportes regulatorios"
+
+risk_assessment:
+  data_sensitivity: "critical"
+  compliance: [SOX, GAAP, GDPR]
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

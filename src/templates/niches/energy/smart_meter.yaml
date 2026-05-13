@@ -1,0 +1,180 @@
+niche:
+  name: "smart_meter"
+  domain: "energy"
+  subdomain: "metering"
+  description: "Sistema de gestión de contadores inteligentes para lectura remota, análisis de consumo, tarifas dinámicas, alertas de anomalías y facturación automatizada de suministro eléctrico."
+  scale: "large"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - data_analyzer
+    - invoice_calculator
+    - notification_manager
+    - email_smtp
+    - crud_service
+    - report_generator
+    - pdf_generator
+  variables:
+    project_name: "smart_meter"
+    app_name: "SmartMeter"
+    template_type: "niche"
+    db_name: "smart_meter.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Meter"
+    fields:
+      - "meter_id:uuid"
+      - "serial_number:str"
+      - "manufacturer:str"
+      - "model:str"
+      - "firmware_version:str"
+      - "install_date:date"
+      - "status:str"
+      - "communication_protocol:str"
+      - "location_lat:float"
+      - "location_lon:float"
+      - "customer_id:uuid"
+      - "last_reading:datetime"
+
+  - name: "Reading"
+    fields:
+      - "reading_id:uuid"
+      - "meter_id:uuid"
+      - "timestamp:datetime"
+      - "value_kwh:float"
+      - "reading_type:str"
+      - "quality_flag:str"
+      - "anomaly:bool"
+      - "import_kwh:float"
+      - "export_kwh:float"
+      - "power_kw:float"
+      - "voltage_v:float"
+
+  - name: "Customer"
+    fields:
+      - "customer_id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "address:str"
+      - "city:str"
+      - "postal_code:str"
+      - "customer_type:str"
+      - "registration_date:date"
+      - "preferred_language:str"
+
+  - name: "Tariff"
+    fields:
+      - "tariff_id:uuid"
+      - "name:str"
+      - "tariff_type:str"
+      - "currency:str"
+      - "peak_rate:float"
+      - "off_peak_rate:float"
+      - "shoulder_rate:float"
+      - "peak_start:time"
+      - "peak_end:time"
+      - "standing_charge:float"
+      - "effective_date:date"
+      - "status:str"
+
+  - name: "Alert"
+    fields:
+      - "alert_id:uuid"
+      - "meter_id:uuid"
+      - "customer_id:uuid"
+      - "type:str"
+      - "severity:str"
+      - "message:str"
+      - "timestamp:datetime"
+      - "acknowledged:bool"
+      - "resolved:bool"
+      - "resolution:str"
+
+  - name: "Consumption"
+    fields:
+      - "consumption_id:uuid"
+      - "meter_id:uuid"
+      - "customer_id:uuid"
+      - "period_start:date"
+      - "period_end:date"
+      - "total_kwh:float"
+      - "peak_kwh:float"
+      - "off_peak_kwh:float"
+      - "estimated_cost:float"
+      - "comparison_pct:float"
+
+  - name: "Billing"
+    fields:
+      - "billing_id:uuid"
+      - "customer_id:uuid"
+      - "meter_id:uuid"
+      - "period_start:date"
+      - "period_end:date"
+      - "consumption_kwh:float"
+      - "tariff_id:uuid"
+      - "amount:float"
+      - "tax:float"
+      - "total:float"
+      - "status:str"
+      - "due_date:date"
+      - "payment_date:date"
+
+  - name: "Device"
+    fields:
+      - "device_id:uuid"
+      - "meter_id:uuid"
+      - "device_type:str"
+      - "manufacturer:str"
+      - "model:str"
+      - "serial_number:str"
+      - "install_date:date"
+      - "status:str"
+      - "last_communication:datetime"
+      - "battery_level:int"
+
+workflow:
+  typical_paths:
+    - "Lectura remota del contador → Validación de calidad → Detección de anomalías → Cálculo de consumo → Facturación → Notificación al cliente"
+    - "Registro de contador → Asignación a cliente → Configuración de tarifa → Inicio de lecturas periódicas → Monitoreo continuo"
+    - "Detección de anomalía → Generación de alerta → Notificación al cliente → Investigación → Resolución → Actualización de estado"
+  triggers:
+    - "reading_anomaly:Alerta cuando una lectura presenta valores atípicos o inconsistentes"
+    - "high_consumption:Notificación cuando el consumo supera el umbral esperado para el perfil del cliente"
+    - "billing_cycle:Generación automática de facturas al cierre del periodo de facturación"
+    - "meter_offline:Aviso cuando un contador no envía lecturas en el intervalo esperado"
+    - "tariff_change:Aplicación automática de cambios tarifarios programados"
+
+features:
+  core:
+    - "Recolección automatizada de lecturas de contadores inteligentes con validación de calidad"
+    - "Cálculo de consumo por periodos tarifarios con soporte para tarifas dinámicas"
+    - "Facturación automatizada con desglose por tramos horarios y cargos fijos"
+    - "Detección de anomalías en consumo y posibles fraudes o fallos de equipo"
+    - "Portal de cliente con visualización de consumo histórico y comparativas"
+  advanced:
+    - "Análisis predictivo de consumo basado en patrones históricos y variables externas"
+    - "Segmentación de clientes por perfil de consumo para tarifas personalizadas"
+    - "Detección de fraude mediante análisis estadístico y aprendizaje automático"
+    - "Integración con sistemas de respuesta a la demanda y gestión de carga"
+  optional:
+    - "Soporte para contadores de gas y agua con lecturas combinadas"
+    - "Módulo de autoconsumo con compensación de excedentes y balance neto"
+    - "Dashboard GIS con mapa de contadores y estado de comunicaciones"
+    - "Integración con plataformas de hogares inteligentes y gestión energética"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance:
+    - "GDPR"
+    - "Energy Reg"
+  backup_frequency: "daily"
+  access_control: "basic"
+  audit_trail: true

@@ -1,0 +1,180 @@
+niche:
+  name: "omnichannel"
+  domain: "retail"
+  subdomain: "omnichannel"
+  description: "Plataforma omnicanal de retail que unifica la experiencia de venta a través de múltiples canales (tienda física, online, móvil, marketplace), sincronizando inventario, órdenes, promociones y gestión de devoluciones en tiempo real."
+  scale: "large"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - inventory_tracker
+    - invoice_calculator
+    - email_smtp
+    - notification_manager
+    - crud_service
+    - report_generator
+    - pdf_generator
+    - backup_restore
+  variables:
+    project_name: "omnichannel"
+    app_name: "Omnichannel"
+    template_type: "retail"
+    db_name: "omnichannel.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Product"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "description:text"
+      - "sku:str"
+      - "price:decimal"
+      - "cost:decimal"
+      - "category_id:uuid"
+      - "images:json"
+      - "attributes:json"
+      - "status:str"
+      - "channel_visibility:json"
+      - "created_at:datetime"
+  - name: "Channel"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "type:str"
+      - "description:text"
+      - "config:json"
+      - "api_credentials:json"
+      - "commission_rate:decimal"
+      - "status:str"
+      - "sync_enabled:bool"
+      - "last_synced_at:datetime"
+      - "created_at:datetime"
+  - name: "Inventory"
+    fields:
+      - "id:uuid"
+      - "product_id:uuid"
+      - "channel_id:uuid"
+      - "warehouse_id:uuid"
+      - "quantity:int"
+      - "reserved:int"
+      - "available:int"
+      - "buffer_stock:int"
+      - "sync_status:str"
+      - "last_updated:datetime"
+      - "created_at:datetime"
+  - name: "Order"
+    fields:
+      - "id:uuid"
+      - "customer_id:uuid"
+      - "channel_id:uuid"
+      - "items:json"
+      - "subtotal:decimal"
+      - "tax:decimal"
+      - "shipping:decimal"
+      - "discount:decimal"
+      - "total:decimal"
+      - "status:str"
+      - "fulfillment_type:str"
+      - "created_at:datetime"
+  - name: "Customer"
+    fields:
+      - "id:uuid"
+      - "full_name:str"
+      - "email:str"
+      - "phone:str"
+      - "addresses:json"
+      - "preferences:json"
+      - "total_orders:int"
+      - "total_spent:decimal"
+      - "channels:json"
+      - "status:str"
+      - "created_at:datetime"
+  - name: "Fulfillment"
+    fields:
+      - "id:uuid"
+      - "order_id:uuid"
+      - "warehouse_id:uuid"
+      - "type:str"
+      - "status:str"
+      - "tracking_number:str"
+      - "carrier:str"
+      - "estimated_delivery:date"
+      - "shipped_at:datetime"
+      - "delivered_at:datetime"
+      - "created_at:datetime"
+  - name: "Return"
+    fields:
+      - "id:uuid"
+      - "order_id:uuid"
+      - "customer_id:uuid"
+      - "channel_id:uuid"
+      - "items:json"
+      - "refund_amount:decimal"
+      - "reason:str"
+      - "status:str"
+      - "return_channel:str"
+      - "processed_at:datetime"
+      - "created_at:datetime"
+  - name: "Promotion"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "description:text"
+      - "type:str"
+      - "value:decimal"
+      - "conditions:json"
+      - "applicable_channels:json"
+      - "valid_from:datetime"
+      - "valid_until:datetime"
+      - "usage_limit:int"
+      - "active:bool"
+      - "created_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Producto creado → Sincronizado con todos los canales → Inventario distribuido → Cliente compra desde cualquier canal → Orden unificada → Fulfillment asignado → Entrega o recogida → Inventario actualizado globalmente"
+    - "Cliente compra online → Elige recogida en tienda → Orden enviada a sucursal → Personal prepara pedido → Cliente recoge → Inventario de tienda actualizado"
+    - "Promoción creada → Aplicada a canales seleccionados → Sincronización con todos los puntos de venta → Monitoreo de uso → Reporte de efectividad por canal"
+  triggers:
+    - "order_created:se activa cuando se crea una orden desde cualquier canal"
+    - "inventory_synced:se activa cuando se sincroniza el inventario entre canales"
+    - "fulfillment_assigned:se activa al asignar el tipo de cumplimiento a una orden"
+    - "return_initiated:se activa cuando un cliente inicia una devolución desde cualquier canal"
+    - "promotion_activated:se activa cuando una promoción se vuelve vigente en los canales configurados"
+
+features:
+  core:
+    - "Gestión unificada de productos con visibilidad y precios por canal"
+    - "Sincronización de inventario en tiempo real entre todos los canales de venta"
+    - "Procesamiento de órdenes centralizado con múltiples opciones de fulfillment"
+    - "Gestión de promociones con aplicación selectiva por canal"
+    - "Perfil de cliente unificado con historial de interacciones multi-canal"
+    - "Control de acceso basado en roles con permisos por canal y operación"
+  advanced:
+    - "Fulfillment inteligente con routing automático al almacén más cercano"
+    - "Devoluciones cross-channel con opción de compra online y devolución en tienda"
+    - "Reportes comparativos de rendimiento por canal con métricas de conversión"
+    - "Motor de promociones con reglas complejas y condiciones multi-canal"
+    - "Facturación unificada con cálculo de impuestos por jurisdicción y canal"
+  optional:
+    - "Integración con marketplaces externos (Amazon, MercadoLibre, etc.)"
+    - "Buy Online Pick Up In Store (BOPIS) con notificaciones de estado"
+    - "Sistema de reservas de inventario con tiempo de expiración configurable"
+    - "Dashboard ejecutivo con KPIs omnicanal en tiempo real"
+    - "API de integración con sistemas ERP y CRM corporativos"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance:
+    - "PCI-DSS"
+    - "GDPR"
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

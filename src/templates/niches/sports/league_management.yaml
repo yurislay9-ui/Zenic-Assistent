@@ -1,0 +1,160 @@
+niche:
+  name: "league_management"
+  domain: "sports"
+  subdomain: "league_operations"
+  description: "Sistema de gestión de ligas deportivas con administración de equipos, fixture de partidos, tabla de posiciones, reglamento, temporadas, premios y arbitraje."
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - email_smtp
+    - notification_manager
+    - crud_service
+    - report_generator
+    - pdf_generator
+    - data_analyzer
+  variables:
+    project_name: "league_management"
+    app_name: "LeagueManagement"
+    template_type: "niche"
+    db_name: "league_management.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "League"
+    fields:
+      - "name:str"
+      - "sport:str"
+      - "country:str"
+      - "division:str"
+      - "format:str"
+      - "max_teams:int"
+      - "promotion_spots:int"
+      - "relegation_spots:int"
+      - "is_active:bool"
+      - "created_at:datetime"
+  - name: "Team"
+    fields:
+      - "name:str"
+      - "logo:str"
+      - "league_id:int"
+      - "city:str"
+      - "stadium:str"
+      - "manager:str"
+      - "founded_year:int"
+      - "is_active:bool"
+      - "points:int"
+      - "created_at:datetime"
+  - name: "Match"
+    fields:
+      - "league_id:int"
+      - "season_id:int"
+      - "home_team_id:int"
+      - "away_team_id:int"
+      - "matchday:int"
+      - "scheduled_at:datetime"
+      - "venue:str"
+      - "home_score:int"
+      - "away_score:int"
+      - "status:str"
+      - "referee_id:int"
+  - name: "Standing"
+    fields:
+      - "league_id:int"
+      - "season_id:int"
+      - "team_id:int"
+      - "played:int"
+      - "won:int"
+      - "drawn:int"
+      - "lost:int"
+      - "goals_for:int"
+      - "goals_against:int"
+      - "goal_difference:int"
+      - "points:int"
+      - "position:int"
+  - name: "Rule"
+    fields:
+      - "league_id:int"
+      - "title:str"
+      - "description:text"
+      - "category:str"
+      - "penalty:str"
+      - "is_active:bool"
+      - "effective_date:date"
+      - "created_at:datetime"
+  - name: "Season"
+    fields:
+      - "league_id:int"
+      - "name:str"
+      - "start_date:date"
+      - "end_date:date"
+      - "status:str"
+      - "registration_deadline:date"
+      - "total_matchdays:int"
+      - "current_matchday:int"
+      - "created_at:datetime"
+  - name: "Award"
+    fields:
+      - "season_id:int"
+      - "name:str"
+      - "category:str"
+      - "recipient_type:str"
+      - "recipient_id:int"
+      - "description:text"
+      - "ceremony_date:date"
+      - "is_announced:bool"
+      - "created_at:datetime"
+  - name: "Referee"
+    fields:
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "certification:str"
+      - "experience_years:int"
+      - "is_available:bool"
+      - "total_matches:int"
+      - "rating:float"
+      - "created_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Admin crea temporada → Registra equipos → Genera fixture → Asigna árbitros → Inicia competición"
+    - "Árbitro dirige partido → Registra resultado → Tabla de posiciones actualizada → Se verifican reglas"
+    - "Temporada finaliza → Se calculan posiciones finales → Se asignan ascensos/descensos → Se otorgan premios"
+  triggers:
+    - "match_result_submitted:Actualizar automáticamente tabla de posiciones y verificar cambios de posición"
+    - "season_start:Activar temporada y notificar a todos los equipos sobre el inicio de la competición"
+    - "matchday_reminder:Notificar a equipos y árbitros sobre partidos del próximo matchday"
+    - "season_end:Calcular clasificaciones finales y generar reportes de temporada en PDF"
+
+features:
+  core:
+    - "Generación automática de fixture con algoritmo round-robin"
+    - "Tabla de posiciones en tiempo real con cálculo automático de puntos y diferencia"
+    - "Gestión de temporadas con registro de equipos y plazos"
+    - "Sistema de reglamentos con categorías y penalizaciones"
+    - "Administración de árbitros con asignación y evaluación"
+  advanced:
+    - "Análisis estadístico avanzado con tendencias de equipos y prediccciones"
+    - "Generación de reportes PDF de temporada con estadísticas completas"
+    - "Sistema de ascensos y descensos automático según configuración de liga"
+    - "Dashboard administrativo con métricas de competición y rendimiento arbitral"
+  optional:
+    - "Transmisión en vivo de marcadores con actualización en tiempo real"
+    - "Portal público de liga con calendario, resultados y estadísticas"
+    - "Sistema de apelación y disciplina con seguimiento de casos"
+    - "Integración con redes sociales para difusión automatizada de resultados"
+
+risk_assessment:
+  data_sensitivity: "low"
+  compliance:
+    - GDPR
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

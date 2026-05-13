@@ -1,0 +1,190 @@
+niche:
+  name: "case_management"
+  domain: "legal"
+  subdomain: "case_management"
+  description: "Sistema de gestión de casos legales para bufetes y departamentos jurídicos con seguimiento de audiencias, plazos, facturación y evidencia documental con privilegio abogado-cliente"
+  scale: "large"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - pdf_generator
+    - email_smtp
+    - notification_manager
+    - task_scheduler
+    - crud_service
+    - backup_restore
+    - report_generator
+  variables:
+    project_name: "case_management"
+    app_name: "CaseManagement"
+    template_type: "niche"
+    db_name: "case_management.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Case"
+    fields:
+      - "case_id:uuid"
+      - "case_number:str"
+      - "title:str"
+      - "case_type:str"
+      - "jurisdiction:str"
+      - "status:str"
+      - "priority:str"
+      - "filed_date:date"
+      - "closed_date:date"
+      - "client_id:uuid"
+      - "lead_attorney_id:uuid"
+      - "description:str"
+
+  - name: "Client"
+    fields:
+      - "client_id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "address:str"
+      - "client_type:str"
+      - "company_name:str"
+      - "national_id:str"
+      - "onboarding_date:date"
+      - "status:str"
+      - "billing_preferences:json"
+
+  - name: "Attorney"
+    fields:
+      - "attorney_id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "bar_number:str"
+      - "specialization:str"
+      - "hourly_rate:decimal"
+      - "department:str"
+      - "status:str"
+      - "hire_date:date"
+      - "active_cases_count:int"
+
+  - name: "Document"
+    fields:
+      - "document_id:uuid"
+      - "case_id:uuid"
+      - "document_type:str"
+      - "title:str"
+      - "file_path:str"
+      - "file_size:int"
+      - "mime_type:str"
+      - "is_privileged:bool"
+      - "version:int"
+      - "uploaded_at:datetime"
+      - "uploaded_by:uuid"
+      - "access_restricted:bool"
+
+  - name: "Hearing"
+    fields:
+      - "hearing_id:uuid"
+      - "case_id:uuid"
+      - "hearing_type:str"
+      - "scheduled_at:datetime"
+      - "duration_minutes:int"
+      - "location:str"
+      - "court_room:str"
+      - "judge_name:str"
+      - "status:str"
+      - "outcome:str"
+      - "notes:str"
+      - "attendees:list"
+
+  - name: "Deadline"
+    fields:
+      - "deadline_id:uuid"
+      - "case_id:uuid"
+      - "title:str"
+      - "description:str"
+      - "due_date:datetime"
+      - "deadline_type:str"
+      - "is_statutory:bool"
+      - "status:str"
+      - "completed_at:datetime"
+      - "assigned_to:uuid"
+      - "reminder_days_before:int"
+      - "priority:str"
+
+  - name: "Billing"
+    fields:
+      - "billing_id:uuid"
+      - "case_id:uuid"
+      - "client_id:uuid"
+      - "attorney_id:uuid"
+      - "activity_type:str"
+      - "description:str"
+      - "hours:decimal"
+      - "rate:decimal"
+      - "amount:decimal"
+      - "billed_date:date"
+      - "status:str"
+      - "invoice_id:uuid"
+
+  - name: "Evidence"
+    fields:
+      - "evidence_id:uuid"
+      - "case_id:uuid"
+      - "evidence_type:str"
+      - "description:str"
+      - "source:str"
+      - "collected_at:datetime"
+      - "collected_by:uuid"
+      - "chain_of_custody:str"
+      - "storage_location:str"
+      - "is_admitted:bool"
+      - "authentication_status:str"
+      - "tags:list"
+
+workflow:
+  typical_paths:
+    - "Recibir cliente → Abrir caso → Asignar abogado → Recopilar evidencia → Preparar audiencia → Presentar alegatos"
+    - "Registrar actividad facturable → Generar factura → Enviar al cliente → Recibir pago → Conciliar cuenta"
+    - "Identificar plazo legal → Programar recordatorios → Preparar documento → Presentar ante tribunal → Registrar resultado"
+  triggers:
+    - "hearing_scheduled:Notificar al equipo legal sobre nueva audiencia y preparar agenda de preparación"
+    - "deadline_approaching:Alertar sobre plazos legales próximos a vencer con escalado automático de prioridad"
+    - "billing_threshold_reached:Generar factura cuando las horas facturables alcanzan el umbral configurado"
+    - "evidence_collected:Registrar nueva evidencia y actualizar cadena de custodia del caso"
+    - "case_status_changed:Notificar al cliente y equipo sobre cambios significativos en el estado del caso"
+
+features:
+  core:
+    - "Gestión completa del ciclo de vida de casos legales con seguimiento de estado y progreso"
+    - "Programación y seguimiento de audiencias con calendario integrado"
+    - "Sistema de plazos legales con alertas escalonadas y protección de fechas estatutarias"
+    - "Facturación por horas con registro de actividades y generación de facturas"
+    - "Gestión documental con control de acceso y protección de privilegio abogado-cliente"
+  advanced:
+    - "Dashboard analítico con métricas de rendimiento por abogado, tipo de caso y resultado"
+    - "Motor de búsqueda full-text en documentos de caso con OCR integrado"
+    - "Sistema de cadena de custodia digital para evidencia con trazabilidad completa"
+    - "Plantillas de documentos legales con generación automatizada"
+    - "Análisis predictivo de resultado de casos basado en datos históricos"
+  optional:
+    - "Integración con sistemas de tribunales electrónicos para presentación remota"
+    - "Portal de clientes para consulta de estado de casos y documentos"
+    - "Módulo de conflictos de interés con verificación automática"
+    - "Videoconferencia integrada para reuniones con clientes"
+    - "Integración con herramientas de e-discovery y revisión documental"
+
+risk_assessment:
+  data_sensitivity: "critical"
+  compliance:
+    - "GDPR"
+    - "Attorney-Client Privilege"
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

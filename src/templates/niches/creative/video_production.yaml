@@ -1,0 +1,165 @@
+niche:
+  name: "video_production"
+  domain: "creative"
+  subdomain: "video_services"
+  description: "Plataforma de gestión de producción de video con administración de proyectos, escenas, activos multimedia, edición, líneas temporales, clientes, facturación y entregables."
+  scale: "small"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - email_smtp
+    - pdf_generator
+    - invoice_calculator
+    - task_scheduler
+    - crud_service
+    - notification_manager
+    - report_generator
+    - backup_restore
+  variables:
+    project_name: "video_production"
+    app_name: "VideoProduction"
+    template_type: "niche"
+    db_name: "video_production.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Project"
+    fields:
+      - "name:str"
+      - "description:text"
+      - "client_id:int"
+      - "type:str"
+      - "resolution:str"
+      - "fps:int"
+      - "budget:float"
+      - "spent:float"
+      - "status:str"
+      - "start_date:date"
+      - "deadline:date"
+      - "created_at:datetime"
+  - name: "Scene"
+    fields:
+      - "project_id:int"
+      - "scene_number:int"
+      - "title:str"
+      - "description:text"
+      - "location:str"
+      - "duration:float"
+      - "script:text"
+      - "storyboard:str"
+      - "status:str"
+      - "notes:text"
+      - "created_at:datetime"
+  - name: "Asset"
+    fields:
+      - "project_id:int"
+      - "name:str"
+      - "filepath:str"
+      - "asset_type:str"
+      - "mime_type:str"
+      - "file_size:int"
+      - "duration:float"
+      - "resolution:str"
+      - "uploaded_by:int"
+      - "tags:json"
+      - "created_at:datetime"
+  - name: "Edit"
+    fields:
+      - "project_id:int"
+      - "scene_id:int"
+      - "editor_id:int"
+      - "version:int"
+      - "cut_list:json"
+      - "effects:json"
+      - "color_grade:str"
+      - "audio_mix:str"
+      - "status:str"
+      - "created_at:datetime"
+  - name: "Timeline"
+    fields:
+      - "project_id:int"
+      - "phase:str"
+      - "description:text"
+      - "start_date:date"
+      - "end_date:date"
+      - "assigned_to:int"
+      - "status:str"
+      - "order_index:int"
+      - "created_at:datetime"
+  - name: "Client"
+    fields:
+      - "company_name:str"
+      - "contact_name:str"
+      - "email:str"
+      - "phone:str"
+      - "industry:str"
+      - "notes:text"
+      - "is_active:bool"
+      - "created_at:datetime"
+  - name: "Invoice"
+    fields:
+      - "project_id:int"
+      - "client_id:int"
+      - "invoice_number:str"
+      - "items:json"
+      - "subtotal:float"
+      - "tax:float"
+      - "total:float"
+      - "status:str"
+      - "due_date:date"
+      - "created_at:datetime"
+  - name: "Deliverable"
+    fields:
+      - "project_id:int"
+      - "name:str"
+      - "format:str"
+      - "filepath:str"
+      - "file_size:int"
+      - "status:str"
+      - "delivered_at:datetime"
+      - "accepted:bool"
+      - "client_feedback:text"
+      - "created_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Cliente solicita proyecto → Se define brief → Pre-producción (guion, storyboard) → Producción (grabación) → Post-producción (edición, color, audio) → Entrega"
+    - "Editor importa activos → Organiza por escena → Realiza corte → Aplica efectos y color → Exporta versión → Cliente revisa"
+    - "Proyecto completado → Se generan entregables en múltiples formatos → Se emite factura → Se archiva proyecto"
+  triggers:
+    - "project_created:Notificar al equipo de producción sobre nuevo proyecto asignado"
+    - "edit_submitted:Enviar versión de edición al cliente para revisión y aprobación"
+    - "invoice_overdue:Recordar al cliente sobre factura pendiente de pago"
+    - "backup_scheduled:Ejecutar respaldo automático de activos del proyecto según programación"
+
+features:
+  core:
+    - "Gestión de proyectos de video con fases de pre-producción, producción y post-producción"
+    - "Sistema de escenas con guion, storyboard y seguimiento de estado"
+    - "Biblioteca de activos multimedia con categorización y etiquetado"
+    - "Sistema de edición con versionado y comparación de cortes"
+    - "Facturación con cálculo automático y seguimiento de pagos"
+  advanced:
+    - "Línea temporal del proyecto con diagrama de Gantt y asignación de recursos"
+    - "Generación de facturas y contratos en PDF con branding del estudio"
+    - "Dashboard de reportes con métricas de rentabilidad y tiempos de entrega"
+    - "Backup automático con restauración selectiva por proyecto y versión"
+  optional:
+    - "Portal del cliente con vista de proyecto, revisiones y descarga de entregables"
+    - "Integración con Adobe Premiere Pro y DaVinci Resolve vía XML/EDL"
+    - "Sistema de aprobación de versiones con timestamps y comentarios por escena"
+    - "Colaboración en tiempo real con notas y marcadores en el timeline"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance:
+    - GDPR
+    - DMCA
+  backup_frequency: "daily"
+  access_control: "basic"
+  audit_trail: true

@@ -1,0 +1,15 @@
+# Cross-compilation targets for Android/Termux (Xiaomi Redmi 12R Pro)
+[target.aarch64-linux-android]
+linker = "aarch64-linux-android35-clang"
+
+# Build optimizations for mobile (low RAM, CPU-only)
+[profile.release]
+opt-level = "z"     # Optimize for size
+lto = true          # Link-time optimization
+codegen-units = 1   # Maximum optimization
+strip = true        # Strip debug symbols
+panic = "abort"     # Smaller binary, no unwind tables
+
+[profile.dev]
+opt-level = 0
+debug = true

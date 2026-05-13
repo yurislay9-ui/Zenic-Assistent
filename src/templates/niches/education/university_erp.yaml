@@ -1,0 +1,196 @@
+niche:
+  name: "university_erp"
+  domain: "education"
+  subdomain: "university_management"
+  description: "Sistema integral de planificación de recursos universitarios que gestiona estudiantes, profesores, departamentos, cursos, investigación y becas en una institución de educación superior"
+  scale: "enterprise"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - report_generator
+    - data_analyzer
+    - notification_manager
+    - email_smtp
+    - pdf_generator
+    - crud_service
+    - backup_restore
+    - invoice_calculator
+  variables:
+    project_name: "university_erp"
+    app_name: "UniversityERP"
+    template_type: "education"
+    db_name: "university_erp.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Student"
+    fields:
+      - "id:uuid"
+      - "student_id:str"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "date_of_birth:date"
+      - "gender:str"
+      - "address:str"
+      - "department_id:uuid"
+      - "enrollment_year:int"
+      - "status:str"
+  - name: "Professor"
+    fields:
+      - "id:uuid"
+      - "employee_id:str"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "department_id:uuid"
+      - "rank:str"
+      - "specialization:str"
+      - "office_location:str"
+      - "hire_date:date"
+      - "tenure:bool"
+  - name: "Department"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "code:str"
+      - "faculty:str"
+      - "head_professor_id:uuid"
+      - "description:str"
+      - "office_location:str"
+      - "phone:str"
+      - "established_year:int"
+      - "budget:decimal"
+  - name: "Course"
+    fields:
+      - "id:uuid"
+      - "code:str"
+      - "title:str"
+      - "description:str"
+      - "credits:int"
+      - "department_id:uuid"
+      - "professor_id:uuid"
+      - "prerequisites:str"
+      - "capacity:int"
+      - "semester:str"
+      - "schedule:str"
+      - "classroom_id:uuid"
+  - name: "Enrollment"
+    fields:
+      - "id:uuid"
+      - "student_id:uuid"
+      - "course_id:uuid"
+      - "semester:str"
+      - "academic_year:str"
+      - "status:str"
+      - "enrollment_date:date"
+      - "drop_date:date"
+      - "final_grade:str"
+  - name: "Grade"
+    fields:
+      - "id:uuid"
+      - "student_id:uuid"
+      - "course_id:uuid"
+      - "assessment_type:str"
+      - "score:decimal"
+      - "max_score:decimal"
+      - "weight:float"
+      - "letter_grade:str"
+      - "graded_by:uuid"
+      - "graded_at:datetime"
+  - name: "Research"
+    fields:
+      - "id:uuid"
+      - "title:str"
+      - "principal_investigator_id:uuid"
+      - "department_id:uuid"
+      - "description:str"
+      - "status:str"
+      - "start_date:date"
+      - "end_date:date"
+      - "funding_amount:decimal"
+      - "funding_source:str"
+      - "publications_count:int"
+  - name: "Scholarship"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "description:str"
+      - "amount:decimal"
+      - "criteria:str"
+      - "deadline:date"
+      - "department_id:uuid"
+      - "max_recipients:int"
+      - "is_active:bool"
+      - "created_at:datetime"
+  - name: "Staff"
+    fields:
+      - "id:uuid"
+      - "employee_id:str"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "department_id:uuid"
+      - "position:str"
+      - "hire_date:date"
+      - "salary:decimal"
+      - "status:str"
+  - name: "Classroom"
+    fields:
+      - "id:uuid"
+      - "building:str"
+      - "room_number:str"
+      - "capacity:int"
+      - "type:str"
+      - "equipment:str"
+      - "is_available:bool"
+      - "floor:int"
+
+workflow:
+  typical_paths:
+    - "Estudiante se inscribe en cursos, asiste a clases, recibe calificaciones y solicita becas o certificados"
+    - "Profesor gestiona cursos, califica estudiantes, publica investigaciones y solicita fondos de investigación"
+    - "Administrador departamental supervisa inscripciones, asigna aulas, aprueba becas y genera reportes institucionales"
+  triggers:
+    - "enrollment_period_open:Notificar a estudiantes sobre período de inscripción y cursos disponibles"
+    - "grade_submitted:Calcular promedio acumulado, verificar estado académico y notificar al estudiante"
+    - "scholarship_deadline:Recordar a estudiantes elegibles sobre becas próximas a vencer"
+    - "research_proposal_submitted:Notificar al comité de revisión y asignar evaluadores"
+    - "semester_closing:Generar reportes departamentales, calcular métricas de rendimiento y respaldar datos"
+
+features:
+  core:
+    - "Gestión integral de estudiantes con expedientes académicos completos"
+    - "Administración de cursos con programación y asignación de aulas"
+    - "Sistema de calificaciones con cálculo automático de promedios y estado académico"
+    - "Gestión de departamentos con presupuestos y personal"
+    - "Portal de investigación con seguimiento de proyectos y publicaciones"
+    - "Sistema de becas con evaluación de elegibilidad y asignación"
+  advanced:
+    - "Analíticas institucionales con métricas de retención, graduación y rendimiento"
+    - "Generación de reportes personalizados por departamento, facultad y nivel institucional"
+    - "Sistema de facturación y cálculo de colegiaturas con descuentos y becas"
+    - "Respaldo y restauración con auditoría completa de cambios en registros"
+  optional:
+    - "Integración con sistemas de biblioteca y acceso a bases de datos académicas"
+    - "Portal de exalumnos con seguimiento de trayectoria profesional"
+    - "Módulo de encuestas de satisfacción estudiantil y evaluación docente"
+    - "Soporte para programas de intercambio y movilidad estudiantil internacional"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance:
+    - FERPA
+    - GDPR
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

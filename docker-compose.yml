@@ -1,0 +1,236 @@
+# ============================================================
+#  ZENIC-AGENTS v1.0.0 - Docker Compose (Production)
+#  Full-stack: FastAPI + Workers + PostgreSQL + Redis + Nginx
+#
+#  Services:
+#    - app:      FastAPI application (Gunicorn + Uvicorn workers)
+#    - worker:   Distributed task worker (SAGA + Blueprints)
+#    - db:       PostgreSQL 16 with auto-setup + coordination schema
+#    - redis:    Redis 7 for pub/sub + caching + SNA scheduling
+#    - nginx:    Reverse proxy + SSL termination
+#    - backup:   Scheduled database backups
+#
+#  Usage:
+#    docker compose up -d                        # Start core services
+#    docker compose up -d --scale worker=3       # Start with 3 workers
+#    docker compose logs -f app                  # Follow app logs
+#    docker compose exec db psql -U zenic zenic_db  # DB shell
+#    docker compose run --rm backup              # Manual backup
+#
+#  SSL:
+#    Set ZENIC_DOMAIN in .env.production, then:
+#    docker compose run --rm certbot   # Obtain SSL cert
+# ============================================================
+
+services:
+  # ── PostgreSQL Database ──────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: zenic-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-zenic_db}
+      POSTGRES_USER: ${POSTGRES_USER:-zenic}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/sql/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-zenic} -d ${POSTGRES_DB:-zenic_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - zenic-internal
+    # Do NOT expose PostgreSQL port externally
+
+  # ── Redis (Pub/Sub + Caching + Session Store + SNA) ──
+  redis:
+    image: redis:7-alpine
+    container_name: zenic-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory ${REDIS_MAXMEMORY:-256mb}
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zenic-internal
+    # Redis NOT exposed externally
+
+  # ── FastAPI Application ──────────────────────────────────
+  app:
+    build:
+      context: .
+      target: production
+    container_name: zenic-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # Database
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-zenic}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-zenic_db}
+      DATABASE_URL_SYNC: postgresql+psycopg2://${POSTGRES_USER:-zenic}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-zenic_db}
+      # Redis
+      REDIS_URL: redis://redis:6379/0
+      # Auth
+      ZENIC_AUTH_SECRET: ${ZENIC_AUTH_SECRET:?ZENIC_AUTH_SECRET required}
+      ZENIC_AUTH_ENABLED: "true"
+      ZENIC_SERVER_MODE: fastapi
+      ZENIC_ENV: production
+      # Data
+      ZENIC_DATA_DIR: /home/zenic/.zenic_agents/data
+      # Resources
+      ZENIC_RAM_LIMIT_MB: ${ZENIC_RAM_LIMIT_MB:-2048}
+      ZENIC_WORKERS: ${ZENIC_WORKERS:-4}
+      # Distributed Orchestration
+      ZENIC_COORDINATION_BACKEND: ${ZENIC_COORDINATION_BACKEND:-postgresql}
+      ZENIC_NODE_ID: ${ZENIC_NODE_ID:-app-primary}
+      ZENIC_HEARTBEAT_INTERVAL: ${ZENIC_HEARTBEAT_INTERVAL:-10}
+      ZENIC_LEASE_DURATION: ${ZENIC_LEASE_DURATION:-120}
+      # Stripe Billing
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      # SNA
+      ZENIC_SNA_ENABLED: ${ZENIC_SNA_ENABLED:-true}
+    volumes:
+      - app_data:/home/zenic/.zenic_agents/data
+      - ./src/config/settings.yaml:/app/src/config/settings.yaml:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    networks:
+      - zenic-internal
+      - zenic-public
+    expose:
+      - "5000"
+
+  # ── Distributed Worker (SAGA + Blueprints + SNA) ────────
+  worker:
+    build:
+      context: .
+      target: production
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-zenic}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-zenic_db}
+      DATABASE_URL_SYNC: postgresql+psycopg2://${POSTGRES_USER:-zenic}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-zenic_db}
+      REDIS_URL: redis://redis:6379/0
+      ZENIC_AUTH_SECRET: ${ZENIC_AUTH_SECRET:?ZENIC_AUTH_SECRET required}
+      ZENIC_AUTH_ENABLED: "true"
+      ZENIC_SERVER_MODE: worker
+      ZENIC_ENV: production
+      ZENIC_DATA_DIR: /home/zenic/.zenic_agents/data
+      ZENIC_RAM_LIMIT_MB: ${ZENIC_RAM_LIMIT_MB:-1024}
+      ZENIC_COORDINATION_BACKEND: ${ZENIC_COORDINATION_BACKEND:-postgresql}
+      ZENIC_NODE_ID: ""  # Auto-generated per worker instance
+      ZENIC_HEARTBEAT_INTERVAL: ${ZENIC_HEARTBEAT_INTERVAL:-10}
+      ZENIC_LEASE_DURATION: ${ZENIC_LEASE_DURATION:-120}
+      ZENIC_WORKER_QUEUES: ${ZENIC_WORKER_QUEUES:-pipeline,saga,generation,sna}
+    volumes:
+      - app_data:/home/zenic/.zenic_agents/data
+    entrypoint: ["python", "-m", "src.core.distributed.worker_entrypoint"]
+    networks:
+      - zenic-internal
+    deploy:
+      replicas: ${ZENIC_WORKER_REPLICAS:-2}
+      resources:
+        limits:
+          memory: ${ZENIC_WORKER_RAM_MB:-1024}M
+
+  # ── Nginx Reverse Proxy + SSL ────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: zenic-nginx
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - certbot_data:/etc/letsencrypt:ro
+      - nginx_logs:/var/log/nginx
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - zenic-public
+
+  # ── Certbot (Let's Encrypt SSL) ──────────────────────────
+  certbot:
+    image: certbot/certbot:latest
+    container_name: zenic-certbot
+    profiles:
+      - ssl
+    volumes:
+      - certbot_data:/etc/letsencrypt
+      - ./deploy/nginx/certbot-webroot:/var/www/certbot:ro
+    command: certonly --webroot --webroot-path=/var/www/certbot --email ${SSL_EMAIL:-admin@example.com} --agree-tos --no-eff-email -d ${ZENIC_DOMAIN:-localhost}
+    networks:
+      - zenic-public
+
+  # ── Scheduled Backups ────────────────────────────────────
+  backup:
+    image: postgres:16-alpine
+    container_name: zenic-backup
+    restart: "no"
+    profiles:
+      - backup
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-zenic}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      PGDATABASE: ${POSTGRES_DB:-zenic_db}
+    volumes:
+      - backup_data:/backups
+      - ./deploy/scripts/backup.sh:/backup.sh:ro
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    networks:
+      - zenic-internal
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  app_data:
+    driver: local
+  certbot_data:
+    driver: local
+  nginx_logs:
+    driver: local
+  backup_data:
+    driver: local
+
+networks:
+  zenic-internal:
+    driver: bridge
+    internal: true  # No external access
+  zenic-public:
+    driver: bridge

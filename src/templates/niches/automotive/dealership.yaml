@@ -1,0 +1,187 @@
+niche:
+  name: "dealership"
+  domain: "automotive"
+  subdomain: "vehicle_sales"
+  description: "Sistema de gestión integral para concesionarios de vehículos que administra el inventario, ventas, financiación, permutas, servicio postventa, empleados y gestión de leads comerciales."
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - stripe_payments
+    - email_smtp
+    - invoice_calculator
+    - notification_manager
+    - pdf_generator
+    - crud_service
+    - report_generator
+    - backup_restore
+  variables:
+    project_name: "dealership"
+    app_name: "Dealership"
+    template_type: "niche"
+    db_name: "dealership.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Vehicle"
+    fields:
+      - "vehicle_id:uuid"
+      - "vin:str"
+      - "make:str"
+      - "model:str"
+      - "year:int"
+      - "color:str"
+      - "mileage:int"
+      - "condition:str"
+      - "purchase_price:float"
+      - "sale_price:float"
+      - "status:str"
+      - "location:str"
+
+  - name: "Customer"
+    fields:
+      - "customer_id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "address:str"
+      - "city:str"
+      - "driver_license:str"
+      - "registration_date:date"
+      - "customer_type:str"
+      - "status:str"
+
+  - name: "Sale"
+    fields:
+      - "sale_id:uuid"
+      - "vehicle_id:uuid"
+      - "customer_id:uuid"
+      - "employee_id:uuid"
+      - "sale_price:float"
+      - "trade_in_value:float"
+      - "financing_amount:float"
+      - "down_payment:float"
+      - "sale_date:datetime"
+      - "status:str"
+      - "payment_method:str"
+      - "contract_path:str"
+
+  - name: "Financing"
+    fields:
+      - "financing_id:uuid"
+      - "sale_id:uuid"
+      - "customer_id:uuid"
+      - "lender:str"
+      - "principal:float"
+      - "interest_rate:float"
+      - "term_months:int"
+      - "monthly_payment:float"
+      - "down_payment:float"
+      - "status:str"
+      - "approval_date:date"
+
+  - name: "TradeIn"
+    fields:
+      - "trade_in_id:uuid"
+      - "sale_id:uuid"
+      - "customer_id:uuid"
+      - "vehicle_id:uuid"
+      - "make:str"
+      - "model:str"
+      - "year:int"
+      - "mileage:int"
+      - "condition:str"
+      - "market_value:float"
+      - "offered_value:float"
+      - "status:str"
+
+  - name: "Service"
+    fields:
+      - "service_id:uuid"
+      - "vehicle_id:uuid"
+      - "customer_id:uuid"
+      - "type:str"
+      - "description:str"
+      - "scheduled_date:datetime"
+      - "completed_date:datetime"
+      - "technician:str"
+      - "cost:float"
+      - "status:str"
+      - "warranty:bool"
+
+  - name: "Employee"
+    fields:
+      - "employee_id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "role:str"
+      - "department:str"
+      - "hire_date:date"
+      - "commission_rate:float"
+      - "status:str"
+      - "total_sales:float"
+
+  - name: "Lead"
+    fields:
+      - "lead_id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "source:str"
+      - "interest:str"
+      - "budget_range:str"
+      - "assigned_to:str"
+      - "status:str"
+      - "created_date:datetime"
+      - "last_contact:datetime"
+      - "notes:str"
+
+workflow:
+  typical_paths:
+    - "Recepción de lead → Contacto inicial → Calificación → Presentación de vehículo → Test drive → Negociación → Cierre de venta → Financiación → Entrega"
+    - "Llegada de vehículo al inventario → Inspección → Precios → Publicación → Recepción de interés → Venta o permuta → Actualización de inventario"
+    - "Solicitud de servicio → Asignación de técnico → Diagnóstico → Presupuesto → Aprobación del cliente → Reparación → Facturación → Seguimiento"
+  triggers:
+    - "new_lead:Notificación al vendedor asignado cuando se recibe un nuevo lead"
+    - "lead_stale:Alerta cuando un lead no ha sido contactado en el periodo configurado"
+    - "financing_approved:Notificación automática cuando una solicitud de financiación es aprobada"
+    - "service_due:Recordatorio al cliente cuando se acerca el servicio programado de su vehículo"
+    - "low_inventory:Alerta cuando el inventario de un modelo cae por debajo del umbral mínimo"
+
+features:
+  core:
+    - "Gestión completa de inventario de vehículos nuevos y usados con seguimiento de estado"
+    - "Pipeline de ventas con gestión de leads desde captura hasta cierre y entrega"
+    - "Procesamiento de financiación con integración a prestamistas y cálculo de cuotas"
+    - "Sistema de permutas con valoración de mercado y ajuste de precio de venta"
+    - "Gestión de servicio postventa con programación y seguimiento de reparaciones"
+    - "Facturación y generación de contratos de compraventa en PDF"
+  advanced:
+    - "Análisis predictivo de demanda por modelo para optimización de inventario"
+    - "Scoring de leads con probabilidad de conversión basada en comportamiento y perfil"
+    - "Cálculo automático de comisiones por venta con reglas configurables"
+    - "Dashboard de rendimiento del concesionario con KPIs de ventas, servicio y rentabilidad"
+  optional:
+    - "Integración con portales de anuncios de vehículos de terceros"
+    - "Módulo de configurador de vehículos con opciones y precios personalizados"
+    - "App móvil para vendedores con gestión de leads y seguimiento en campo"
+    - "Integración con sistemas DMS de fabricantes para sincronización de datos"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance:
+    - "PCI-DSS"
+    - "GDPR"
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

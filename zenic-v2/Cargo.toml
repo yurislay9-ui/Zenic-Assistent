@@ -1,0 +1,43 @@
+[workspace]
+resolver = "2"
+members = [
+    "zenic-proto",
+    "zenic-graph",
+    "zenic-runtime",
+    "zenic-flow",
+    "zenic-policy",
+    "zenic-core",
+    "zenic-ffi",
+    "zenic-bench",
+    "zenic-tests",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85.0"
+license = "MIT"
+repository = "https://github.com/yurislay9-ui/Zenic-Agents"
+
+[workspace.dependencies]
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+bincode = "1.3"
+zstd = "0.13"
+
+# Error handling
+thiserror = "2.0"
+
+# IDs
+uuid = { version = "1.11", features = ["v4", "serde"] }
+
+# Graph
+petgraph = "0.7"
+indexmap = "2.7"
+
+# Observability
+tracing = "0.1"
+
+# Internal crates
+zenic-proto = { path = "zenic-proto" }
+zenic-graph = { path = "zenic-graph" }

@@ -1,0 +1,169 @@
+niche:
+  name: "pos_system"
+  domain: "retail"
+  subdomain: "pos_system"
+  description: "Sistema de punto de venta (POS) para tiendas físicas que gestiona transacciones en mostrador, inventario en tiempo real, turnos de cajeros, devoluciones y generación de reportes de ventas."
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - invoice_calculator
+    - inventory_tracker
+    - pdf_generator
+    - crud_service
+    - report_generator
+    - email_smtp
+    - backup_restore
+  variables:
+    project_name: "pos_system"
+    app_name: "PosSystem"
+    template_type: "retail"
+    db_name: "pos_system.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Product"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "description:text"
+      - "sku:str"
+      - "barcode:str"
+      - "price:decimal"
+      - "cost:decimal"
+      - "stock:int"
+      - "category_id:uuid"
+      - "tax_rate:decimal"
+      - "status:str"
+      - "created_at:datetime"
+  - name: "Sale"
+    fields:
+      - "id:uuid"
+      - "cashier_id:uuid"
+      - "customer_id:uuid"
+      - "shift_id:uuid"
+      - "subtotal:decimal"
+      - "tax:decimal"
+      - "discount:decimal"
+      - "total:decimal"
+      - "payment_method:str"
+      - "status:str"
+      - "receipt_number:str"
+      - "created_at:datetime"
+  - name: "SaleItem"
+    fields:
+      - "id:uuid"
+      - "sale_id:uuid"
+      - "product_id:uuid"
+      - "quantity:int"
+      - "unit_price:decimal"
+      - "discount:decimal"
+      - "tax:decimal"
+      - "total:decimal"
+      - "created_at:datetime"
+  - name: "Customer"
+    fields:
+      - "id:uuid"
+      - "full_name:str"
+      - "email:str"
+      - "phone:str"
+      - "address:json"
+      - "loyalty_points:int"
+      - "total_purchases:decimal"
+      - "total_visits:int"
+      - "status:str"
+      - "created_at:datetime"
+  - name: "Cashier"
+    fields:
+      - "id:uuid"
+      - "user_id:uuid"
+      - "full_name:str"
+      - "employee_id:str"
+      - "role:str"
+      - "status:str"
+      - "total_sales:decimal"
+      - "total_transactions:int"
+      - "created_at:datetime"
+  - name: "Shift"
+    fields:
+      - "id:uuid"
+      - "cashier_id:uuid"
+      - "opening_cash:decimal"
+      - "closing_cash:decimal"
+      - "expected_cash:decimal"
+      - "difference:decimal"
+      - "total_sales:decimal"
+      - "total_transactions:int"
+      - "status:str"
+      - "opened_at:datetime"
+      - "closed_at:datetime"
+  - name: "Payment"
+    fields:
+      - "id:uuid"
+      - "sale_id:uuid"
+      - "amount:decimal"
+      - "method:str"
+      - "reference:str"
+      - "status:str"
+      - "cash_received:decimal"
+      - "change_given:decimal"
+      - "created_at:datetime"
+  - name: "Return"
+    fields:
+      - "id:uuid"
+      - "sale_id:uuid"
+      - "product_id:uuid"
+      - "cashier_id:uuid"
+      - "quantity:int"
+      - "refund_amount:decimal"
+      - "reason:str"
+      - "status:str"
+      - "condition:str"
+      - "created_at:datetime"
+      - "processed_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Cajero inicia turno → Escanea productos → Calcula totales con impuestos → Procesa pago → Genera recibo → Actualiza inventario → Cierra turno"
+    - "Cliente solicita devolución → Cajero verifica compra original → Inspecciona producto → Procesa reembolso → Actualiza inventario y registros"
+    - "Administrador revisa ventas del día → Genera reporte de turno → Cuadra caja → Exporta reportes en PDF"
+  triggers:
+    - "sale_completed:se activa cuando se completa una transacción de venta"
+    - "shift_opened:se activa cuando un cajero inicia su turno"
+    - "shift_closed:se activa cuando un cajero cierra su turno con cuadre de caja"
+    - "return_processed:se activa cuando se procesa una devolución"
+    - "low_stock_detected:se activa cuando el inventario de un producto baja del mínimo"
+
+features:
+  core:
+    - "Interfaz de punto de venta con escaneo rápido de productos por código de barras"
+    - "Gestión de turnos de cajeros con apertura, cierre y cuadre de caja"
+    - "Procesamiento de múltiples métodos de pago (efectivo, tarjeta, transferencia)"
+    - "Cálculo automático de impuestos y descuentos por producto o venta"
+    - "Actualización de inventario en tiempo real con cada transacción"
+    - "Generación de recibos y facturas en PDF"
+  advanced:
+    - "Gestión de devoluciones con verificación de compra y control de inventario"
+    - "Reportes detallados de ventas por período, cajero, categoría y producto"
+    - "Sistema de alertas de stock bajo con notificaciones automáticas"
+    - "Gestión de clientes con historial de compras y puntos de fidelidad"
+    - "Respaldo automático de datos con recuperación punto de restauración"
+  optional:
+    - "Soporte para terminales de pago POS externos"
+    - "Modo offline con sincronización automática al reconectar"
+    - "Integración con sistemas de contabilidad externos"
+    - "Programa de descuentos y promociones programadas"
+    - "Dashboard en tiempo real de métricas de ventas"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance:
+    - "PCI-DSS"
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

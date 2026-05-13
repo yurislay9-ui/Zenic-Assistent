@@ -1,0 +1,159 @@
+niche:
+  name: "team_management"
+  domain: "sports"
+  subdomain: "team_operations"
+  description: "Sistema integral de gestión de equipos deportivos con administración de jugadores, entrenadores, planificación de entrenamientos, seguimiento de partidos, estadísticas y gestión de lesiones y contratos."
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - email_smtp
+    - notification_manager
+    - task_scheduler
+    - crud_service
+    - report_generator
+    - pdf_generator
+  variables:
+    project_name: "team_management"
+    app_name: "TeamManagement"
+    template_type: "niche"
+    db_name: "team_management.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Team"
+    fields:
+      - "name:str"
+      - "logo:str"
+      - "sport:str"
+      - "league:str"
+      - "founded_year:int"
+      - "home_venue:str"
+      - "primary_color:str"
+      - "secondary_color:str"
+      - "is_active:bool"
+      - "created_at:datetime"
+  - name: "Player"
+    fields:
+      - "first_name:str"
+      - "last_name:str"
+      - "date_of_birth:date"
+      - "position:str"
+      - "jersey_number:int"
+      - "team_id:int"
+      - "nationality:str"
+      - "height:float"
+      - "weight:float"
+      - "status:str"
+      - "joined_at:datetime"
+  - name: "Coach"
+    fields:
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "specialization:str"
+      - "certification:str"
+      - "team_id:int"
+      - "role:str"
+      - "is_active:bool"
+      - "hired_at:datetime"
+  - name: "Training"
+    fields:
+      - "team_id:int"
+      - "coach_id:int"
+      - "title:str"
+      - "description:text"
+      - "scheduled_at:datetime"
+      - "duration:int"
+      - "location:str"
+      - "intensity:str"
+      - "status:str"
+      - "created_at:datetime"
+  - name: "Match"
+    fields:
+      - "home_team_id:int"
+      - "away_team_id:int"
+      - "scheduled_at:datetime"
+      - "venue:str"
+      - "home_score:int"
+      - "away_score:int"
+      - "status:str"
+      - "competition:str"
+      - "referee:str"
+      - "notes:text"
+  - name: "Statistic"
+    fields:
+      - "player_id:int"
+      - "match_id:int"
+      - "goals:int"
+      - "assists:int"
+      - "minutes_played:int"
+      - "yellow_cards:int"
+      - "red_cards:int"
+      - "rating:float"
+      - "created_at:datetime"
+  - name: "Injury"
+    fields:
+      - "player_id:int"
+      - "type:str"
+      - "severity:str"
+      - "description:text"
+      - "diagnosed_at:datetime"
+      - "expected_recovery:date"
+      - "actual_recovery:date"
+      - "medical_staff:str"
+      - "status:str"
+  - name: "Contract"
+    fields:
+      - "player_id:int"
+      - "team_id:int"
+      - "start_date:date"
+      - "end_date:date"
+      - "salary:float"
+      - "bonus:float"
+      - "clause:float"
+      - "status:str"
+      - "signed_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Entrenador planifica sesión → Asigna jugadores → Ejecuta entrenamiento → Registra estadísticas → Genera reporte"
+    - "Partido programado → Alineación confirmada → Resultado registrado → Estadísticas actualizadas → Reporte generado"
+    - "Jugador lesionado → Diagnóstico médico → Plan de recuperación → Seguimiento → Alta deportiva"
+  triggers:
+    - "match_scheduled:Notificar a jugadores y cuerpo técnico sobre próximo partido programado"
+    - "injury_reported:Alertar al equipo médico y actualizar disponibilidad del jugador en la plantilla"
+    - "training_reminder:Enviar recordatorio de entrenamiento 24 horas antes de la sesión programada"
+    - "contract_expiring:Notificar a la dirección deportiva sobre contratos próximos a vencer en 90 días"
+
+features:
+  core:
+    - "Gestión completa de plantilla con fichas de jugadores y cuerpo técnico"
+    - "Planificación y seguimiento de sesiones de entrenamiento con calendario"
+    - "Registro de resultados y estadísticas de partidos por jugador y equipo"
+    - "Sistema de seguimiento de lesiones con plan de recuperación"
+    - "Gestión de contratos con alertas de vencimiento"
+  advanced:
+    - "Generación de reportes PDF de rendimiento individual y colectivo"
+    - "Dashboard analítico con métricas de rendimiento y tendencias de forma"
+    - "Sistema de evaluación de jugadores con rating y scouting"
+    - "Programación automática de entrenamientos basada en carga competitiva"
+  optional:
+    - "Integración con dispositivos wearables para monitoreo de carga física"
+    - "Portal del jugador con acceso a estadísticas personales y calendario"
+    - "Sistema de comunicación interna con chat por equipos"
+    - "Exportación de datos a formatos estándar para análisis externo"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance:
+    - GDPR
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

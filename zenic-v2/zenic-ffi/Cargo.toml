@@ -1,0 +1,10 @@
+[package]
+name = "zenic-ffi"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "PyO3 FFI bindings for Python integration with Zenic-Agents"
+
+[dependencies]
+zenic-core = { path = "../zenic-core" }

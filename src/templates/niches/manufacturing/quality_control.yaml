@@ -1,0 +1,177 @@
+niche:
+  name: "quality_control"
+  domain: "manufacturing"
+  subdomain: "quality_control"
+  description: "Sistema de gestión de control de calidad para inspecciones, gestión de defectos, especificaciones técnicas, acciones correctivas y auditorías de calidad en procesos de fabricación"
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - data_analyzer
+    - report_generator
+    - notification_manager
+    - email_smtp
+    - crud_service
+    - pdf_generator
+    - backup_restore
+  variables:
+    project_name: "quality_control"
+    app_name: "QualityControl"
+    template_type: "niche"
+    db_name: "quality_control.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Inspection"
+    fields:
+      - "id:uuid"
+      - "inspection_number:str"
+      - "product_id:uuid"
+      - "batch_id:uuid"
+      - "type:str"
+      - "status:str"
+      - "inspector_id:uuid"
+      - "scheduled_date:datetime"
+      - "completed_date:datetime"
+      - "result:str"
+      - "sample_size:int"
+      - "defects_found:int"
+
+  - name: "Defect"
+    fields:
+      - "id:uuid"
+      - "inspection_id:uuid"
+      - "category:str"
+      - "severity:str"
+      - "description:str"
+      - "location:str"
+      - "detected_at:datetime"
+      - "detected_by:uuid"
+      - "root_cause:str"
+      - "status:str"
+      - "images:json"
+
+  - name: "TestResult"
+    fields:
+      - "id:uuid"
+      - "inspection_id:uuid"
+      - "parameter:str"
+      - "specification_min:float"
+      - "specification_max:float"
+      - "measured_value:float"
+      - "unit:str"
+      - "result:str"
+      - "test_method:str"
+      - "tested_by:uuid"
+      - "tested_at:datetime"
+
+  - name: "Specification"
+    fields:
+      - "id:uuid"
+      - "product_id:uuid"
+      - "parameter:str"
+      - "target_value:float"
+      - "tolerance_min:float"
+      - "tolerance_max:float"
+      - "unit:str"
+      - "test_method:str"
+      - "critical:bool"
+      - "version:str"
+      - "status:str"
+
+  - name: "Batch"
+    fields:
+      - "id:uuid"
+      - "batch_number:str"
+      - "product_id:uuid"
+      - "quantity_produced:int"
+      - "quantity_sampled:int"
+      - "production_date:date"
+      - "expiry_date:date"
+      - "status:str"
+      - "quality_grade:str"
+      - "source_line:str"
+
+  - name: "CorrectiveAction"
+    fields:
+      - "id:uuid"
+      - "defect_id:uuid"
+      - "title:str"
+      - "description:str"
+      - "assigned_to:uuid"
+      - "priority:str"
+      - "due_date:date"
+      - "status:str"
+      - "effectiveness:str"
+      - "completed_date:date"
+      - "verified_by:uuid"
+
+  - name: "Auditor"
+    fields:
+      - "id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "certification:json"
+      - "specialization:str"
+      - "last_audit:date"
+      - "status:str"
+      - "employee_id:str"
+
+  - name: "Report"
+    fields:
+      - "id:uuid"
+      - "report_number:str"
+      - "type:str"
+      - "batch_id:uuid"
+      - "inspection_id:uuid"
+      - "author_id:uuid"
+      - "findings:json"
+      - "conclusion:str"
+      - "status:str"
+      - "created_at:datetime"
+      - "approved_by:uuid"
+
+workflow:
+  typical_paths:
+    - "Programación de inspección → Ejecución de pruebas → Registro de resultados → Identificación de defectos → Acción correctiva → Verificación de efectividad → Cierre"
+    - "Defecto detectado → Análisis de causa raíz → Creación de acción correctiva → Implementación → Verificación → Documentación y reporte"
+    - "Auditoría programada → Revisión de registros → Inspección en sitio → Generación de hallazgos → Reporte de auditoría → Seguimiento de acciones"
+  triggers:
+    - "defect_critical_found:Alerta inmediata ante detección de defecto crítico en producción"
+    - "test_out_of_specification:Notificación cuando un resultado de prueba excede las especificaciones"
+    - "corrective_action_overdue:Aviso de acción correctiva vencida sin completar"
+    - "batch_quality_below_threshold:Alerta cuando la calidad de un lote está por debajo del umbral aceptable"
+    - "audit_scheduled:Recordatorio de auditoría programada con anticipación"
+
+features:
+  core:
+    - "Gestión de inspecciones de entrada, proceso y salida"
+    - "Registro y clasificación de defectos por severidad y categoría"
+    - "Especificaciones técnicas con tolerancias y métodos de prueba"
+    - "Acciones correctivas y preventivas (CAPA) con seguimiento"
+    - "Gestión de lotes con trazabilidad completa"
+  advanced:
+    - "Análisis estadístico de proceso (SPC) con gráficos de control"
+    - "Análisis de causa raíz con diagramas de Ishikawa y 5 Porqués"
+    - "Dashboard de calidad en tiempo real con indicadores CPK"
+    - "Gestión de auditorías internas y externas"
+    - "Reportes de no conformidad automatizados"
+  optional:
+    - "Integración con equipos de medición y CMM"
+    - "Módulo de validación de procesos (IQ/OQ/PQ) para ISO 13485"
+    - "Gestión de calibración de instrumentos de medición"
+    - "Análisis de costo de calidad (CoQ)"
+    - "Soporte para FMEA (Análisis de Modos de Falla y Efectos)"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance: [ISO9001, ISO13485]
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

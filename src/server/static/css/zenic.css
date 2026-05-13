@@ -1,0 +1,413 @@
+/*
+ * Zenic-Agents Asistente — Custom Stylesheet
+ * Built on Bootstrap 5.3 with CSS variables for dark/light theming.
+ * HTMX + Alpine.js + Chart.js compatible.
+ */
+
+/* ── CSS Variables for Theming ─────────────────────── */
+
+:root {
+  --zenic-bg: #0f1117;
+  --zenic-surface: #1a1d27;
+  --zenic-surface-hover: #242835;
+  --zenic-border: #2d3148;
+  --zenic-primary: #6366f1;
+  --zenic-primary-hover: #818cf8;
+  --zenic-success: #22c55e;
+  --zenic-warning: #f59e0b;
+  --zenic-danger: #ef4444;
+  --zenic-info: #3b82f6;
+  --zenic-text: #e2e8f0;
+  --zenic-text-muted: #94a3b8;
+  --zenic-radius: 8px;
+  --zenic-radius-lg: 12px;
+  --zenic-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --zenic-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --zenic-transition: 150ms ease;
+  --zenic-sidebar-width: 260px;
+  --zenic-navbar-height: 56px;
+}
+
+[data-bs-theme="light"] {
+  --zenic-bg: #f8f9fa;
+  --zenic-surface: #ffffff;
+  --zenic-surface-hover: #f0f0f5;
+  --zenic-border: #dee2e6;
+  --zenic-text: #1a1d27;
+  --zenic-text-muted: #6c757d;
+  --zenic-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --zenic-shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* ── App Layout ───────────────────────────────────── */
+
+.zenic-app {
+  display: grid;
+  grid-template-columns: var(--zenic-sidebar-width) 1fr;
+  grid-template-rows: var(--zenic-navbar-height) 1fr;
+  min-height: 100vh;
+  background: var(--zenic-bg);
+}
+
+/* ── Navbar ───────────────────────────────────────── */
+
+.zenic-navbar {
+  grid-column: 1 / -1;
+  background: var(--zenic-surface) !important;
+  border-bottom: 1px solid var(--zenic-border);
+  height: var(--zenic-navbar-height);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 0 16px;
+}
+
+.zenic-navbar .navbar-brand {
+  color: var(--zenic-primary) !important;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+/* ── Sidebar ──────────────────────────────────────── */
+
+.zenic-sidebar {
+  background: var(--zenic-surface);
+  border-right: 1px solid var(--zenic-border);
+  padding: 16px 0;
+  overflow-y: auto;
+  transition: width var(--zenic-transition), transform var(--zenic-transition);
+}
+
+.zenic-sidebar-collapsed {
+  width: 0;
+  overflow: hidden;
+  padding: 0;
+}
+
+.sidebar-section-label {
+  padding: 8px 20px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--zenic-text-muted);
+  margin-top: 16px;
+  opacity: 0.6;
+}
+
+.sidebar-section-label:first-child { margin-top: 0; }
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px 8px 24px;
+  color: var(--zenic-text-muted);
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: all var(--zenic-transition);
+  border-left: 3px solid transparent;
+}
+
+.sidebar-link:hover {
+  background: var(--zenic-surface-hover);
+  color: var(--zenic-text);
+  border-left-color: var(--zenic-primary);
+}
+
+.sidebar-link.active {
+  background: var(--zenic-surface-hover);
+  color: var(--zenic-primary);
+  border-left-color: var(--zenic-primary);
+  font-weight: 500;
+}
+
+.sidebar-link i { font-size: 1rem; }
+
+/* ── Main Content ─────────────────────────────────── */
+
+.zenic-main {
+  padding: 24px;
+  overflow-y: auto;
+  max-height: calc(100vh - var(--zenic-navbar-height));
+  background: var(--zenic-bg);
+  transition: margin var(--zenic-transition);
+}
+
+.zenic-main-expanded {
+  /* When sidebar is collapsed */
+}
+
+/* ── Card Styles ──────────────────────────────────── */
+
+.card {
+  background: var(--zenic-surface);
+  border: 1px solid var(--zenic-border);
+  border-radius: var(--zenic-radius-lg);
+  box-shadow: var(--zenic-shadow);
+}
+
+.card-header {
+  background: transparent;
+  border-bottom: 1px solid var(--zenic-border);
+  padding: 12px 20px;
+}
+
+.card-body { padding: 20px; }
+
+.card-footer {
+  background: transparent;
+  border-top: 1px solid var(--zenic-border);
+  padding: 12px 20px;
+}
+
+/* ── KPI Cards ────────────────────────────────────── */
+
+.zenic-kpi {
+  border: 1px solid var(--zenic-border);
+  border-radius: var(--zenic-radius);
+  transition: transform var(--zenic-transition), box-shadow var(--zenic-transition);
+}
+
+.zenic-kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--zenic-shadow-lg);
+}
+
+.zenic-kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+
+/* ── Table Styles ─────────────────────────────────── */
+
+.table {
+  color: var(--zenic-text);
+  --bs-table-bg: transparent;
+  --bs-table-hover-bg: var(--zenic-surface-hover);
+  --bs-table-striped-bg: var(--zenic-surface-hover);
+}
+
+.table th {
+  font-weight: 600;
+  color: var(--zenic-text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom-color: var(--zenic-border);
+  white-space: nowrap;
+}
+
+.table td {
+  border-bottom-color: var(--zenic-border);
+  vertical-align: middle;
+}
+
+/* ── Form Styles ──────────────────────────────────── */
+
+.form-control, .form-select {
+  background-color: var(--zenic-bg);
+  border-color: var(--zenic-border);
+  color: var(--zenic-text);
+}
+
+.form-control:focus, .form-select:focus {
+  background-color: var(--zenic-bg);
+  border-color: var(--zenic-primary);
+  color: var(--zenic-text);
+  box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.15);
+}
+
+.form-control::placeholder { color: var(--zenic-text-muted); opacity: 0.6; }
+
+.form-check-input:checked {
+  background-color: var(--zenic-primary);
+  border-color: var(--zenic-primary);
+}
+
+/* ── Badge & Status Styles ────────────────────────── */
+
+.badge { font-weight: 600; letter-spacing: 0.02em; }
+
+/* ── Dropdown Styles ──────────────────────────────── */
+
+.zenic-dropdown {
+  background: var(--zenic-surface);
+  border-color: var(--zenic-border);
+  box-shadow: var(--zenic-shadow-lg);
+}
+
+.dropdown-item {
+  color: var(--zenic-text);
+}
+
+.dropdown-item:hover {
+  background: var(--zenic-surface-hover);
+  color: var(--zenic-primary);
+}
+
+/* ── Alert/Monitor Styles ─────────────────────────── */
+
+.zenic-alert-feed-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--zenic-border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zenic-alert-feed-item:last-child { border-bottom: none; }
+
+.zenic-alert-severity-critical {
+  color: var(--zenic-danger);
+  animation: zenic-pulse 2s infinite;
+}
+
+.zenic-alert-severity-warning { color: var(--zenic-warning); }
+.zenic-alert-severity-info { color: var(--zenic-info); }
+
+/* ── Pipeline Card ────────────────────────────────── */
+
+.zenic-pipeline-card {
+  border: 1px solid var(--zenic-border);
+  border-radius: var(--zenic-radius);
+  cursor: pointer;
+  transition: box-shadow var(--zenic-transition);
+}
+
+.zenic-pipeline-card:hover {
+  box-shadow: var(--zenic-shadow-lg);
+}
+
+/* ── Select Card (Onboarding) ─────────────────────── */
+
+.zenic-select-card {
+  transition: all var(--zenic-transition);
+  cursor: pointer;
+}
+
+.zenic-select-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--zenic-shadow-lg);
+}
+
+/* ── HTMX Indicators ──────────────────────────────── */
+
+.htmx-indicator {
+  display: none;
+  opacity: 0.7;
+}
+
+.htmx-request .htmx-indicator { display: inline-block; }
+.htmx-request.htmx-indicator  { display: inline-block; }
+
+/* ── Modal Styles ─────────────────────────────────── */
+
+.modal-content {
+  background: var(--zenic-surface);
+  border-color: var(--zenic-border);
+}
+
+.modal-header { border-bottom-color: var(--zenic-border); }
+.modal-footer { border-top-color: var(--zenic-border); }
+
+/* ── Toast Notification Styles ────────────────────── */
+
+.toast { box-shadow: var(--zenic-shadow-lg); }
+
+.toast-info    { background: var(--zenic-info); color: white; }
+.toast-success { background: var(--zenic-success); color: white; }
+.toast-warning { background: var(--zenic-warning); color: #1a1d27; }
+.toast-danger  { background: var(--zenic-danger); color: white; }
+
+/* ── Range Slider ─────────────────────────────────── */
+
+.form-range::-webkit-slider-thumb {
+  background: var(--zenic-primary);
+}
+
+.form-range::-moz-range-thumb {
+  background: var(--zenic-primary);
+}
+
+/* ── Animation Classes ────────────────────────────── */
+
+.zenic-slide-in {
+  animation: zenicSlideIn 0.2s ease forwards;
+}
+
+.zenic-slide-out {
+  animation: zenicSlideOut 0.2s ease forwards;
+}
+
+@keyframes zenicSlideIn {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes zenicSlideOut {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(-100%); opacity: 0; }
+}
+
+@keyframes zenic-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.zenic-fade-in {
+  animation: zenicFadeIn 0.3s ease forwards;
+}
+
+@keyframes zenicFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Progress Indicators ──────────────────────────── */
+
+.progress {
+  background: var(--zenic-border);
+  border-radius: var(--zenic-radius);
+}
+
+/* ── Responsive ───────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .zenic-app {
+    grid-template-columns: 1fr;
+  }
+
+  .zenic-sidebar {
+    position: fixed;
+    top: var(--zenic-navbar-height);
+    left: 0;
+    bottom: 0;
+    z-index: 99;
+    width: var(--zenic-sidebar-width);
+    transform: translateX(-100%);
+  }
+
+  .zenic-sidebar:not(.zenic-sidebar-collapsed) {
+    transform: translateX(0);
+  }
+
+  .zenic-main {
+    max-height: none;
+  }
+}
+
+@media (max-width: 576px) {
+  .zenic-main {
+    padding: 12px;
+  }
+
+  .zenic-kpi .card-body {
+    padding: 12px;
+  }
+}

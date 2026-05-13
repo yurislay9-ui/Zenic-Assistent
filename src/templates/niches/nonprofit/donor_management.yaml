@@ -1,0 +1,177 @@
+niche:
+  name: "donor_management"
+  domain: "nonprofit"
+  subdomain: "fundraising"
+  description: "Sistema de gestión de donantes para organizaciones sin ánimo de lucro que permite el seguimiento de donaciones, campañas, comunicaciones, segmentación de donantes, compromisos y medición de impacto."
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - email_smtp
+    - pdf_generator
+    - notification_manager
+    - data_analyzer
+    - crud_service
+    - report_generator
+    - backup_restore
+  variables:
+    project_name: "donor_management"
+    app_name: "DonorManagement"
+    template_type: "niche"
+    db_name: "donor_management.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Donor"
+    fields:
+      - "donor_id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "address:str"
+      - "city:str"
+      - "country:str"
+      - "donor_type:str"
+      - "registration_date:date"
+      - "total_donated:float"
+      - "status:str"
+
+  - name: "Donation"
+    fields:
+      - "donation_id:uuid"
+      - "donor_id:uuid"
+      - "campaign_id:uuid"
+      - "amount:float"
+      - "currency:str"
+      - "payment_method:str"
+      - "donation_date:datetime"
+      - "recurring:bool"
+      - "frequency:str"
+      - "status:str"
+      - "receipt_sent:bool"
+      - "notes:str"
+
+  - name: "Campaign"
+    fields:
+      - "campaign_id:uuid"
+      - "name:str"
+      - "description:str"
+      - "goal_amount:float"
+      - "raised_amount:float"
+      - "start_date:date"
+      - "end_date:date"
+      - "campaign_type:str"
+      - "status:str"
+      - "target_audience:str"
+      - "manager:str"
+
+  - name: "Receipt"
+    fields:
+      - "receipt_id:uuid"
+      - "donation_id:uuid"
+      - "donor_id:uuid"
+      - "amount:float"
+      - "tax_deductible:bool"
+      - "receipt_number:str"
+      - "issued_date:date"
+      - "pdf_path:str"
+      - "status:str"
+      - "fiscal_year:int"
+
+  - name: "Communication"
+    fields:
+      - "communication_id:uuid"
+      - "donor_id:uuid"
+      - "type:str"
+      - "subject:str"
+      - "content:str"
+      - "sent_date:datetime"
+      - "opened:bool"
+      - "clicked:bool"
+      - "responded:bool"
+      - "campaign_id:uuid"
+
+  - name: "Segment"
+    fields:
+      - "segment_id:uuid"
+      - "name:str"
+      - "description:str"
+      - "criteria:str"
+      - "donor_count:int"
+      - "average_donation:float"
+      - "created_date:date"
+      - "status:str"
+      - "last_updated:date"
+
+  - name: "Pledge"
+    fields:
+      - "pledge_id:uuid"
+      - "donor_id:uuid"
+      - "campaign_id:uuid"
+      - "pledged_amount:float"
+      - "paid_amount:float"
+      - "remaining_amount:float"
+      - "pledge_date:date"
+      - "fulfillment_date:date"
+      - "status:str"
+      - "installment_count:int"
+      - "frequency:str"
+
+  - name: "Impact"
+    fields:
+      - "impact_id:uuid"
+      - "campaign_id:uuid"
+      - "metric:str"
+      - "target_value:float"
+      - "actual_value:float"
+      - "unit:str"
+      - "period:str"
+      - "description:str"
+      - "evidence_path:str"
+      - "status:str"
+
+workflow:
+  typical_paths:
+    - "Registro de donante → Primera donación → Emisión de recibo → Comunicación de agradecimiento → Segmentación → Cultivo de relación → Donación recurrente"
+    - "Creación de campaña → Definición de objetivos → Segmentación de audiencia → Comunicaciones masivas → Recepción de donaciones → Seguimiento de progreso → Medición de impacto"
+    - "Compromiso de donación → Registro de pledge → Seguimiento de pagos → Recordatorios de cuotas → Cumplimiento → Emisión de recibo final"
+  triggers:
+    - "donation_received:Envío automático de agradecimiento y recibo fiscal al recibir una donación"
+    - "pledge_payment_due:Recordatorio al donante cuando se acerca la fecha de pago de un compromiso"
+    - "campaign_milestone:Notificación cuando una campaña alcanza un hito de recaudación significativo"
+    - "donor_inactivity:Alerta cuando un donante recurrente no ha donado en el periodo esperado"
+    - "segment_change:Reclasificación automática de donantes cuando cambian sus patrones de donación"
+
+features:
+  core:
+    - "Base de datos centralizada de donantes con historial completo de interacciones y donaciones"
+    - "Gestión de campañas con seguimiento de objetivos, progreso y métricas de recaudación"
+    - "Emisión automatizada de recibos fiscales con generación de PDF y envío por correo electrónico"
+    - "Sistema de comunicaciones multicanal con seguimiento de apertura y respuesta"
+    - "Segmentación avanzada de donantes basada en comportamiento, monto y frecuencia"
+    - "Gestión de compromisos (pledges) con seguimiento de cuotas y recordatorios automáticos"
+  advanced:
+    - "Análisis predictivo de propensión a donar para optimizar campañas de recaudación"
+    - "Scoring de donantes con recomendaciones de nivel de cultivo y solicitud"
+    - "Análisis de atribución para medir efectividad de canales y comunicaciones"
+    - "Dashboard de impacto con visualización de métricas de resultado por campaña"
+  optional:
+    - "Integración con plataformas de crowdfunding y redes sociales"
+    - "Módulo de eventos con gestión de mesas, patrocinios y subastas"
+    - "Portal de donantes con historial, recibos y actualizaciones de impacto"
+    - "Integración con CRM externos y herramientas de marketing automation"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance:
+    - "GDPR"
+    - "IRS 501c3"
+  backup_frequency: "daily"
+  access_control: "basic"
+  audit_trail: true

@@ -1,0 +1,150 @@
+niche:
+  name: "exam_system"
+  domain: "education"
+  subdomain: "examination"
+  description: "Sistema de evaluación y examen que gestiona la creación, administración y calificación de exámenes con control de tiempo, análisis de resultados y generación de reportes"
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - data_analyzer
+    - pdf_generator
+    - report_generator
+    - crud_service
+    - backup_restore
+  variables:
+    project_name: "exam_system"
+    app_name: "ExamSystem"
+    template_type: "education"
+    db_name: "exam_system.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Exam"
+    fields:
+      - "id:uuid"
+      - "title:str"
+      - "description:str"
+      - "category_id:uuid"
+      - "total_points:decimal"
+      - "passing_score:float"
+      - "duration_minutes:int"
+      - "is_published:bool"
+      - "shuffle_questions:bool"
+      - "allow_review:bool"
+      - "max_attempts:int"
+      - "created_by:uuid"
+      - "created_at:datetime"
+  - name: "Question"
+    fields:
+      - "id:uuid"
+      - "exam_id:uuid"
+      - "question_text:str"
+      - "question_type:str"
+      - "points:decimal"
+      - "order_index:int"
+      - "image_url:str"
+      - "explanation:str"
+      - "difficulty:str"
+      - "category:str"
+      - "is_required:bool"
+  - name: "Answer"
+    fields:
+      - "id:uuid"
+      - "question_id:uuid"
+      - "answer_text:str"
+      - "is_correct:bool"
+      - "order_index:int"
+      - "points:decimal"
+      - "feedback:str"
+      - "image_url:str"
+  - name: "StudentResponse"
+    fields:
+      - "id:uuid"
+      - "student_id:uuid"
+      - "exam_id:uuid"
+      - "question_id:uuid"
+      - "answer_id:uuid"
+      - "response_text:str"
+      - "is_correct:bool"
+      - "points_earned:decimal"
+      - "time_spent_seconds:int"
+      - "submitted_at:datetime"
+  - name: "Result"
+    fields:
+      - "id:uuid"
+      - "student_id:uuid"
+      - "exam_id:uuid"
+      - "total_score:decimal"
+      - "max_score:decimal"
+      - "percentage:float"
+      - "is_passed:bool"
+      - "attempt_number:int"
+      - "time_spent_seconds:int"
+      - "started_at:datetime"
+      - "completed_at:datetime"
+      - "status:str"
+  - name: "Category"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "description:str"
+      - "parent_id:uuid"
+      - "icon_url:str"
+      - "is_active:bool"
+      - "created_at:datetime"
+  - name: "TimeLimit"
+    fields:
+      - "id:uuid"
+      - "exam_id:uuid"
+      - "student_id:uuid"
+      - "started_at:datetime"
+      - "expires_at:datetime"
+      - "remaining_seconds:int"
+      - "is_extended:bool"
+      - "extension_minutes:int"
+      - "status:str"
+
+workflow:
+  typical_paths:
+    - "Instructor crea examen con preguntas y respuestas, configura tiempo límite y lo publica para estudiantes"
+    - "Estudiante inicia examen, responde preguntas dentro del tiempo límite y envía respuestas para calificación"
+    - "Sistema califica automáticamente, genera resultados y reportes de rendimiento por categoría y dificultad"
+  triggers:
+    - "exam_published:Notificar a estudiantes elegibles sobre la disponibilidad del examen"
+    - "exam_started:Iniciar temporizador y bloquear navegación fuera del examen"
+    - "time_expired:Enviar automáticamente las respuestas del estudiante y cerrar el examen"
+    - "exam_submitted:Calificar respuestas, calcular resultado y notificar al estudiante"
+    - "result_generated:Generar reporte PDF de resultados y actualizar análisis estadístico del examen"
+
+features:
+  core:
+    - "Creación de exámenes con múltiples tipos de pregunta (opción múltiple, verdadero/falso, respuesta corta)"
+    - "Control de tiempo con temporizador individual y extensiones configurables"
+    - "Calificación automática con retroalimentación inmediata por pregunta"
+    - "Gestión de bancos de preguntas categorizadas por dificultad y tema"
+    - "Generación de reportes de resultados en PDF con estadísticas detalladas"
+  advanced:
+    - "Análisis estadístico de exámenes con índice de dificultad y discriminación"
+    - "Aleatorización de preguntas y respuestas para prevenir copias"
+    - "Sistema de categorías jerárquicas para organización de bancos de preguntas"
+    - "Respaldo automático de respuestas durante el examen para prevenir pérdida de datos"
+  optional:
+    - "Detección de comportamiento sospechoso durante el examen"
+    - "Soporte para preguntas de tipo ensayo con calificación manual"
+    - "Integración con sistemas de gestión del aprendizaje (LMS)"
+    - "Modo de práctica con retroalimentación instantánea sin registro de calificaciones"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance:
+    - FERPA
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

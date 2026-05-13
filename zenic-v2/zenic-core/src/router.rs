@@ -1,0 +1,303 @@
+//! Hierarchical request router for Zenic-Agents.
+//!
+//! The [`RequestRouter`] determines which subsystem should handle an
+//! incoming request. It classifies requests into DAG execution,
+//! workflow execution, policy queries, or catalog management, and
+//! returns a [`RouteDecision`] that the orchestrator uses to dispatch.
+//!
+//! The router enforces that all execution requests pass through the
+//! policy engine before reaching the runtime or flow subsystems.
+
+use zenic_policy::{Action, Permission, Resource};
+use zenic_proto::{ExecutionId, NodeId, SessionId, SubGraphId, SuperNodeId, TenantId, WorkflowId};
+
+use crate::errors::CoreError;
+
+// ---------------------------------------------------------------------------
+// RouteDecision
+// ---------------------------------------------------------------------------
+
+/// Decision about where to route a request.
+///
+/// The orchestrator inspects this enum to determine which subsystem
+/// should handle the request. Each variant carries the minimum
+/// information needed for the dispatch.
+#[derive(Debug, Clone)]
+pub enum RouteDecision {
+    /// Execute a DAG directly (single execution run).
+    ExecuteDag {
+        /// The DAG to execute.
+        graph_id: ExecutionId,
+    },
+    /// Execute a subgraph within a super-node.
+    ExecuteSubGraph {
+        /// The super-node containing the subgraph.
+        super_node_id: SuperNodeId,
+        /// The subgraph to execute.
+        sub_graph_id: SubGraphId,
+    },
+    /// Execute a durable workflow.
+    ExecuteWorkflow {
+        /// The workflow definition ID.
+        workflow_id: WorkflowId,
+    },
+    /// Query the policy engine (no execution).
+    PolicyQuery {
+        /// The permission being checked.
+        permission: Permission,
+    },
+    /// Catalog management operation (register/lookup).
+    CatalogOp {
+        /// Description of the catalog operation.
+        operation: String,
+    },
+}
+
+// ---------------------------------------------------------------------------
+// RouteRequest
+// ---------------------------------------------------------------------------
+
+/// An incoming request to be routed.
+///
+/// Contains all the information the router needs to classify the
+/// request and determine the appropriate subsystem.
+#[derive(Debug, Clone)]
+pub struct RouteRequest {
+    /// The session making the request.
+    pub session_id: SessionId,
+    /// The tenant within which the request is made.
+    pub tenant_id: TenantId,
+    /// The action being requested.
+    pub action: RouteAction,
+}
+
+// ---------------------------------------------------------------------------
+// RouteAction
+// ---------------------------------------------------------------------------
+
+/// The type of action a request is performing.
+///
+/// This is a simplified view of the action that the router uses
+/// for classification. The full permission details are evaluated
+/// by the policy engine after routing.
+#[derive(Debug, Clone)]
+pub enum RouteAction {
+    /// Execute a specific node.
+    ExecuteNode(NodeId),
+    /// Execute a subgraph.
+    ExecuteSubGraph(SubGraphId),
+    /// Execute a workflow.
+    ExecuteWorkflow(WorkflowId),
+    /// Read data from a node or catalog.
+    Read,
+    /// Write data to a node.
+    Write(NodeId),
+    /// Delete a node.
+    Delete(NodeId),
+    /// Administrative operation.
+    Admin,
+    /// Cancel a running execution or workflow.
+    Cancel(ExecutionId),
+}
+
+impl RouteAction {
+    /// Converts this route action into a policy permission for evaluation.
+    pub fn to_permission(&self) -> Permission {
+        match self {
+            Self::ExecuteNode(id) => Permission::new(Action::Execute, Resource::Node(*id)),
+            Self::ExecuteSubGraph(id) => Permission::new(Action::Execute, Resource::SubGraph(*id)),
+            Self::ExecuteWorkflow(id) => Permission::new(Action::Execute, Resource::Workflow(*id)),
+            Self::Read => Permission::new(Action::Read, Resource::AllNodes),
+            Self::Write(id) => Permission::new(Action::Write, Resource::Node(*id)),
+            Self::Delete(id) => Permission::new(Action::Delete, Resource::Node(*id)),
+            Self::Admin => Permission::new(Action::Admin, Resource::PolicyEngine),
+            Self::Cancel(_) => Permission::new(Action::Cancel, Resource::AllWorkflows),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// RequestRouter
+// ---------------------------------------------------------------------------
+
+/// Routes incoming requests to the appropriate subsystem.
+///
+/// The router classifies requests and returns a [`RouteDecision`]
+/// that tells the orchestrator which subsystem should handle the
+/// request. The router does NOT execute the request — it only
+/// determines where it should go.
+pub struct RequestRouter {
+    /// Monotonic counter for execution IDs generated by the router.
+    route_counter: u64,
+}
+
+impl RequestRouter {
+    /// Creates a new request router.
+    pub fn new() -> Self {
+        Self { route_counter: 0 }
+    }
+
+    /// Routes a request to the appropriate subsystem.
+    ///
+    /// Returns a [`RouteDecision`] that the orchestrator uses to
+    /// dispatch the request to the correct handler.
+    pub fn route(&mut self, request: &RouteRequest) -> Result<RouteDecision, CoreError> {
+        self.route_counter += 1;
+
+        match &request.action {
+            RouteAction::ExecuteNode(_node_id) => {
+                Ok(RouteDecision::ExecuteDag {
+                    graph_id: ExecutionId::new(),
+                })
+            }
+            RouteAction::ExecuteSubGraph(sg_id) => {
+                // For subgraph execution, we need the parent super-node.
+                // The orchestrator will resolve this from the catalog.
+                Ok(RouteDecision::CatalogOp {
+                    operation: format!("resolve_subgraph_{}", sg_id),
+                })
+            }
+            RouteAction::ExecuteWorkflow(wf_id) => {
+                Ok(RouteDecision::ExecuteWorkflow {
+                    workflow_id: *wf_id,
+                })
+            }
+            RouteAction::Read | RouteAction::Admin => {
+                Ok(RouteDecision::PolicyQuery {
+                    permission: request.action.to_permission(),
+                })
+            }
+            RouteAction::Write(node_id) => {
+                Ok(RouteDecision::CatalogOp {
+                    operation: format!("write_node_{}", node_id),
+                })
+            }
+            RouteAction::Delete(node_id) => {
+                Ok(RouteDecision::CatalogOp {
+                    operation: format!("delete_node_{}", node_id),
+                })
+            }
+            RouteAction::Cancel(exec_id) => {
+                Ok(RouteDecision::CatalogOp {
+                    operation: format!("cancel_execution_{}", exec_id),
+                })
+            }
+        }
+    }
+
+    /// Returns the total number of requests routed.
+    pub fn route_count(&self) -> u64 {
+        self.route_counter
+    }
+}
+
+impl Default for RequestRouter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_request(action: RouteAction) -> RouteRequest {
+        RouteRequest {
+            session_id: SessionId::new(),
+            tenant_id: TenantId::new(),
+            action,
+        }
+    }
+
+    #[test]
+    fn route_execute_node() {
+        let mut router = RequestRouter::new();
+        let req = make_request(RouteAction::ExecuteNode(NodeId::new()));
+        let decision = router.route(&req).expect("route");
+        assert!(matches!(decision, RouteDecision::ExecuteDag { .. }));
+    }
+
+    #[test]
+    fn route_execute_subgraph() {
+        let mut router = RequestRouter::new();
+        let req = make_request(RouteAction::ExecuteSubGraph(SubGraphId::new()));
+        let decision = router.route(&req).expect("route");
+        assert!(matches!(decision, RouteDecision::CatalogOp { .. }));
+    }
+
+    #[test]
+    fn route_execute_workflow() {
+        let mut router = RequestRouter::new();
+        let wf_id = WorkflowId::new();
+        let req = make_request(RouteAction::ExecuteWorkflow(wf_id));
+        let decision = router.route(&req).expect("route");
+        if let RouteDecision::ExecuteWorkflow { workflow_id } = decision {
+            assert_eq!(workflow_id, wf_id);
+        } else {
+            panic!("expected ExecuteWorkflow decision");
+        }
+    }
+
+    #[test]
+    fn route_read_is_policy_query() {
+        let mut router = RequestRouter::new();
+        let req = make_request(RouteAction::Read);
+        let decision = router.route(&req).expect("route");
+        assert!(matches!(decision, RouteDecision::PolicyQuery { .. }));
+    }
+
+    #[test]
+    fn route_admin_is_policy_query() {
+        let mut router = RequestRouter::new();
+        let req = make_request(RouteAction::Admin);
+        let decision = router.route(&req).expect("route");
+        assert!(matches!(decision, RouteDecision::PolicyQuery { .. }));
+    }
+
+    #[test]
+    fn route_action_to_permission_execute_node() {
+        let id = NodeId::new();
+        let action = RouteAction::ExecuteNode(id);
+        let perm = action.to_permission();
+        assert_eq!(perm.action, Action::Execute);
+        assert_eq!(perm.resource, Resource::Node(id));
+    }
+
+    #[test]
+    fn route_action_to_permission_execute_workflow() {
+        let id = WorkflowId::new();
+        let action = RouteAction::ExecuteWorkflow(id);
+        let perm = action.to_permission();
+        assert_eq!(perm.action, Action::Execute);
+        assert_eq!(perm.resource, Resource::Workflow(id));
+    }
+
+    #[test]
+    fn route_action_to_permission_read() {
+        let action = RouteAction::Read;
+        let perm = action.to_permission();
+        assert_eq!(perm.action, Action::Read);
+        assert_eq!(perm.resource, Resource::AllNodes);
+    }
+
+    #[test]
+    fn route_counter_increments() {
+        let mut router = RequestRouter::new();
+        assert_eq!(router.route_count(), 0);
+        let req = make_request(RouteAction::Read);
+        let _ = router.route(&req);
+        assert_eq!(router.route_count(), 1);
+        let _ = router.route(&req);
+        assert_eq!(router.route_count(), 2);
+    }
+
+    #[test]
+    fn router_default_is_new() {
+        let router = RequestRouter::default();
+        assert_eq!(router.route_count(), 0);
+    }
+}

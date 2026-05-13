@@ -1,0 +1,174 @@
+niche:
+  name: "contract"
+  domain: "legal"
+  subdomain: "contract"
+  description: "Plataforma de gestión contractual para creación, negociación, firma, seguimiento y renovación de contratos con control de versiones y cumplimiento normativo"
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - pdf_generator
+    - email_smtp
+    - notification_manager
+    - crud_service
+    - backup_restore
+    - task_scheduler
+  variables:
+    project_name: "contract"
+    app_name: "Contract"
+    template_type: "niche"
+    db_name: "contract.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Contract"
+    fields:
+      - "contract_id:uuid"
+      - "contract_number:str"
+      - "title:str"
+      - "contract_type:str"
+      - "status:str"
+      - "effective_date:date"
+      - "expiration_date:date"
+      - "value:decimal"
+      - "currency:str"
+      - "description:str"
+      - "owner_id:uuid"
+      - "created_at:datetime"
+
+  - name: "Party"
+    fields:
+      - "party_id:uuid"
+      - "contract_id:uuid"
+      - "name:str"
+      - "party_type:str"
+      - "email:str"
+      - "phone:str"
+      - "address:str"
+      - "legal_entity_type:str"
+      - "tax_id:str"
+      - "representative_name:str"
+      - "role:str"
+      - "signing_authority:bool"
+
+  - name: "Clause"
+    fields:
+      - "clause_id:uuid"
+      - "contract_id:uuid"
+      - "clause_type:str"
+      - "title:str"
+      - "content:str"
+      - "section_number:str"
+      - "is_standard:bool"
+      - "is_negotiable:bool"
+      - "risk_level:str"
+      - "version:int"
+      - "last_modified_at:datetime"
+      - "modified_by:uuid"
+
+  - name: "Template"
+    fields:
+      - "template_id:uuid"
+      - "name:str"
+      - "description:str"
+      - "contract_type:str"
+      - "content:str"
+      - "variables:json"
+      - "version:int"
+      - "is_active:bool"
+      - "created_by:uuid"
+      - "created_at:datetime"
+      - "updated_at:datetime"
+      - "usage_count:int"
+
+  - name: "Signature"
+    fields:
+      - "signature_id:uuid"
+      - "contract_id:uuid"
+      - "party_id:uuid"
+      - "signer_name:str"
+      - "signer_email:str"
+      - "signature_type:str"
+      - "digital_certificate:str"
+      - "ip_address:str"
+      - "timestamp:datetime"
+      - "status:str"
+      - "verification_hash:str"
+      - "document_version:int"
+
+  - name: "Amendment"
+    fields:
+      - "amendment_id:uuid"
+      - "contract_id:uuid"
+      - "amendment_number:int"
+      - "title:str"
+      - "description:str"
+      - "changes:json"
+      - "reason:str"
+      - "status:str"
+      - "requested_at:datetime"
+      - "approved_at:datetime"
+      - "effective_date:date"
+      - "approved_by:uuid"
+
+  - name: "Deadline"
+    fields:
+      - "deadline_id:uuid"
+      - "contract_id:uuid"
+      - "title:str"
+      - "description:str"
+      - "due_date:datetime"
+      - "deadline_type:str"
+      - "responsible_party_id:uuid"
+      - "status:str"
+      - "completed_at:datetime"
+      - "is_recurring:bool"
+      - "recurrence_pattern:str"
+      - "priority:str"
+
+workflow:
+  typical_paths:
+    - "Seleccionar plantilla → Personalizar cláusulas → Enviar para negociación → Obtener firmas → Activar contrato"
+    - "Identificar necesidad de modificación → Proponer enmienda → Negociar cambios → Aprobar y firmar → Actualizar contrato"
+    - "Monitorear plazos contractuales → Detectar vencimiento próximo → Notificar responsable → Renovar o cerrar contrato"
+  triggers:
+    - "contract_expiration_approaching:Notificar a las partes sobre la fecha de vencimiento del contrato con anticipación configurable"
+    - "signature_requested:Enviar solicitud de firma electrónica a las partes pendientes con enlace seguro"
+    - "amendment_proposed:Iniciar flujo de aprobación para cambios propuestos al contrato vigente"
+    - "deadline_due:Alertar al responsable sobre obligación contractual próxima a vencer"
+    - "contract_fully_signed:Activar contrato automáticamente cuando todas las partes han firmado"
+
+features:
+  core:
+    - "Gestión del ciclo completo de contratos desde creación hasta expiración o renovación"
+    - "Biblioteca de plantillas con cláusulas estándar y variables dinámicas"
+    - "Sistema de firma electrónica con validez legal y verificación de identidad"
+    - "Control de versiones con historial completo de cambios y auditoría"
+    - "Gestión de plazos contractuales con notificaciones automáticas"
+  advanced:
+    - "Análisis de riesgo de cláusulas con clasificación automática por nivel de exposición"
+    - "Motor de comparación de versiones con resaltado de diferencias"
+    - "Flujo de aprobación configurable con reglas de escalamiento por tipo de contrato"
+    - "Dashboard de estado contractual con métricas de vigencia, renovación y cumplimiento"
+    - "Integración con proveedores de firma electrónica certificada"
+  optional:
+    - "Inteligencia artificial para revisión de cláusulas y detección de riesgos"
+    - "Portal de autoservicio para contrapartes con acceso a sus contratos"
+    - "Integración con sistemas ERP para sincronización de datos de proveedores"
+    - "Módulo de reportes de cumplimiento contractual por departamento"
+    - "Notificaciones multicanal vía email, SMS y plataformas de mensajería"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance:
+    - "eIDAS"
+    - "GDPR"
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

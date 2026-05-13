@@ -1,0 +1,178 @@
+niche:
+  name: "grid_monitoring"
+  domain: "energy"
+  subdomain: "power_distribution"
+  description: "Plataforma de monitorización y control de red eléctrica para gestión de subestaciones, líneas de transmisión, sensores en tiempo real y respuesta coordinada ante cortes y emergencias."
+  scale: "large"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - data_analyzer
+    - notification_manager
+    - webhook_server
+    - task_scheduler
+    - crud_service
+    - report_generator
+    - backup_restore
+  variables:
+    project_name: "grid_monitoring"
+    app_name: "GridMonitoring"
+    template_type: "niche"
+    db_name: "grid_monitoring.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Substation"
+    fields:
+      - "substation_id:uuid"
+      - "name:str"
+      - "location_lat:float"
+      - "location_lon:float"
+      - "voltage_kv:float"
+      - "capacity_mva:float"
+      - "status:str"
+      - "commissioning_date:date"
+      - "region:str"
+      - "owner:str"
+      - "criticality:str"
+
+  - name: "Line"
+    fields:
+      - "line_id:uuid"
+      - "name:str"
+      - "voltage_kv:float"
+      - "length_km:float"
+      - "from_substation_id:uuid"
+      - "to_substation_id:uuid"
+      - "conductor_type:str"
+      - "status:str"
+      - "max_capacity_mw:float"
+      - "current_load_mw:float"
+
+  - name: "Sensor"
+    fields:
+      - "sensor_id:uuid"
+      - "type:str"
+      - "location_lat:float"
+      - "location_lon:float"
+      - "installation_date:date"
+      - "last_calibration:date"
+      - "status:str"
+      - "measurement_unit:str"
+      - "sample_rate_seconds:int"
+      - "substation_id:uuid"
+      - "line_id:uuid"
+      - "firmware_version:str"
+
+  - name: "Reading"
+    fields:
+      - "reading_id:uuid"
+      - "sensor_id:uuid"
+      - "timestamp:datetime"
+      - "value:float"
+      - "unit:str"
+      - "quality_flag:str"
+      - "anomaly:bool"
+      - "min_threshold:float"
+      - "max_threshold:float"
+
+  - name: "Alert"
+    fields:
+      - "alert_id:uuid"
+      - "sensor_id:uuid"
+      - "type:str"
+      - "severity:str"
+      - "message:str"
+      - "timestamp:datetime"
+      - "acknowledged:bool"
+      - "acknowledged_by:str"
+      - "resolved:bool"
+      - "resolution_notes:str"
+
+  - name: "Outage"
+    fields:
+      - "outage_id:uuid"
+      - "substation_id:uuid"
+      - "line_id:uuid"
+      - "start_time:datetime"
+      - "end_time:datetime"
+      - "cause:str"
+      - "affected_customers:int"
+      - "status:str"
+      - "crew_id:uuid"
+      - "restoration_plan:str"
+      - "region:str"
+
+  - name: "Crew"
+    fields:
+      - "crew_id:uuid"
+      - "name:str"
+      - "leader:str"
+      - "members:int"
+      - "specialization:str"
+      - "status:str"
+      - "current_location_lat:float"
+      - "current_location_lon:float"
+      - "contact_phone:str"
+      - "available:bool"
+
+  - name: "Maintenance"
+    fields:
+      - "maintenance_id:uuid"
+      - "asset_type:str"
+      - "asset_id:uuid"
+      - "type:str"
+      - "scheduled_date:datetime"
+      - "completed_date:datetime"
+      - "crew_id:uuid"
+      - "status:str"
+      - "description:str"
+      - "cost:float"
+      - "findings:str"
+      - "priority:str"
+
+workflow:
+  typical_paths:
+    - "Lectura de sensor → Evaluación de umbrales → Generación de alerta → Asignación de cuadrilla → Diagnóstico en campo → Resolución → Registro de mantenimiento"
+    - "Detección de corte → Creación de evento de outage → Despacho de cuadrilla de emergencia → Coordinación de restauración → Cierre de outage → Informe posterior"
+    - "Programación de mantenimiento → Asignación de recursos → Ejecución → Actualización de estado del activo → Generación de informe"
+  triggers:
+    - "threshold_exceeded:Alerta cuando una lectura de sensor supera los umbrales configurados"
+    - "outage_detected:Activación automática de protocolo de emergencia ante detección de corte de suministro"
+    - "maintenance_due:Programación automática de mantenimiento basada en intervalos o condiciones del activo"
+    - "sensor_offline:Notificación cuando un sensor deja de transmitir datos"
+    - "load_imbalance:Alerta ante desequilibrio de carga en líneas de transmisión"
+
+features:
+  core:
+    - "Monitorización en tiempo real de subestaciones, líneas y sensores de red"
+    - "Gestión de alertas con clasificación por severidad y seguimiento de resolución"
+    - "Despacho y coordinación de cuadrillas para atención de emergencias"
+    - "Registro y seguimiento completo de cortes de suministro"
+    - "Programación de mantenimiento preventivo y correctivo de activos de red"
+    - "Dashboard operativo con vista georreferenciada del estado de la red"
+  advanced:
+    - "Análisis predictivo de fallos en equipos basado en patrones históricos de sensores"
+    - "Optimización automática de rutas de restauración ante cortes múltiples"
+    - "Integración con sistemas SCADA/EMS para control supervisado"
+    - "Modelado de carga y predicción de demanda en tiempo real"
+  optional:
+    - "Simulación de escenarios de contingencia N-1 y N-2"
+    - "Integración con sistemas de gestión de energía distribuida y microredes"
+    - "Módulo de gestión de activos con ciclo de vida completo"
+    - "API abierta para integración con operadores de red vecinos"
+
+risk_assessment:
+  data_sensitivity: "critical"
+  compliance:
+    - "NERC"
+    - "IEC61850"
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

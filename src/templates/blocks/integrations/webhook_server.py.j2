@@ -1,0 +1,327 @@
+"""
+Webhook Server Integration Block for Zenic-Agents
+==================================================
+Production-ready webhook handler with HMAC-SHA256 signature verification,
+FastAPI router, event dispatching, and pluggable handler registration.
+
+Configuration (environment variables):
+  WEBHOOK_SECRET - Default HMAC secret for signature verification
+
+SECURITY WARNING: If WEBHOOK_SECRET is not set, a default placeholder
+"CHANGE-ME" is used which MUST be changed in production. Running with
+the default secret is insecure and will log a warning at startup.
+"""
+
+import hashlib
+import hmac
+import json
+import os
+from typing import Any, Awaitable, Callable, Optional
+
+from fastapi import APIRouter, HTTPException, Request, Response
+
+
+# Type alias for handler callables
+WebhookHandlerFn = Callable[[dict], Awaitable[dict]]
+
+
+class WebhookHandler:
+    """
+    FastAPI-based webhook handler with HMAC verification and event dispatching.
+
+    Usage::
+
+        handler = WebhookHandler(secret="my-secret")
+
+        @handler.register_handler("/stripe")
+        async def on_stripe_event(payload: dict) -> dict:
+            ...
+
+        @handler.register_handler("/github", secret="gh-secret")
+        async def on_github_event(payload: dict) -> dict:
+            ...
+
+        # In your FastAPI app:
+        app.include_router(handler.router)
+    """
+
+    def __init__(
+        self,
+        secret: Optional[str] = None,
+        prefix: str = "/webhooks",
+    ) -> None:
+        """
+        Initialise the webhook handler.
+
+        Args:
+            secret: Default HMAC secret. Falls back to WEBHOOK_SECRET env var.
+            prefix: URL prefix for all webhook routes.
+        """
+        self._default_secret: str = secret or os.environ.get(
+            "WEBHOOK_SECRET", "CHANGE-ME"
+        )
+        # SECURITY WARNING: Log if using default/insecure secret
+        if self._default_secret == "CHANGE-ME":
+            import logging as _logging
+            _logging.getLogger(__name__).warning(
+                "SECURITY: WEBHOOK_SECRET not set — using insecure default. "
+                "Set the WEBHOOK_SECRET environment variable in production!"
+            )
+        self._prefix: str = prefix.rstrip("/")
+
+        # path -> (handler_fn, optional per-path secret)
+        self._handlers: dict[str, tuple[WebhookHandlerFn, Optional[str]]] = {}
+
+        # FastAPI router — expose publicly so it can be included in an app
+        self.router = APIRouter(prefix=self._prefix)
+        self._register_catch_all()
+
+    # ------------------------------------------------------------------
+    # Handler registration
+    # ------------------------------------------------------------------
+
+    def register_handler(
+        self,
+        path: str,
+        secret: Optional[str] = None,
+    ) -> Callable:
+        """
+        Decorator to register an async handler for a webhook path.
+
+        The decorated function receives a parsed payload dict and must
+        return a dict (the JSON response body).
+
+        Args:
+            path:   URL path relative to the prefix (e.g. "/stripe").
+            secret: Optional per-path HMAC secret (overrides default).
+
+        Returns:
+            Decorator.
+
+        Example::
+
+            @handler.register_handler("/github", secret="gh-hook-secret")
+            async def handle_github(payload: dict) -> dict:
+                ...
+        """
+        clean_path = path if path.startswith("/") else f"/{path}"
+
+        def decorator(fn: WebhookHandlerFn) -> WebhookHandlerFn:
+            self._handlers[clean_path] = (fn, secret)
+            # Also register an explicit route on the FastAPI router
+            self._add_route(clean_path, fn, secret)
+            return fn
+
+        return decorator
+
+    # ------------------------------------------------------------------
+    # Signature verification
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def verify_signature(
+        payload: bytes,
+        signature: str,
+        secret: str,
+        algorithm: str = "sha256",
+        separator: str = "=",
+    ) -> bool:
+        """
+        Verify an HMAC signature against a raw payload.
+
+        Supports common webhook formats:
+          - Raw hex digest (e.g. GitHub: sha256=<hex>)
+          - Base64-encoded digest
+
+        Args:
+            payload:   Raw request body bytes.
+            signature: Signature from the request header.
+            secret:    Shared HMAC secret.
+            algorithm: Hash algorithm name (default "sha256").
+            separator: Separator in the signature header (e.g. "=" for "sha256=hex").
+
+        Returns:
+            True if the signature is valid, False otherwise.
+        """
+        if not secret:
+            return False
+
+        # Determine the expected digest
+        expected = hmac.new(
+            secret.encode("utf-8"),
+            payload,
+            getattr(hashlib, algorithm, hashlib.sha256),
+        )
+
+        # Parse the incoming signature — may be "sha256=hex" or raw hex/base64
+        sig_value = signature
+        if separator in signature:
+            _, sig_value = signature.split(separator, 1)
+
+        # Try hex comparison first
+        try:
+            return hmac.compare_digest(expected.hexdigest(), sig_value)
+        except Exception:
+            pass
+
+        # Fall back to base64 comparison
+        import base64
+
+        try:
+            expected_b64 = base64.b64encode(expected.digest()).decode("utf-8")
+            return hmac.compare_digest(expected_b64, sig_value)
+        except Exception:
+            return False
+
+    # ------------------------------------------------------------------
+    # Payload parsing
+    # ------------------------------------------------------------------
+
+    async def parse_webhook(self, request: Request) -> dict:
+        """
+        Parse a webhook request into a dict.
+
+        Handles JSON and form-encoded bodies.
+
+        Args:
+            request: FastAPI Request object.
+
+        Returns:
+            Parsed payload dict.
+        """
+        content_type = request.headers.get("content-type", "")
+
+        if "application/json" in content_type:
+            body = await request.body()
+            return json.loads(body)
+
+        if "application/x-www-form-urlencoded" in content_type:
+            form = await request.form()
+            return dict(form)
+
+        # Fallback: try JSON, then form
+        body = await request.body()
+        try:
+            return json.loads(body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            form = await request.form()
+            return dict(form)
+
+    # ------------------------------------------------------------------
+    # Route management (internal)
+    # ------------------------------------------------------------------
+
+    def _register_catch_all(self) -> None:
+        """Register a 404 handler for unknown webhook paths."""
+
+        @self.router.api_route(
+            "/{path:path}", methods=["POST", "GET", "PUT", "DELETE"]
+        )
+        async def _not_found(path: str) -> Response:
+            raise HTTPException(status_code=404, detail=f"No handler for /{path}")
+
+    def _add_route(
+        self,
+        path: str,
+        handler_fn: WebhookHandlerFn,
+        secret: Optional[str],
+    ) -> None:
+        """
+        Add a POST endpoint on the FastAPI router that verifies the
+        signature and dispatches to *handler_fn*.
+        """
+
+        @self.router.post(path)
+        async def _endpoint(request: Request) -> dict:
+            payload = await self.parse_webhook(request)
+
+            # Signature verification (if a secret is configured)
+            effective_secret = secret or self._default_secret
+            if effective_secret:
+                sig_header = (
+                    request.headers.get("X-Hub-Signature-256")
+                    or request.headers.get("X-Hub-Signature")
+                    or request.headers.get("X-Signature")
+                    or request.headers.get("Stripe-Signature")
+                    or ""
+                )
+
+                # Stripe uses a different verification flow (timestamped)
+                if request.headers.get("Stripe-Signature"):
+                    # For Stripe, use the stripe SDK verification
+                    raw_body = await request.body()
+                    if not self._verify_stripe_signature(
+                        raw_body, sig_header, effective_secret
+                    ):
+                        raise HTTPException(status_code=401, detail="Invalid signature")
+                else:
+                    raw_body = await request.body()
+                    if not self.verify_signature(
+                        raw_body, sig_header, effective_secret
+                    ):
+                        raise HTTPException(status_code=401, detail="Invalid signature")
+
+            result = await handler_fn(payload)
+            return result
+
+    @staticmethod
+    def _verify_stripe_signature(
+        payload: bytes,
+        signature: str,
+        secret: str,
+        tolerance: int = 300,
+    ) -> bool:
+        """
+        Verify a Stripe-style webhook signature.
+
+        Stripe signatures look like:
+            t=1614734125,v1=abc123...,v1=def456...
+
+        The signature is computed as:
+            HMAC-SHA256(secret, "t.timestamp.payload")
+
+        Args:
+            payload:   Raw request body.
+            signature: Value of the Stripe-Signature header.
+            secret:    Webhook signing secret.
+            tolerance: Max age in seconds (default 300).
+
+        Returns:
+            True if the signature is valid and within tolerance.
+        """
+        import time
+
+        elements = signature.split(",")
+        timestamp: Optional[str] = None
+        signatures: list[str] = []
+
+        for element in elements:
+            key, _, value = element.partition("=")
+            if key == "t":
+                timestamp = value
+            elif key == "v1":
+                signatures.append(value)
+
+        if not timestamp or not signatures:
+            return False
+
+        # Check timestamp freshness
+        try:
+            ts = int(timestamp)
+        except ValueError:
+            return False
+
+        if abs(time.time() - ts) > tolerance:
+            return False
+
+        # Compute expected signature
+        signed_payload = f"{timestamp}.{payload.decode('utf-8', errors='replace')}"
+        expected = hmac.new(
+            secret.encode("utf-8"),
+            signed_payload.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+        return any(
+            hmac.compare_digest(expected, sig) for sig in signatures
+        )

@@ -1,0 +1,179 @@
+niche:
+  name: "solar_management"
+  domain: "energy"
+  subdomain: "renewable_energy"
+  description: "Sistema de gestión integral para instalaciones de energía solar que permite el seguimiento de paneles, monitorización de producción, gestión de clientes y mantenimiento preventivo de inversores y equipos."
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - data_analyzer
+    - invoice_calculator
+    - email_smtp
+    - notification_manager
+    - crud_service
+    - report_generator
+    - pdf_generator
+  variables:
+    project_name: "solar_management"
+    app_name: "SolarManagement"
+    template_type: "niche"
+    db_name: "solar_management.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Panel"
+    fields:
+      - "panel_id:uuid"
+      - "serial_number:str"
+      - "manufacturer:str"
+      - "model:str"
+      - "wattage:float"
+      - "efficiency:float"
+      - "install_date:date"
+      - "status:str"
+      - "location_lat:float"
+      - "location_lon:float"
+      - "warranty_expiry:date"
+      - "installation_id:uuid"
+
+  - name: "Installation"
+    fields:
+      - "installation_id:uuid"
+      - "name:str"
+      - "address:str"
+      - "city:str"
+      - "country:str"
+      - "capacity_kw:float"
+      - "install_date:date"
+      - "status:str"
+      - "orientation:str"
+      - "tilt_angle:float"
+      - "customer_id:uuid"
+      - "grid_connection:bool"
+
+  - name: "Customer"
+    fields:
+      - "customer_id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "address:str"
+      - "city:str"
+      - "country:str"
+      - "registration_date:date"
+      - "customer_type:str"
+      - "tax_id:str"
+
+  - name: "Production"
+    fields:
+      - "production_id:uuid"
+      - "panel_id:uuid"
+      - "timestamp:datetime"
+      - "energy_kwh:float"
+      - "irradiance:float"
+      - "temperature:float"
+      - "efficiency:float"
+      - "peak_power:float"
+      - "status:str"
+
+  - name: "Inverter"
+    fields:
+      - "inverter_id:uuid"
+      - "serial_number:str"
+      - "manufacturer:str"
+      - "model:str"
+      - "capacity_kw:float"
+      - "install_date:date"
+      - "status:str"
+      - "firmware_version:str"
+      - "installation_id:uuid"
+      - "warranty_expiry:date"
+      - "last_maintenance:date"
+
+  - name: "Maintenance"
+    fields:
+      - "maintenance_id:uuid"
+      - "installation_id:uuid"
+      - "type:str"
+      - "scheduled_date:date"
+      - "completed_date:date"
+      - "technician:str"
+      - "status:str"
+      - "description:str"
+      - "cost:float"
+      - "parts_replaced:str"
+
+  - name: "Contract"
+    fields:
+      - "contract_id:uuid"
+      - "customer_id:uuid"
+      - "installation_id:uuid"
+      - "start_date:date"
+      - "end_date:date"
+      - "contract_type:str"
+      - "tariff_rate:float"
+      - "status:str"
+      - "auto_renew:bool"
+      - "terms:str"
+
+  - name: "Billing"
+    fields:
+      - "billing_id:uuid"
+      - "contract_id:uuid"
+      - "customer_id:uuid"
+      - "period_start:date"
+      - "period_end:date"
+      - "energy_produced_kwh:float"
+      - "energy_exported_kwh:float"
+      - "amount:float"
+      - "tax:float"
+      - "total:float"
+      - "status:str"
+      - "due_date:date"
+
+workflow:
+  typical_paths:
+    - "Registro de cliente → Diseño de instalación → Instalación de paneles e inversores → Monitorización de producción → Facturación mensual"
+    - "Detección de caída de rendimiento → Alerta de mantenimiento → Programación de visita → Ejecución de mantenimiento → Actualización de estado"
+    - "Creación de contrato → Cálculo de tarifa → Generación de facturas periódicas → Seguimiento de pagos"
+  triggers:
+    - "low_production:Alerta cuando la producción de un panel cae por debajo del umbral esperado"
+    - "maintenance_due:Notificación automática cuando se acerca la fecha de mantenimiento programado"
+    - "billing_cycle:Generación automática de facturas al cierre del periodo de facturación"
+    - "inverter_offline:Alerta inmediata cuando un inversor pierde conexión"
+    - "warranty_expiry:Aviso previo al vencimiento de la garantía de paneles o inversores"
+
+features:
+  core:
+    - "Monitorización en tiempo real de la producción energética por panel e instalación"
+    - "Gestión completa del ciclo de vida de contratos y facturación"
+    - "Seguimiento de paneles solares con historial de rendimiento"
+    - "Programación y gestión de mantenimiento preventivo y correctivo"
+    - "Portal de clientes con visualización de producción y facturación"
+  advanced:
+    - "Análisis predictivo de degradación de paneles basado en datos históricos"
+    - "Optimización de orientación e inclinación mediante modelado solar"
+    - "Detección automática de anomalías en la producción energética"
+    - "Integración con APIs meteorológicas para ajuste de expectativas de producción"
+  optional:
+    - "Integración con sistemas SCADA para monitorización a nivel de planta"
+    - "Módulo de autoconsumo y balance neto con la red eléctrica"
+    - "Soporte para certificados de energía renovable y trazabilidad"
+    - "Dashboard GIS con mapa interactivo de instalaciones"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance:
+    - "GDPR"
+    - "Energy Reg"
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

@@ -1,0 +1,177 @@
+niche:
+  name: "production"
+  domain: "manufacturing"
+  subdomain: "production_management"
+  description: "Sistema de gestión de producción para la planificación y control de órdenes de trabajo, listas de materiales, operaciones, maquinaria y turnos de fabricación"
+  scale: "large"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - inventory_tracker
+    - task_scheduler
+    - report_generator
+    - crud_service
+    - notification_manager
+    - pdf_generator
+    - backup_restore
+  variables:
+    project_name: "production"
+    app_name: "Production"
+    template_type: "niche"
+    db_name: "production.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "WorkOrder"
+    fields:
+      - "id:uuid"
+      - "order_number:str"
+      - "product_id:uuid"
+      - "quantity:int"
+      - "priority:str"
+      - "status:str"
+      - "planned_start:datetime"
+      - "planned_end:datetime"
+      - "actual_start:datetime"
+      - "actual_end:datetime"
+      - "assigned_to:uuid"
+      - "notes:str"
+
+  - name: "Product"
+    fields:
+      - "id:uuid"
+      - "sku:str"
+      - "name:str"
+      - "description:str"
+      - "category:str"
+      - "unit:str"
+      - "bom_id:uuid"
+      - "standard_cost:float"
+      - "production_time_hours:float"
+      - "status:str"
+      - "specifications:json"
+
+  - name: "BillOfMaterial"
+    fields:
+      - "id:uuid"
+      - "product_id:uuid"
+      - "version:str"
+      - "components:json"
+      - "quantities:json"
+      - "units:json"
+      - "waste_percentage:float"
+      - "status:str"
+      - "created_at:datetime"
+      - "approved_by:uuid"
+
+  - name: "Operation"
+    fields:
+      - "id:uuid"
+      - "work_order_id:uuid"
+      - "sequence:int"
+      - "name:str"
+      - "machine_id:uuid"
+      - "setup_time_min:int"
+      - "run_time_min:int"
+      - "status:str"
+      - "worker_id:uuid"
+      - "started_at:datetime"
+      - "completed_at:datetime"
+
+  - name: "Machine"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "code:str"
+      - "type:str"
+      - "location:str"
+      - "capacity:float"
+      - "status:str"
+      - "efficiency_rate:float"
+      - "last_maintenance:date"
+      - "next_maintenance:date"
+
+  - name: "Worker"
+    fields:
+      - "id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "employee_id:str"
+      - "role:str"
+      - "skill_set:json"
+      - "shift:str"
+      - "certification:json"
+      - "status:str"
+      - "hire_date:date"
+
+  - name: "Shift"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "start_time:time"
+      - "end_time:time"
+      - "days:json"
+      - "supervisor_id:uuid"
+      - "target_output:int"
+      - "actual_output:int"
+      - "status:str"
+
+  - name: "Output"
+    fields:
+      - "id:uuid"
+      - "work_order_id:uuid"
+      - "product_id:uuid"
+      - "quantity_good:int"
+      - "quantity_defect:int"
+      - "shift_id:uuid"
+      - "worker_id:uuid"
+      - "machine_id:uuid"
+      - "timestamp:datetime"
+      - "batch_number:str"
+      - "notes:str"
+
+workflow:
+  typical_paths:
+    - "Creación de orden de trabajo → Verificación de materiales (BOM) → Asignación de máquina y operador → Ejecución de operaciones → Registro de output → Cierre de orden"
+    - "Planificación de producción → Asignación de turnos → Programación de operaciones por máquina → Monitoreo en tiempo real → Ajuste de capacidad → Reporte de eficiencia"
+    - "Alerta de material faltante → Verificación de inventario → Orden de compra → Recepción → Liberación de orden de trabajo"
+  triggers:
+    - "work_order_ready:Materiales disponibles y orden lista para iniciar producción"
+    - "operation_completed:Registro automático de avance al completar una operación"
+    - "machine_downtime:Alerta cuando una máquina sale de operación inesperadamente"
+    - "shift_output_below_target:Notificación cuando la producción del turno está por debajo del objetivo"
+    - "material_shortage_detected:Aviso de escasez de material para órdenes planificadas"
+
+features:
+  core:
+    - "Gestión de órdenes de trabajo con seguimiento de estado"
+    - "Listas de materiales (BOM) con versionamiento"
+    - "Programación de operaciones por máquina y turno"
+    - "Registro de producción (piezas buenas y defectuosas)"
+    - "Control de inventario de materiales y productos terminados"
+    - "Asignación de trabajadores a turnos y operaciones"
+  advanced:
+    - "Programación avanzada de producción (APS) con optimización de recursos"
+    - "Análisis de eficiencia de máquinas y líneas de producción"
+    - "Gestión de capacidad productiva con simulación de escenarios"
+    - "Trazabilidad completa por lote y número de serie"
+    - "Dashboard OEE (Eficiencia General de Equipos) en tiempo real"
+  optional:
+    - "Integración con sistemas SCADA y PLC"
+    - "Módulo de mantenimiento predictivo basado en datos de producción"
+    - "Gestión de productos configurables y BOM dinámicos"
+    - "Reportes de cumplimiento ISO 9001 automatizados"
+    - "Soporte para producción lean y kanban electrónico"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance: [ISO9001]
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

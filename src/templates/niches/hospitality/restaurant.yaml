@@ -1,0 +1,165 @@
+niche:
+  name: "restaurant"
+  domain: "hospitality"
+  subdomain: "food_beverage"
+  description: "Sistema de gestión de restaurantes con administración de mesas, reservas, menú, pedidos, facturación, cocina, personal y control de inventario."
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - email_smtp
+    - invoice_calculator
+    - inventory_tracker
+    - notification_manager
+    - pdf_generator
+    - crud_service
+    - report_generator
+    - backup_restore
+  variables:
+    project_name: "restaurant"
+    app_name: "Restaurant"
+    template_type: "niche"
+    db_name: "restaurant.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Table"
+    fields:
+      - "number:int"
+      - "capacity:int"
+      - "location:str"
+      - "status:str"
+      - "is_available:bool"
+      - "is_reserved:bool"
+      - "min_cover:int"
+      - "max_cover:int"
+      - "notes:str"
+      - "created_at:datetime"
+  - name: "Reservation"
+    fields:
+      - "guest_name:str"
+      - "guest_phone:str"
+      - "guest_email:str"
+      - "table_id:int"
+      - "party_size:int"
+      - "reserved_at:datetime"
+      - "duration:int"
+      - "status:str"
+      - "special_requests:text"
+      - "created_at:datetime"
+  - name: "MenuItem"
+    fields:
+      - "name:str"
+      - "description:text"
+      - "category:str"
+      - "price:float"
+      - "cost:float"
+      - "image:str"
+      - "is_available:bool"
+      - "preparation_time:int"
+      - "allergens:json"
+      - "is_vegan:bool"
+      - "created_at:datetime"
+  - name: "Order"
+    fields:
+      - "table_id:int"
+      - "server_id:int"
+      - "items:json"
+      - "subtotal:float"
+      - "tax:float"
+      - "total:float"
+      - "status:str"
+      - "order_type:str"
+      - "started_at:datetime"
+      - "completed_at:datetime"
+  - name: "Bill"
+    fields:
+      - "order_id:int"
+      - "table_id:int"
+      - "subtotal:float"
+      - "tax:float"
+      - "tip:float"
+      - "total:float"
+      - "payment_method:str"
+      - "split_count:int"
+      - "status:str"
+      - "created_at:datetime"
+  - name: "Kitchen"
+    fields:
+      - "order_id:int"
+      - "item_name:str"
+      - "quantity:int"
+      - "priority:str"
+      - "status:str"
+      - "started_at:datetime"
+      - "completed_at:datetime"
+      - "prepared_by:int"
+      - "notes:str"
+  - name: "Staff"
+    fields:
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "role:str"
+      - "section:str"
+      - "shift:str"
+      - "is_active:bool"
+      - "hired_at:datetime"
+      - "created_at:datetime"
+  - name: "Inventory"
+    fields:
+      - "ingredient_name:str"
+      - "category:str"
+      - "quantity:float"
+      - "unit:str"
+      - "minimum_stock:float"
+      - "cost_per_unit:float"
+      - "supplier:str"
+      - "expiry_date:date"
+      - "last_restocked:date"
+      - "created_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Cliente hace reserva → Host confirma → Cliente llega → Asignación de mesa → Ordena → Come → Paga → Mesa liberada"
+    - "Mesero toma pedido → Envía a cocina → Cocina prepara → Mesero sirve → Cliente solicita cuenta → Factura generada"
+    - "Inventario baja de mínimo → Alerta generada → Orden de reposición → Recepción de mercancía → Stock actualizado"
+  triggers:
+    - "reservation_made:Enviar confirmación de reserva al cliente con detalles de la mesa y hora"
+    - "order_placed:Notificar a cocina sobre nuevo pedido con prioridad y tiempo estimado"
+    - "low_inventory:Alertar al gerente cuando un ingrediente cae por debajo del stock mínimo"
+    - "table_ready:Notificar al host cuando una mesa está disponible para asignar clientes en espera"
+    - "bill_settled:Liberar mesa automáticamente y actualizar disponibilidad en el sistema"
+
+features:
+  core:
+    - "Gestión de mesas con mapa visual del restaurante y estado en tiempo real"
+    - "Sistema de reservas con confirmación automática por email y recordatorios"
+    - "Administración de menú con categorías, alérgenos y disponibilidad"
+    - "Sistema de pedidos con envío directo a cocina y seguimiento de estado"
+    - "Facturación con división de cuenta y múltiples métodos de pago"
+  advanced:
+    - "Control de inventario con alertas de stock bajo y seguimiento de costos"
+    - "Generación de facturas en PDF con detalle de consumo y formato profesional"
+    - "Dashboard de reportes con ventas por período, platos más vendidos y márgenes"
+    - "Sistema de notificaciones para coordinación entre cocina y servicio"
+    - "Backup automático con restauración de datos operacionales y de inventario"
+  optional:
+    - "Sistema de lealtad con puntos y recompensas para clientes frecuentes"
+    - "Pedidos online con integración de delivery y pickup"
+    - "Menú digital con códigos QR accesible desde el móvil del cliente"
+    - "Integración con sistemas POS y contabilidad para cierre diario"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance:
+    - Food Safety
+    - GDPR
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

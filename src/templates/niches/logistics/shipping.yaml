@@ -1,0 +1,167 @@
+niche:
+  name: "shipping"
+  domain: "logistics"
+  subdomain: "shipping_management"
+  description: "Sistema de gestión de envíos para el seguimiento de paquetes, transporte, rastreo en tiempo real y facturación de servicios de mensajería y paquetería"
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - email_smtp
+    - notification_manager
+    - invoice_calculator
+    - pdf_generator
+    - crud_service
+    - report_generator
+    - backup_restore
+  variables:
+    project_name: "shipping"
+    app_name: "Shipping"
+    template_type: "niche"
+    db_name: "shipping.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Shipment"
+    fields:
+      - "id:uuid"
+      - "tracking_number:str"
+      - "carrier_id:uuid"
+      - "customer_id:uuid"
+      - "origin_address:str"
+      - "destination_address:str"
+      - "status:str"
+      - "weight:float"
+      - "estimated_delivery:date"
+      - "actual_delivery:date"
+      - "shipping_cost:float"
+      - "created_at:datetime"
+
+  - name: "Carrier"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "code:str"
+      - "service_type:str"
+      - "coverage_area:json"
+      - "base_rate:float"
+      - "contact_phone:str"
+      - "contact_email:str"
+      - "status:str"
+      - "rating:float"
+
+  - name: "Package"
+    fields:
+      - "id:uuid"
+      - "shipment_id:uuid"
+      - "barcode:str"
+      - "weight:float"
+      - "dimensions:json"
+      - "content_description:str"
+      - "declared_value:float"
+      - "fragile:bool"
+      - "status:str"
+
+  - name: "Route"
+    fields:
+      - "id:uuid"
+      - "origin_hub:str"
+      - "destination_hub:str"
+      - "transit_hubs:json"
+      - "estimated_hours:float"
+      - "distance_km:float"
+      - "carrier_id:uuid"
+      - "status:str"
+      - "cost:float"
+
+  - name: "Tracking"
+    fields:
+      - "id:uuid"
+      - "shipment_id:uuid"
+      - "status:str"
+      - "location:str"
+      - "latitude:float"
+      - "longitude:float"
+      - "timestamp:datetime"
+      - "notes:str"
+      - "updated_by:str"
+
+  - name: "Delivery"
+    fields:
+      - "id:uuid"
+      - "shipment_id:uuid"
+      - "driver_name:str"
+      - "delivery_date:datetime"
+      - "signature_path:str"
+      - "photo_proof:str"
+      - "recipient_name:str"
+      - "status:str"
+      - "notes:str"
+
+  - name: "Customer"
+    fields:
+      - "id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "address:str"
+      - "city:str"
+      - "country:str"
+      - "preferred_carrier_id:uuid"
+
+  - name: "Invoice"
+    fields:
+      - "id:uuid"
+      - "shipment_id:uuid"
+      - "customer_id:uuid"
+      - "invoice_number:str"
+      - "subtotal:float"
+      - "tax:float"
+      - "total:float"
+      - "status:str"
+      - "issued_date:date"
+      - "due_date:date"
+
+workflow:
+  typical_paths:
+    - "Creación de envío → Asignación de transportista → Generación de paquete → Rastreo en tránsito → Entrega → Confirmación → Facturación"
+    - "Recepción de paquete → Clasificación → Asignación de ruta → Despacho → Actualizaciones de seguimiento → Entrega final"
+    - "Solicitud de cliente → Cotización → Aprobación → Creación de envío → Seguimiento hasta entrega"
+  triggers:
+    - "shipment_status_changed:Notificación automática al cliente cuando cambia el estado del envío"
+    - "delivery_confirmed:Generación de factura y comprobante al confirmar la entrega"
+    - "shipment_delayed:Alerta cuando un envío excede el tiempo estimado de entrega"
+    - "invoice_overdue:Aviso de factura vencida para seguimiento de cobro"
+    - "package_damaged:Registro de incidencia por paquete dañado durante el transporte"
+
+features:
+  core:
+    - "Rastreo de envíos en tiempo real con actualizaciones de estado"
+    - "Gestión de transportistas y tarifas"
+    - "Registro y seguimiento de paquetes con código de barras"
+    - "Facturación automática de servicios de envío"
+    - "Portal de seguimiento para clientes"
+  advanced:
+    - "Cálculo automático de tarifas basado en peso, distancia y tipo de servicio"
+    - "Notificaciones proactivas por email y SMS al cliente"
+    - "Dashboard de rendimiento de transportistas y tiempos de entrega"
+    - "Gestión de devoluciones e incidencias"
+  optional:
+    - "Integración con aduanas para envíos internacionales"
+    - "Módulo de seguros de transporte"
+    - "API de cotización en tiempo real para e-commerce"
+    - "Generación de etiquetas y documentación aduanera"
+    - "Soporte multi-moneda para facturación internacional"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance: [GDPR, Customs]
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

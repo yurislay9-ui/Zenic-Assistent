@@ -1,0 +1,185 @@
+<!--
+  Zenic-Agents Asistente — Settings Page (Phase 7.1)
+  System configuration: general, SNA, notifications, security, billing.
+-->
+{% extends "layouts/base.html" %}
+{% block title %}Configuración — Zenic-Agents{% endblock %}
+
+{% block content %}
+<div x-data="settingsData()">
+  <!-- ── General Settings ────────────────────────── -->
+  <div class="card mb-16">
+    <div class="card-header">
+      <span class="card-title">General</span>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Idioma</label>
+        <select x-model="settings.language" @change="saveSetting('language')" class="form-select">
+          <option value="es">Español</option>
+          <option value="en">English</option>
+          <option value="pt">Português</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Zona Horaria</label>
+        <select x-model="settings.timezone" @change="saveSetting('timezone')" class="form-select">
+          <option value="America/Mexico_City">América/Ciudad de México</option>
+          <option value="America/Bogota">América/Bogotá</option>
+          <option value="America/Lima">América/Lima</option>
+          <option value="America/Buenos_Aires">América/Buenos Aires</option>
+          <option value="America/Santiago">América/Santiago</option>
+          <option value="Europe/Madrid">Europa/Madrid</option>
+          <option value="UTC">UTC</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SNA Configuration ───────────────────────── -->
+  <div class="card mb-16">
+    <div class="card-header">
+      <span class="card-title">SNA — Monitores</span>
+      <span class="badge-status" :class="settings.sna_enabled ? 'badge-success' : 'badge-danger'"
+            x-text="settings.sna_enabled ? 'Activo' : 'Inactivo'"></span>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Habilitar SNA Monitores</label>
+      <div class="flex gap-8" style="align-items: center;">
+        <button class="btn btn-sm" :class="settings.sna_enabled ? 'btn-primary' : ''"
+                @click="settings.sna_enabled = true; saveSetting('sna_enabled')">Activar</button>
+        <button class="btn btn-sm" :class="!settings.sna_enabled ? 'btn-primary' : ''"
+                @click="settings.sna_enabled = false; saveSetting('sna_enabled')">Desactivar</button>
+      </div>
+      <p class="text-sm text-muted mt-8">
+        Los monitores SNA vigilan anomalías en facturación, inventario y operaciones críticas.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── Notification Preferences ────────────────── -->
+  <div class="card mb-16">
+    <div class="card-header">
+      <span class="card-title">Notificaciones</span>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Canal Predeterminado</label>
+        <select x-model="settings.notification_channel" @change="saveSetting('notification_channel')" class="form-select">
+          <option value="log">Log (interno)</option>
+          <option value="email">Email</option>
+          <option value="telegram">Telegram</option>
+          <option value="discord">Discord</option>
+          <option value="webhook">Webhook</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Frecuencia de Resumen</label>
+        <select x-model="settings.digest_frequency" @change="saveSetting('digest_frequency')" class="form-select">
+          <option value="realtime">Tiempo real</option>
+          <option value="hourly">Cada hora</option>
+          <option value="daily">Diario</option>
+          <option value="disabled">Desactivado</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group mt-8">
+      <label class="form-label">Nivel Mínimo de Alerta</label>
+      <select x-model="settings.min_alert_level" @change="saveSetting('min_alert_level')" class="form-select" style="width: 200px;">
+        <option value="low">Bajo</option>
+        <option value="normal">Normal</option>
+        <option value="high">Alto</option>
+        <option value="urgent">Urgente</option>
+        <option value="emergency">Emergencia</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ── Security Settings ───────────────────────── -->
+  <div class="card mb-16">
+    <div class="card-header">
+      <span class="card-title">Seguridad</span>
+    </div>
+    <div class="grid-2">
+      <div class="form-group">
+        <label class="form-label">Autenticación de Dos Factores (2FA)</label>
+        <div class="flex gap-8" style="align-items: center;">
+          <button class="btn btn-sm" :class="settings.two_factor ? 'btn-primary' : ''"
+                  @click="settings.two_factor = true; saveSetting('two_factor')">Activar</button>
+          <button class="btn btn-sm" :class="!settings.two_factor ? 'btn-primary' : ''"
+                  @click="settings.two_factor = false; saveSetting('two_factor')">Desactivar</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Timeout de Sesión (minutos)</label>
+        <input type="number" x-model="settings.session_timeout" @change="saveSetting('session_timeout')"
+               class="form-input" min="5" max="480" step="5" style="width: 120px;">
+      </div>
+    </div>
+    <p class="text-sm text-muted mt-8">
+      La autenticación 2FA requiere una app compatible (TOTP). El timeout de sesión controla cuánto tiempo
+      puedes estar inactivo antes de requerir un nuevo inicio de sesión.
+    </p>
+  </div>
+
+  <!-- ── Billing ─────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Facturación</span>
+      <a href="/app/billing" class="btn btn-sm">Ir a Facturación</a>
+    </div>
+    <p class="text-sm text-muted">
+      Para cambiar tu plan, ver facturas o actualizar tu método de pago, visita la página de facturación.
+    </p>
+  </div>
+</div>
+
+<script>
+function settingsData() {
+  return {
+    settings: {
+      language: 'es',
+      timezone: 'America/Mexico_City',
+      sna_enabled: true,
+      notification_channel: 'log',
+      digest_frequency: 'realtime',
+      min_alert_level: 'normal',
+      two_factor: false,
+      session_timeout: 30,
+    },
+
+    init() {
+      this.loadSettings();
+    },
+
+    async loadSettings() {
+      try {
+        const r = await fetch('/htmx/settings/load');
+        if (r.ok) {
+          const d = await r.json();
+          this.settings = { ...this.settings, ...d };
+        }
+      } catch (e) { console.error('Settings load error', e); }
+    },
+
+    async saveSetting(key) {
+      try {
+        await fetch('/htmx/settings/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key, value: this.settings[key] }),
+        });
+        window.dispatchEvent(new CustomEvent('notify', {
+          detail: { id: Date.now(), message: 'Configuración guardada', type: 'success' }
+        }));
+      } catch (e) {
+        console.error('Settings save error', e);
+        window.dispatchEvent(new CustomEvent('notify', {
+          detail: { id: Date.now(), message: 'Error al guardar', type: 'danger' }
+        }));
+      }
+    },
+  };
+}
+</script>
+{% endblock %}

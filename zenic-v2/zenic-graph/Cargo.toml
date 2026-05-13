@@ -1,0 +1,18 @@
+[package]
+name = "zenic-graph"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Fractal DAG graph primitives, catalog, and acyclic validation for Zenic-Agents"
+
+[dependencies]
+zenic-proto = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+petgraph = { workspace = true }
+indexmap = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]

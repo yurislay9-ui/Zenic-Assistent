@@ -1,0 +1,69 @@
+<!--
+  Zenic-Agents Asistente — Inventory Page (Phase 7.1)
+  Product inventory management with SNA monitoring integration.
+-->
+{% extends "layouts/base.html" %}
+{% block title %}Inventario — Zenic-Agents{% endblock %}
+
+{% block content %}
+<div x-data="inventoryData()">
+  <div class="metric-grid">
+    <div class="metric-card"><span class="metric-label">Productos</span><span class="metric-value" x-text="stats.total_products">--</span></div>
+    <div class="metric-card"><span class="metric-label">Stock Bajo</span><span class="metric-value" x-text="stats.low_stock">--</span></div>
+    <div class="metric-card"><span class="metric-label">Valor Total</span><span class="metric-value" x-text="'$' + stats.total_value">--</span></div>
+    <div class="metric-card"><span class="metric-label">Categorías</span><span class="metric-value" x-text="stats.categories">--</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Productos</span>
+      <button class="btn btn-sm btn-primary" @click="showAdd = !showAdd">+ Producto</button>
+    </div>
+    <div x-show="showAdd" x-transition class="mb-16" style="padding:16px;border:1px solid var(--color-border);border-radius:var(--radius);">
+      <form @submit.prevent="addProduct()">
+        <div class="grid-3">
+          <div class="form-group"><label class="form-label">Nombre</label><input type="text" x-model="newProduct.name" class="form-input"></div>
+          <div class="form-group"><label class="form-label">SKU</label><input type="text" x-model="newProduct.sku" class="form-input"></div>
+          <div class="form-group"><label class="form-label">Precio</label><input type="number" step="0.01" x-model="newProduct.price" class="form-input"></div>
+        </div>
+        <div class="grid-3 mt-8">
+          <div class="form-group"><label class="form-label">Stock</label><input type="number" x-model="newProduct.stock" class="form-input"></div>
+          <div class="form-group"><label class="form-label">Stock Mínimo</label><input type="number" x-model="newProduct.min_stock" class="form-input"></div>
+          <div class="form-group"><label class="form-label">Categoría</label><input type="text" x-model="newProduct.category" class="form-input"></div>
+        </div>
+        <button type="submit" class="btn btn-primary mt-8">Guardar</button>
+      </form>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>SKU</th><th>Nombre</th><th>Categoría</th><th>Stock</th><th>Precio</th><th>Estado</th></tr></thead>
+        <tbody>
+          <template x-for="p in products" :key="p.id">
+            <tr>
+              <td x-text="p.sku"></td>
+              <td x-text="p.name"></td>
+              <td x-text="p.category"></td>
+              <td x-text="p.stock"></td>
+              <td x-text="'$' + p.price"></td>
+              <td><span class="badge-status" :class="p.stock <= p.min_stock ? 'badge-danger' : 'badge-success'"
+                        x-text="p.stock <= p.min_stock ? 'Stock Bajo' : 'OK'"></span></td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+function inventoryData() {
+  return {
+    products: [], stats: { total_products: 0, low_stock: 0, total_value: '0', categories: 0 },
+    showAdd: false, newProduct: { name: '', sku: '', price: 0, stock: 0, min_stock: 5, category: '' },
+    init() { this.loadProducts(); this.loadStats(); },
+    async loadProducts() { try { const r = await fetch('/htmx/inventory/products'); if(r.ok) this.products = await r.json(); } catch(e){} },
+    async loadStats() { try { const r = await fetch('/htmx/inventory/stats'); if(r.ok) this.stats = await r.json(); } catch(e){} },
+    async addProduct() { await fetch('/htmx/inventory/add', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(this.newProduct) }); this.showAdd=false; this.loadProducts(); this.loadStats(); },
+  };
+}
+</script>
+{% endblock %}

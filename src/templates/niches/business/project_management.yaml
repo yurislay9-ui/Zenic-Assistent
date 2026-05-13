@@ -1,0 +1,189 @@
+niche:
+  name: "project_management"
+  domain: "business"
+  subdomain: "operations"
+  description: "Sistema de gestión de proyectos para administración de proyectos, tareas, hitos, equipos, recursos, registros de tiempo, documentos, riesgos y presupuestos con colaboración en equipo"
+  scale: "medium"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - email_smtp
+    - notification_manager
+    - task_scheduler
+    - pdf_generator
+    - crud_service
+    - report_generator
+    - backup_restore
+  variables:
+    project_name: "project_management"
+    app_name: "ProjectManagement"
+    template_type: "operations"
+    db_name: "project_management.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Project"
+    fields:
+      - "name:str"
+      - "description:text"
+      - "status:str"
+      - "priority:str"
+      - "start_date:date"
+      - "end_date:date"
+      - "budget:float"
+      - "spent:float"
+      - "progress_pct:float"
+      - "owner_id:int"
+      - "client:str"
+      - "tags:json"
+
+  - name: "Task"
+    fields:
+      - "project_id:int"
+      - "title:str"
+      - "description:text"
+      - "assignee_id:int"
+      - "status:str"
+      - "priority:str"
+      - "estimated_hours:float"
+      - "actual_hours:float"
+      - "due_date:date"
+      - "milestone_id:int"
+      - "dependencies:json"
+      - "completed_at:datetime"
+
+  - name: "Milestone"
+    fields:
+      - "project_id:int"
+      - "name:str"
+      - "description:text"
+      - "due_date:date"
+      - "status:str"
+      - "progress_pct:float"
+      - "deliverables:json"
+      - "completed_at:datetime"
+      - "stakeholder:str"
+
+  - name: "Team"
+    fields:
+      - "name:str"
+      - "project_id:int"
+      - "lead_id:int"
+      - "members:json"
+      - "capacity_hours:float"
+      - "description:text"
+      - "status:str"
+      - "created_at:datetime"
+
+  - name: "Resource"
+    fields:
+      - "name:str"
+      - "type:str"
+      - "project_id:int"
+      - "availability:float"
+      - "allocated:float"
+      - "unit_cost:float"
+      - "total_cost:float"
+      - "status:str"
+      - "booking_dates:json"
+      - "description:text"
+
+  - name: "TimeEntry"
+    fields:
+      - "task_id:int"
+      - "user_id:int"
+      - "project_id:int"
+      - "hours:float"
+      - "description:text"
+      - "date:date"
+      - "billable:bool"
+      - "rate:float"
+      - "status:str"
+      - "created_at:datetime"
+
+  - name: "Document"
+    fields:
+      - "project_id:int"
+      - "name:str"
+      - "type:str"
+      - "category:str"
+      - "file_path:str"
+      - "file_size:int"
+      - "version:str"
+      - "uploaded_by:str"
+      - "description:text"
+      - "uploaded_at:datetime"
+
+  - name: "Risk"
+    fields:
+      - "project_id:int"
+      - "title:str"
+      - "category:str"
+      - "probability:str"
+      - "impact:str"
+      - "severity:str"
+      - "mitigation_plan:text"
+      - "contingency_plan:text"
+      - "owner:str"
+      - "status:str"
+      - "identified_at:datetime"
+      - "resolved_at:datetime"
+
+  - name: "Budget"
+    fields:
+      - "project_id:int"
+      - "category:str"
+      - "allocated:float"
+      - "committed:float"
+      - "spent:float"
+      - "remaining:float"
+      - "forecast:float"
+      - "variance:float"
+      - "period:str"
+      - "approved_by:str"
+
+workflow:
+  typical_paths:
+    - "Crear proyecto → Definir hitos → Descomponer en tareas → Asignar equipo y recursos → Ejecutar → Monitorear progreso → Cerrar proyecto"
+    - "Identificar riesgo → Evaluar probabilidad e impacto → Definir mitigación → Asignar responsable → Monitorear → Mitigar o aceptar"
+    - "Registrar tiempo → Asignar a tarea y proyecto → Aprobar → Actualizar horas reales → Calcular costos → Comparar con presupuesto"
+  triggers:
+    - "task_overdue:Notificar al asignado y al líder del proyecto cuando una tarea supera su fecha de vencimiento"
+    - "milestone_due:Alertar al equipo 3 días antes de la fecha de un hito para verificar progreso"
+    - "budget_threshold:Notificar al gerente cuando el gasto supera el 80% del presupuesto asignado por categoría"
+    - "risk_escalated:Alertar al steering committee cuando un riesgo cambia a severidad alta o crítica"
+    - "resource_overallocated:Notificar al project manager cuando un recurso está sobreasignado en múltiples proyectos"
+
+features:
+  core:
+    - "Gestión de proyectos con tableros Kanban, diagramas de Gantt y vistas de lista"
+    - "Descomposición de tareas con dependencias, prioridades y estimación de esfuerzo"
+    - "Gestión de hitos con seguimiento de entregables y progreso visual"
+    - "Registro de tiempo con aprobación y seguimiento de horas billable y no billable"
+    - "Gestión de recursos con capacidades, asignaciones y detección de conflictos"
+    - "Administración documental con versionado y categorización por proyecto"
+  advanced:
+    - "Análisis de ruta crítica con identificación automática de dependencias bloqueantes"
+    - "Dashboard de portafolio con vista consolidada de todos los proyectos y estados"
+    - "Gestión de riesgos con matriz de probabilidad/impacto y planes de mitigación"
+    - "Forecasting de presupuesto con predicción de desviaciones basada en tendencias"
+    - "Reportes de utilización de recursos con optimización de asignaciones"
+  optional:
+    - "Integración con Jira, Asana y Trello para sincronización de tareas"
+    - "Chat integrado por proyecto con notificaciones contextuales"
+    - "Plantillas de proyectos con fases, tareas y recursos predefinidos por tipo"
+    - "API para integración con herramientas de BI y dashboards ejecutivos"
+    - "Modo retrospectiva para análisis post-proyecto y lecciones aprendidas"
+
+risk_assessment:
+  data_sensitivity: "medium"
+  compliance: [GDPR]
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true

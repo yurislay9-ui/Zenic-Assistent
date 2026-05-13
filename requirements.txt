@@ -1,0 +1,88 @@
+# ============================================================
+#  ZENIC-AGENTS v1 - Core Dependencies
+# ============================================================
+
+# Web Framework
+fastapi>=0.100.0
+uvicorn>=0.23.0
+jinja2>=3.1.0
+python-multipart>=0.0.6
+pydantic>=2.0.0
+
+# Database
+aiosqlite>=0.19.0
+# Phase 3: PostgreSQL support for production VPS
+# Uncomment for Docker/production deployment:
+# psycopg2-binary>=2.9.9
+# asyncpg>=0.29.0
+
+# AI / NLP
+# llama-cpp-python>=0.3.0  # Qwen3-0.6B - uncomment if model available
+numpy>=1.24.0
+
+# Scheduling & Async
+apscheduler>=3.10.0
+aiohttp>=3.8.0
+aiosmtplib>=3.0.0
+
+# Auth & Security
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+bcrypt>=4.0.0,<4.1.0  # passlib 1.7.4 breaks with bcrypt 4.1+ (no __about__)
+
+# SSH / Remote Access (scripts/git_push.py, scripts/ssh_wrapper.py)
+# paramiko>=3.4.0  # Only needed for scripts/git_push.py
+
+# Configuration (YAML parsing in src/config/loader.py)
+pyyaml>=6.0
+
+# PDF & Reports
+# weasyprint>=59.0  # Uncomment for PDF generation
+
+# File operations
+aiofiles>=23.0.0
+
+# ============================================================
+#  Production Dependencies (Phase 3: VPS Deploy)
+# ============================================================
+
+# Phase 5: Observability
+# opentelemetry-api>=1.20.0
+# opentelemetry-sdk>=1.20.0
+# opentelemetry-exporter-otlp-proto-grpc>=1.20.0
+# prometheus-client>=0.19.0
+
+# WSGI/ASGI Server
+gunicorn>=21.2.0
+
+# ============================================================
+#  Optional Dependencies
+# ============================================================
+
+# Z3 SMT Solver (formal verification)
+# pip install z3-solver>=4.12.0
+
+# Semantic Embeddings (SemanticEngine)
+# pip install fastembed>=0.2.0
+
+# Textual TUI (Terminal UI — reemplazo de Kivy)
+# textual>=2.0.0
+
+# Stripe Payments
+# stripe>=7.0.0
+
+# Phase 5: Security
+# bcrypt pinned above (4.0.x) for passlib compatibility
+
+# Google Sheets Integration
+# gspread>=5.0.0
+# oauth2client>=4.1.0
+
+# ============================================================
+#  Testing Dependencies
+# ============================================================
+
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-timeout>=2.1.0

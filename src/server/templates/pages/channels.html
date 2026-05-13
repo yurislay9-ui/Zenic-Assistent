@@ -1,0 +1,75 @@
+<!--
+  Zenic-Agents Asistente — Channels Page (Phase 7.1)
+  Telegram / Discord / Email channel configuration.
+-->
+{% extends "layouts/base.html" %}
+{% block title %}Canales — Zenic-Agents{% endblock %}
+
+{% block content %}
+<div x-data="channelsData()">
+  <div class="card mb-16">
+    <div class="card-header">
+      <span class="card-title">Canales Configurados</span>
+      <button class="btn btn-sm btn-primary" @click="showAdd = !showAdd">+ Canal</button>
+    </div>
+
+    <div x-show="showAdd" x-transition class="mb-16" style="padding: 16px; border: 1px solid var(--color-border); border-radius: var(--radius);">
+      <form @submit.prevent="addChannel()">
+        <div class="grid-3">
+          <div class="form-group">
+            <label class="form-label">Tipo</label>
+            <select x-model="newChannel.type" class="form-select">
+              <option value="telegram">Telegram</option>
+              <option value="discord">Discord</option>
+              <option value="email">Email (SMTP)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nombre</label>
+            <input type="text" x-model="newChannel.name" class="form-input" placeholder="Mi Canal">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Token / Credencial</label>
+            <input type="password" x-model="newChannel.token" class="form-input" placeholder="Bot Token">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary mt-8">Guardar Canal</button>
+      </form>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nombre</th><th>Tipo</th><th>Estado</th><th>Mensajes</th><th>Acciones</th></tr></thead>
+        <tbody>
+          <template x-for="ch in channels" :key="ch.id">
+            <tr>
+              <td x-text="ch.name"></td>
+              <td><span class="badge-status badge-info" x-text="ch.type"></span></td>
+              <td><span class="badge-status" :class="ch.active ? 'badge-success' : 'badge-danger'"
+                        x-text="ch.active ? 'Activo' : 'Inactivo'"></span></td>
+              <td x-text="ch.message_count ?? 0"></td>
+              <td>
+                <button class="btn btn-sm" @click="testChannel(ch.id)">Test</button>
+                <button class="btn btn-sm btn-danger" @click="removeChannel(ch.id)">Eliminar</button>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
+function channelsData() {
+  return {
+    channels: [], showAdd: false,
+    newChannel: { type: 'telegram', name: '', token: '' },
+    init() { this.loadChannels(); },
+    async loadChannels() { try { const r = await fetch('/htmx/channels/list'); if (r.ok) this.channels = await r.json(); } catch(e){} },
+    async addChannel() { await fetch('/htmx/channels/add', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(this.newChannel) }); this.showAdd = false; this.loadChannels(); },
+    async testChannel(id) { await fetch(`/htmx/channels/test/${id}`, { method: 'POST' }); },
+    async removeChannel(id) { if (confirm('Eliminar canal?')) { await fetch(`/htmx/channels/${id}`, { method: 'DELETE' }); this.loadChannels(); } },
+  };
+}
+</script>
+{% endblock %}

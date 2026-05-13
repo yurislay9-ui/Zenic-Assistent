@@ -1,0 +1,58 @@
+# ============================================================
+#  ZENIC-AGENTS v1 - .dockerignore
+#  Phase 3: Exclude unnecessary files from Docker build
+# ============================================================
+
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.eggs
+dist
+build
+*.egg
+
+# Virtual environments
+venv
+.venv
+env
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Testing
+tests/
+.pytest_cache
+.coverage
+htmlcov
+
+# Documentation
+*.md
+docs/
+
+# Build artifacts
+buildozer.spec
+.github/
+
+# Data (should be in volumes)
+*.sqlite
+*.db
+
+# Environment
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Agent context
+agent-ctx/

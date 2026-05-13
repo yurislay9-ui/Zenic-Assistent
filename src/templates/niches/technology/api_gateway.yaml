@@ -1,0 +1,166 @@
+niche:
+  name: "api_gateway"
+  domain: "technology"
+  subdomain: "infrastructure"
+  description: "Gateway de API centralizado para gestión de endpoints, consumidores, rate limiting, autenticación de claves y enrutamiento de servicios con políticas de seguridad avanzadas"
+  scale: "large"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - api_key_auth
+    - rbac
+    - notification_manager
+    - webhook_server
+    - data_analyzer
+    - crud_service
+    - report_generator
+  variables:
+    project_name: "api_gateway"
+    app_name: "APIGateway"
+    template_type: "gateway"
+    db_name: "api_gateway.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Endpoint"
+    fields:
+      - "path:str"
+      - "method:str"
+      - "service_id:int"
+      - "route_id:int"
+      - "auth_required:bool"
+      - "rate_limit_enabled:bool"
+      - "cache_ttl:int"
+      - "timeout_ms:int"
+      - "retry_count:int"
+      - "active:bool"
+      - "description:text"
+
+  - name: "Consumer"
+    fields:
+      - "username:str"
+      - "email:str"
+      - "custom_id:str"
+      - "tags:json"
+      - "active:bool"
+      - "created_at:datetime"
+      - "metadata:json"
+
+  - name: "RateLimit"
+    fields:
+      - "name:str"
+      - "consumer_id:int"
+      - "requests_per_second:int"
+      - "requests_per_minute:int"
+      - "requests_per_hour:int"
+      - "burst_size:int"
+      - "strategy:str"
+      - "policy_id:int"
+      - "active:bool"
+
+  - name: "Key"
+    fields:
+      - "key_hash:str"
+      - "consumer_id:int"
+      - "name:str"
+      - "secret:str"
+      - "permissions:json"
+      - "expires_at:datetime"
+      - "active:bool"
+      - "created_at:datetime"
+      - "last_used:datetime"
+
+  - name: "Log"
+    fields:
+      - "request_id:str"
+      - "consumer_id:int"
+      - "endpoint_id:int"
+      - "method:str"
+      - "path:str"
+      - "status_code:int"
+      - "latency_ms:float"
+      - "ip_address:str"
+      - "user_agent:str"
+      - "timestamp:datetime"
+
+  - name: "Service"
+    fields:
+      - "name:str"
+      - "url:str"
+      - "protocol:str"
+      - "path_prefix:str"
+      - "retries:int"
+      - "connect_timeout:int"
+      - "write_timeout:int"
+      - "read_timeout:int"
+      - "health_check_path:str"
+      - "active:bool"
+      - "tags:json"
+
+  - name: "Route"
+    fields:
+      - "name:str"
+      - "paths:json"
+      - "methods:json"
+      - "service_id:int"
+      - "hosts:json"
+      - "regex_priority:int"
+      - "strip_path:bool"
+      - "preserve_host:bool"
+      - "active:bool"
+
+  - name: "Policy"
+    fields:
+      - "name:str"
+      - "description:text"
+      - "rules:json"
+      - "scope:str"
+      - "priority:int"
+      - "active:bool"
+      - "created_at:datetime"
+      - "updated_at:datetime"
+
+workflow:
+  typical_paths:
+    - "Registrar servicio → Definir rutas → Configurar endpoints → Asignar políticas → Publicar en gateway"
+    - "Crear consumidor → Generar clave API → Configurar rate limits → Asignar permisos → Monitorear uso"
+    - "Recibir petición → Autenticar clave/JWT → Aplicar rate limit → Enrutar a servicio → Registrar log → Retornar respuesta"
+  triggers:
+    - "request_received:Procesar y enrutar cada petición entrante aplicando políticas de autenticación y rate limiting"
+    - "rate_limit_exceeded:Bloquear petición y notificar al consumidor cuando se excede el límite configurado"
+    - "service_unavailable:Activar circuit breaker y redirigir tráfico cuando un servicio no responde"
+    - "key_expired:Desactivar acceso y notificar al consumidor cuando su clave API expira"
+    - "anomaly_detected:Generar alerta cuando se detectan patrones de uso anómalos en el tráfico"
+
+features:
+  core:
+    - "Gestión centralizada de endpoints con configuración de rutas y métodos HTTP"
+    - "Sistema de autenticación dual JWT y API Key con validación en tiempo real"
+    - "Rate limiting granular por consumidor con múltiples ventanas temporales"
+    - "Enrutamiento inteligente con balanceo de carga y priorización de rutas"
+    - "Logging detallado de todas las peticiones con métricas de latencia y throughput"
+    - "Gestión de servicios con health checks automáticos y circuit breakers"
+  advanced:
+    - "Análisis de tráfico en tiempo real con detección de anomalías y patrones sospechosos"
+    - "Transformación de requests y responses con plugins de middleware configurables"
+    - "Cacheo inteligente de respuestas con invalidación basada en TTL y eventos"
+    - "Federación de identidad con soporte OAuth2/OIDC para autenticación externa"
+    - "Blue-green deployments con enrutamiento gradual de tráfico entre versiones"
+  optional:
+    - "Integración con service mesh para gestión de comunicación entre microservicios"
+    - "GraphQL gateway con composición de esquemas federados"
+    - "Portal de desarrolladores con documentación auto-generada de APIs"
+    - "Mocking de servicios para pruebas y desarrollo"
+    - "Exportación de métricas a sistemas de monitorización externos"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance: [SOC2, GDPR]
+  backup_frequency: "hourly"
+  access_control: "rbac"
+  audit_trail: true

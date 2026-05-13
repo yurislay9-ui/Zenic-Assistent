@@ -1,0 +1,223 @@
+<!--
+  Zenic-Agents Asistente — CRM Page
+  Contact list with search, pipeline kanban view, activity timeline,
+  conversion metrics from SNA monitors.
+-->
+{% extends "base.html" %}
+{% block title %}CRM — Zenic-Agents{% endblock %}
+
+{% block content %}
+<div x-data="crmStore()">
+  <!-- ── Stats ─────────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-xl-3">
+      <div class="card zenic-kpi h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Clientes</p>
+          <h3 class="mb-0" x-text="stats.total_clients">--</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="card zenic-kpi h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Activos</p>
+          <h3 class="mb-0 text-success" x-text="stats.active_clients">--</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="card zenic-kpi h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Facturas</p>
+          <h3 class="mb-0" x-text="stats.total_invoices">--</h3>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-xl-3">
+      <div class="card zenic-kpi h-100">
+        <div class="card-body">
+          <p class="text-muted small mb-1">Pendiente Cobro</p>
+          <h3 class="mb-0 text-warning" x-text="'$' + stats.pending_amount">--</h3>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── View Tabs ─────────────────────────────────── -->
+  <ul class="nav nav-tabs mb-3">
+    <li class="nav-item">
+      <button class="nav-link" :class="view === 'list' ? 'active'" @click="view = 'list'">
+        <i class="bi bi-list-ul me-1"></i>Lista
+      </button>
+    </li>
+    <li class="nav-item">
+      <button class="nav-link" :class="view === 'pipeline' ? 'active'" @click="view = 'pipeline'">
+        <i class="bi bi-kanban me-1"></i>Pipeline
+      </button>
+    </li>
+  </ul>
+
+  <!-- ── List View ─────────────────────────────────── -->
+  <div x-show="view === 'list'">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0"><i class="bi bi-people me-2"></i>Contactos</h6>
+        <div class="d-flex gap-2">
+          <div class="input-group input-group-sm" style="width: 220px;">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" x-model="search" @input="loadClients()" class="form-control" placeholder="Buscar...">
+          </div>
+          <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#clientModal" @click="openAddClient()">
+            <i class="bi bi-plus-lg me-1"></i>Cliente
+          </button>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead>
+              <tr><th>Nombre</th><th>Email</th><th>Empresa</th><th>Facturas</th><th>Estado</th><th>Acciones</th></tr>
+            </thead>
+            <tbody>
+              <template x-for="c in clients" :key="c.id">
+                <tr>
+                  <td>
+                    <div class="d-flex align-items-center gap-2">
+                      <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width:32px;height:32px;font-size:0.8rem;" x-text="(c.name||'?')[0].toUpperCase()"></div>
+                      <span x-text="c.name"></span>
+                    </div>
+                  </td>
+                  <td x-text="c.email"></td>
+                  <td x-text="c.company || '-'"></td>
+                  <td x-text="c.invoice_count ?? 0"></td>
+                  <td>
+                    <span class="badge" :class="c.active ? 'bg-success' : 'bg-secondary'" x-text="c.active ? 'Activo' : 'Inactivo'"></span>
+                  </td>
+                  <td>
+                    <button class="btn btn-sm btn-outline-light" @click="viewClient(c.id)"><i class="bi bi-eye"></i></button>
+                  </td>
+                </tr>
+              </template>
+              <tr x-show="clients.length === 0">
+                <td colspan="6" class="text-center text-muted py-4">Sin clientes</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Pipeline Kanban View ──────────────────────── -->
+  <div x-show="view === 'pipeline'">
+    <div class="row g-3">
+      <template x-for="stage in pipelineStages" :key="stage.id">
+        <div class="col-12 col-md-6 col-xl-3">
+          <div class="card h-100">
+            <div class="card-header" :style="'border-top: 3px solid ' + stage.color">
+              <h6 class="mb-0 small" x-text="stage.name"></h6>
+              <span class="badge bg-secondary" x-text="getPipelineClients(stage.id).length"></span>
+            </div>
+            <div class="card-body p-2">
+              <template x-for="c in getPipelineClients(stage.id)" :key="c.id">
+                <div class="card mb-2 zenic-pipeline-card">
+                  <div class="card-body p-2">
+                    <div class="fw-semibold small" x-text="c.name"></div>
+                    <div class="text-muted small" x-text="c.company || c.email"></div>
+                  </div>
+                </div>
+              </template>
+              <div x-show="getPipelineClients(stage.id).length === 0" class="text-muted text-center small py-3">
+                Vacío
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ── Conversion Metrics ────────────────────────── -->
+  <div class="card mt-3">
+    <div class="card-header">
+      <h6 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Métricas de Conversión</h6>
+    </div>
+    <div class="card-body">
+      <div id="crm-metrics" hx-get="/htmx/crm/metrics" hx-trigger="load" hx-swap="innerHTML">
+        <p class="text-muted">Cargando métricas...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Client Modal ──────────────────────────────── -->
+<div class="modal fade" id="clientModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuevo Cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form hx-post="/htmx/crm/add" hx-target="#client-result" hx-swap="innerHTML">
+        <div class="modal-body">
+          <div id="client-result"></div>
+          <div class="row g-3">
+            <div class="col-md-6"><label class="form-label">Nombre</label><input type="text" name="name" x-model="form.name" class="form-control" required></div>
+            <div class="col-md-6"><label class="form-label">Email</label><input type="email" name="email" x-model="form.email" class="form-control" required></div>
+            <div class="col-md-6"><label class="form-label">Teléfono</label><input type="tel" name="phone" x-model="form.phone" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">Empresa</label><input type="text" name="company" x-model="form.company" class="form-control"></div>
+            <div class="col-12"><label class="form-label">Notas</label><textarea name="notes" x-model="form.notes" class="form-control" rows="2"></textarea></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function crmStore() {
+  return {
+    clients: [], stats: { total_clients: 0, active_clients: 0, total_invoices: 0, pending_amount: '0' },
+    search: '', view: 'list',
+    pipelineStages: [
+      { id: 'lead', name: 'Leads', color: '#6366f1' },
+      { id: 'prospect', name: 'Prospectos', color: '#3b82f6' },
+      { id: 'negotiation', name: 'Negociación', color: '#f59e0b' },
+      { id: 'closed', name: 'Cerrados', color: '#22c55e' },
+    ],
+    form: { name: '', email: '', phone: '', company: '', notes: '' },
+
+    init() { this.loadClients(); this.loadStats(); },
+
+    async loadClients() {
+      try {
+        const r = await fetch('/htmx/crm/clients?search=' + encodeURIComponent(this.search));
+        if (r.ok) this.clients = await r.json();
+      } catch(e) {}
+    },
+
+    async loadStats() {
+      try {
+        const r = await fetch('/htmx/crm/stats');
+        if (r.ok) this.stats = await r.json();
+      } catch(e) {}
+    },
+
+    getPipelineClients(stageId) {
+      return this.clients.filter(c => (c.pipeline_stage || 'lead') === stageId);
+    },
+
+    openAddClient() { this.form = { name: '', email: '', phone: '', company: '', notes: '' }; },
+
+    viewClient(id) { window.location.href = '/app/crm/' + id; },
+  };
+}
+</script>
+{% endblock %}

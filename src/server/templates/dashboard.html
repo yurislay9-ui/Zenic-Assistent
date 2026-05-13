@@ -1,0 +1,200 @@
+<!--
+  Zenic-Agents Asistente — Executive Dashboard
+  KPI cards, Chart.js charts, recent activity, SNA alert feed.
+  All data loaded via HTMX from /htmx/dashboard/* endpoints.
+-->
+{% extends "base.html" %}
+{% block title %}Dashboard — Zenic-Agents{% endblock %}
+
+{% block content %}
+<div x-data="dashboardStore()" x-init="init()">
+  <!-- ── KPI Cards ──────────────────────────────────── -->
+  <div class="row g-3 mb-4" id="kpi-cards" hx-get="/htmx/dashboard/kpis" hx-trigger="load, every 30s" hx-swap="innerHTML">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card zenic-kpi h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <p class="text-muted small mb-1">Total Acciones</p>
+              <h3 class="mb-0" id="kpi-total">--</h3>
+            </div>
+            <div class="zenic-kpi-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-lightning-charge"></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card zenic-kpi h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <p class="text-muted small mb-1">Tasa de Éxito</p>
+              <h3 class="mb-0" id="kpi-success">--</h3>
+            </div>
+            <div class="zenic-kpi-icon bg-success bg-opacity-10 text-success"><i class="bi bi-check-circle"></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card zenic-kpi h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <p class="text-muted small mb-1">Monitores Activos</p>
+              <h3 class="mb-0" id="kpi-monitors">--</h3>
+            </div>
+            <div class="zenic-kpi-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-activity"></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="card zenic-kpi h-100">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <p class="text-muted small mb-1">Aprobaciones Pendientes</p>
+              <h3 class="mb-0" id="kpi-approvals">--</h3>
+            </div>
+            <div class="zenic-kpi-icon bg-danger bg-opacity-10 text-danger"><i class="bi bi-hourglass-split"></i></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Charts Row ─────────────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-lg-8">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="bi bi-graph-up me-2"></i>Acciones (últimos 7 días)</h6>
+          <span class="htmx-indicator"><div class="spinner-border spinner-border-sm" role="status"></div></span>
+        </div>
+        <div class="card-body">
+          <canvas id="chart-actions-time" height="120"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="bi bi-pie-chart me-2"></i>Por Categoría</h6>
+        </div>
+        <div class="card-body d-flex align-items-center justify-content-center">
+          <canvas id="chart-actions-category" height="160"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Executor Bar Chart ──────────────────────────── -->
+  <div class="row g-3 mb-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="bi bi-bar-chart me-2"></i>Acciones por Executor</h6>
+        </div>
+        <div class="card-body">
+          <canvas id="chart-executors" height="80"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Recent Activity + Alerts ────────────────────── -->
+  <div class="row g-3">
+    <div class="col-12 col-lg-8">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="bi bi-clock-history me-2"></i>Actividad Reciente</h6>
+          <a href="/app/audit" class="btn btn-sm btn-outline-light">Ver todo</a>
+        </div>
+        <div class="card-body p-0">
+          <div id="recent-activity" hx-get="/htmx/dashboard/recent-activity" hx-trigger="load, every 30s" hx-swap="innerHTML">
+            <p class="text-muted p-3">Cargando actividad...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0"><i class="bi bi-bell me-2"></i>Alertas SNA</h6>
+          <a href="/app/sna" class="btn btn-sm btn-outline-light">Configurar</a>
+        </div>
+        <div class="card-body">
+          <div id="sna-alerts" hx-get="/htmx/dashboard/alerts" hx-trigger="load, every 60s" hx-swap="innerHTML">
+            <p class="text-muted">Cargando alertas...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Line chart: Actions over time
+  const ctx1 = document.getElementById('chart-actions-time');
+  if (ctx1) {
+    fetch('/htmx/dashboard/actions-chart').then(r => r.json()).then(data => {
+      new Chart(ctx1, {
+        type: 'line',
+        data: {
+          labels: data.labels || ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+          datasets: [{
+            label: 'Acciones',
+            data: data.values || [0,0,0,0,0,0,0],
+            borderColor: '#6366f1',
+            backgroundColor: 'rgba(99,102,241,0.1)',
+            fill: true, tension: 0.4,
+          }]
+        },
+        options: ZenicChart.defaultOptions('Acciones en el tiempo'),
+      });
+    }).catch(() => {});
+  }
+
+  // Pie chart: Actions by category
+  const ctx2 = document.getElementById('chart-actions-category');
+  if (ctx2) {
+    fetch('/htmx/dashboard/category-chart').then(r => r.json()).then(data => {
+      new Chart(ctx2, {
+        type: 'pie',
+        data: {
+          labels: data.labels || ['Email', 'HTTP', 'DB', 'File'],
+          datasets: [{
+            data: data.values || [1,1,1,1],
+            backgroundColor: ZenicChart.palette,
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } },
+      });
+    }).catch(() => {});
+  }
+
+  // Bar chart: By executor type
+  const ctx3 = document.getElementById('chart-executors');
+  if (ctx3) {
+    fetch('/htmx/dashboard/executor-chart').then(r => r.json()).then(data => {
+      new Chart(ctx3, {
+        type: 'bar',
+        data: {
+          labels: data.labels || ['Email', 'HTTP', 'DB', 'File', 'Notify', 'Schedule', 'Webhook', 'Transform'],
+          datasets: [{
+            label: 'Acciones',
+            data: data.values || [0,0,0,0,0,0,0,0],
+            backgroundColor: ZenicChart.palette,
+          }]
+        },
+        options: ZenicChart.defaultOptions('Acciones por Executor'),
+      });
+    }).catch(() => {});
+  }
+});
+</script>
+{% endblock %}

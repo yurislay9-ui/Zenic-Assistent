@@ -1,0 +1,175 @@
+niche:
+  name: "k12_management"
+  domain: "education"
+  subdomain: "k12_administration"
+  description: "Sistema de gestión escolar para instituciones de educación básica y media que administra estudiantes, maestros, calificaciones, asistencias, padres de familia y horarios"
+  scale: "large"
+
+composition:
+  base_template: "apps/base"
+  app_template: ""
+  blocks:
+    - jwt_auth
+    - rbac
+    - email_smtp
+    - pdf_generator
+    - report_generator
+    - notification_manager
+    - crud_service
+    - backup_restore
+  variables:
+    project_name: "k12_management"
+    app_name: "K12Management"
+    template_type: "education"
+    db_name: "k12_management.db"
+    port: 8000
+    debug: false
+    version: "1.0.0"
+
+entities:
+  - name: "Student"
+    fields:
+      - "id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "student_id:str"
+      - "date_of_birth:date"
+      - "gender:str"
+      - "grade_level:str"
+      - "section:str"
+      - "address:str"
+      - "enrollment_date:date"
+      - "status:str"
+  - name: "Teacher"
+    fields:
+      - "id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "employee_id:str"
+      - "email:str"
+      - "phone:str"
+      - "specialization:str"
+      - "assigned_class:str"
+      - "hire_date:date"
+      - "status:str"
+      - "avatar_url:str"
+  - name: "Class"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "grade_level:str"
+      - "section:str"
+      - "teacher_id:uuid"
+      - "room:str"
+      - "capacity:int"
+      - "academic_year:str"
+      - "schedule:str"
+      - "is_active:bool"
+  - name: "Subject"
+    fields:
+      - "id:uuid"
+      - "name:str"
+      - "code:str"
+      - "grade_level:str"
+      - "description:str"
+      - "credits:int"
+      - "is_core:bool"
+      - "teacher_id:uuid"
+      - "created_at:datetime"
+  - name: "Grade"
+    fields:
+      - "id:uuid"
+      - "student_id:uuid"
+      - "subject_id:uuid"
+      - "period:str"
+      - "score:decimal"
+      - "max_score:decimal"
+      - "letter_grade:str"
+      - "comments:str"
+      - "graded_by:uuid"
+      - "graded_at:datetime"
+  - name: "Attendance"
+    fields:
+      - "id:uuid"
+      - "student_id:uuid"
+      - "class_id:uuid"
+      - "date:date"
+      - "status:str"
+      - "arrival_time:time"
+      - "departure_time:time"
+      - "excuse_reason:str"
+      - "recorded_by:uuid"
+  - name: "Parent"
+    fields:
+      - "id:uuid"
+      - "first_name:str"
+      - "last_name:str"
+      - "email:str"
+      - "phone:str"
+      - "relationship:str"
+      - "student_id:uuid"
+      - "is_primary:bool"
+      - "can_pickup:bool"
+      - "occupation:str"
+  - name: "ReportCard"
+    fields:
+      - "id:uuid"
+      - "student_id:uuid"
+      - "class_id:uuid"
+      - "academic_year:str"
+      - "period:str"
+      - "gpa:decimal"
+      - "conduct:str"
+      - "teacher_comments:str"
+      - "principal_comments:str"
+      - "pdf_url:str"
+      - "issued_at:datetime"
+  - name: "Schedule"
+    fields:
+      - "id:uuid"
+      - "class_id:uuid"
+      - "subject_id:uuid"
+      - "teacher_id:uuid"
+      - "day_of_week:str"
+      - "start_time:time"
+      - "end_time:time"
+      - "room:str"
+      - "is_active:bool"
+
+workflow:
+  typical_paths:
+    - "Maestro registra asistencia diaria, ingresa calificaciones por materia y genera boletín del período"
+    - "Padre consulta calificaciones, asistencias y boletines de sus hijos a través del portal"
+    - "Administrador gestiona horarios, asigna maestros a clases y genera reportes institucionales"
+  triggers:
+    - "attendance_recorded:Verificar umbral de ausencias y notificar al padre si excede el límite"
+    - "grade_entered:Actualizar promedio del estudiante y notificar al padre sobre nueva calificación"
+    - "report_card_generated:Enviar boletín por correo al padre y publicar en portal del estudiante"
+    - "schedule_conflict:Alertar al administrador sobre conflictos de horario con maestros o aulas"
+
+features:
+  core:
+    - "Registro y seguimiento de asistencias diarias con alertas automáticas"
+    - "Sistema de calificaciones por período con cálculo de promedios y boletines"
+    - "Gestión de horarios escolares con validación de conflictos"
+    - "Portal de padres con acceso a calificaciones, asistencias y comunicados"
+    - "Generación de boletines de calificaciones oficiales en PDF"
+  advanced:
+    - "Reportes estadísticos de rendimiento académico por clase, grado y período"
+    - "Sistema de notificaciones push y por correo para comunicados escolares"
+    - "Control de acceso basado en roles (administrador, maestro, padre, estudiante)"
+    - "Respaldo automático y restauración de datos con historial de cambios"
+  optional:
+    - "Integración con sistemas de transporte escolar y comedor"
+    - "Módulo de actividades extracurriculares y talleres"
+    - "Portal de tarea y tareas con entrega digital"
+    - "Sistema de citas para reuniones padre-maestro"
+
+risk_assessment:
+  data_sensitivity: "high"
+  compliance:
+    - FERPA
+    - COPPA
+  backup_frequency: "daily"
+  access_control: "rbac"
+  audit_trail: true
