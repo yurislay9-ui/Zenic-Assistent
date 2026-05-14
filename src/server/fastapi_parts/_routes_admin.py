@@ -259,45 +259,18 @@ def register_admin_routes(
 
     @app.get("/v1/niches")
     async def list_niches(domain: str = ""):
-        try:
-            from src.core.template_engine import TemplateEngine
-            engine = TemplateEngine()
-            niches = engine.list_niches(domain)
-            result = []
-            for name in niches:
-                plan = engine.get_niche_plan(name)
-                if plan:
-                    result.append({"name": name, "entities": len(plan.entities), "blocks": plan.blocks})
-            return {"niches": result, "total": len(result), "domain": domain or "all"}
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        # TemplateEngine removed — module deleted
+        raise HTTPException(status_code=501, detail="TemplateEngine removed — niche listing unavailable")
 
     @app.get("/v1/niches/domains")
     async def list_domains():
-        try:
-            from src.core.template_engine import TemplateEngine
-            engine = TemplateEngine()
-            domains = engine.list_domains()
-            result = [{"domain": d, "niche_count": len(engine.list_niches(d)),
-                       "niches": engine.list_niches(d)} for d in domains]
-            return {"domains": result, "total": len(result)}
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        # TemplateEngine removed — module deleted
+        raise HTTPException(status_code=501, detail="TemplateEngine removed — domain listing unavailable")
 
     @app.get("/v1/templates")
     async def list_templates():
-        try:
-            from src.core.app_generator import AppGenerator
-            templates = AppGenerator.list_templates()
-            try:
-                from src.core.template_engine import TemplateEngine
-                templates["niche_templates"] = TemplateEngine().list_niches()
-                templates["niche_domains"] = TemplateEngine().list_domains()
-            except Exception:
-                pass
-            return templates
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
+        # AppGenerator removed — module deleted
+        raise HTTPException(status_code=501, detail="AppGenerator removed — template listing unavailable")
 
     @app.get("/v1/system/status")
     async def system_status():

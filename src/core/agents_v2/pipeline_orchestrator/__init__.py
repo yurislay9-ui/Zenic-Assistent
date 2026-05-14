@@ -47,14 +47,9 @@ from .business import (
     DataAnalyzer,
     OperationRouter,
 )
-from .code_ops import (
-    CodeGenerator,
-    CodeRefactorer,
-    CodeOptimizer,
-    CodeFixer,
-    ProjectScaffolder,
-    DefensiveInjector,
-)
+# code_ops removed — module deleted
+# CodeGenerator, CodeRefactorer, CodeOptimizer, CodeFixer,
+# ProjectScaffolder, DefensiveInjector no longer available
 from .validation import (
     SecurityScanner,
     SyntaxValidator,
@@ -170,12 +165,13 @@ class PipelineOrchestrator(PipelineOrchestratorCoreMixin, PipelineOrchestratorEx
         self._data_analyzer = DataAnalyzer(**self._ik)
 
         # ── Phase 3: Execute — Code ──
-        self._code_generator = CodeGenerator(**self._ik)
-        self._code_refactorer = CodeRefactorer(**self._ik)
-        self._code_optimizer = CodeOptimizer(**self._ik)
-        self._code_fixer = CodeFixer(**self._ik)
-        self._project_scaffolder = ProjectScaffolder(**self._ik)
-        self._defensive_injector = DefensiveInjector(**self._ik)
+        # code_ops removed — module deleted; agents set to None
+        self._code_generator = None
+        self._code_refactorer = None
+        self._code_optimizer = None
+        self._code_fixer = None
+        self._project_scaffolder = None
+        self._defensive_injector = None
 
         # ── Phase 4: Validate ──
         self._security_scanner = SecurityScanner(**self._ik)

@@ -9,6 +9,7 @@ members = [
     "zenic-safety",
     "zenic-core",
     "zenic-ffi",
+    "zenic-pybridge",
     "zenic-bench",
     "zenic-tests",
 ]

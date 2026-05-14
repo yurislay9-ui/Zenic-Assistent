@@ -8,12 +8,12 @@ from ._imports import (
     logger, Path, initialize_databases, SemanticParser, MacroRouter,
     GraphASTEngine, APAPlanner, GitHubScrapAgent, ASTSurgeon,
     ReflexionSandbox, MerkleLedger, TheoremCache, get_isolation_manager,
-    AbortiveProtocol, PartialReasoningManager, CodeGenerator,
-    CodeTransformer, AnalysisUtils, ThinkingEngine, AppGenerator,
-    AutomationEngine, SchemaDesigner, get_default_registry, LogicBuilder,
-    AuthService, ReasoningEngine, ChainValidator, ChainExecutor,
-    RecoveryAction, AgentRunner, SurgicalAgent, ReasoningAgent,
-    BusinessLogicAgent, CodeAgent, AutomationAgent, ValidationAgent,
+    AbortiveProtocol, PartialReasoningManager,
+    AnalysisUtils, ThinkingEngine,
+    AutomationEngine, get_default_registry, LogicBuilder,
+    AuthService, ReasoningEngine,
+    AgentRunner, SurgicalAgent, ReasoningAgent,
+    BusinessLogicAgent, AutomationAgent, ValidationAgent,
 )
 
 from src.core.patterns.orchestration import EventBus, Mediator
@@ -95,14 +95,9 @@ class InitMixin:
             semantic_engine=self._semantic,
             smart_memory=self._memory,
         )
-        self._chain_validator = ChainValidator()
-        self._chain_executor = ChainExecutor(
-            default_recovery=RecoveryAction.SKIP, max_retries=1
-        )
-
+        # ChainValidator/ChainExecutor removed — code generation pipeline component
         logger.info(
-            "Phase 8 Intelligence: ReasoningEngine=3 modes | "
-            "ChainValidator=ready | ChainExecutor=rollback+recovery"
+            "Phase 8 Intelligence: ReasoningEngine=3 modes"
         )
 
     def _init_extended_with_defaults(self) -> None:
@@ -114,39 +109,33 @@ class InitMixin:
         )
 
         self._template_engine = None
-        try:
-            from src.core.template_engine import TemplateEngine
-            self._template_engine = TemplateEngine()
-        except ImportError:
-            logger.warning("Orchestrator: TemplateEngine not available")
+        # TemplateEngine removed — code generation component
 
         self._init_phase7_engines(template_engine=self._template_engine)
         self._init_phase8_intelligence()
 
-        self._app_gen = AppGenerator(
-            thinking_engine=self._thinking,
-            template_engine=self._template_engine,
-        )
+        # AppGenerator removed — not part of assistant agent
+        self._app_gen = None
         self._automation = AutomationEngine(
             thinking_engine=self._thinking,
             template_engine=self._template_engine,
             executor_registry=self._executor_registry,
         )
-        self._schema_designer = SchemaDesigner(thinking_engine=self._thinking)
+        # SchemaDesigner removed — code generation feature
+        self._schema_designer = None
 
-        te_status = "ACTIVE" if self._template_engine else "legacy"
         logger.info(
             f"Extended Architecture: ThinkingEngine=ready | "
-            f"TemplateEngine={te_status} | AppGenerator=ready | "
-            f"AutomationEngine=ready | SchemaDesigner=ready"
+            f"AutomationEngine=ready"
         )
 
     def _init_decomposed_modules(self) -> None:
         """Initialize abortive, partial, code_gen, code_transform, analysis."""
         self._abortive = AbortiveProtocol(self)
         self._partial_reasoning = PartialReasoningManager(self)
-        self._code_gen = CodeGenerator(self)
-        self._code_transform = CodeTransformer()
+        # CodeGenerator and CodeTransformer removed — Zenic is an assistant agent
+        self._code_gen = None
+        self._code_transform = None
         self._analysis = AnalysisUtils(self)
 
     def _init_agent_framework(self, context_agent=None, criticality_agent=None,
@@ -188,11 +177,8 @@ class InitMixin:
         )
         logger.info("Agent Framework F3: ReasoningAgent=ready | BusinessLogicAgent=ready")
 
-        self._code_agent = CodeAgent(
-            semantic_engine=self._semantic,
-            smart_memory=self._memory,
-            template_engine=self._template_engine,
-        )
+        # CodeAgent removed — code generation agent
+        self._code_agent = None
         self._automation_agent = AutomationAgent(
             semantic_engine=self._semantic,
             smart_memory=self._memory,
@@ -202,7 +188,7 @@ class InitMixin:
             smart_memory=self._memory,
         )
         logger.info(
-            "Agent Framework F4-F5: CodeAgent=ready | "
+            "Agent Framework F4-F5: "
             "AutomationAgent=ready | ValidationAgent=ready"
         )
 

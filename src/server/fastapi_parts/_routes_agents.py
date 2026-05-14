@@ -86,16 +86,8 @@ def register_agent_routes(
         if not niche_name:
             raise HTTPException(status_code=400, detail="Missing 'niche' field")
         try:
-            from src.core.template_engine import TemplateEngine
-            engine = TemplateEngine()
-            plan = engine.get_niche_plan(niche_name)
-            if not plan:
-                raise HTTPException(status_code=404, detail=f"Niche '{niche_name}' not found")
-            files = engine.render_niche(niche_name)
-            return {
-                "niche": niche_name, "files_generated": len(files),
-                "files": list(files.keys()), "entities": len(plan.entities), "blocks": plan.blocks,
-            }
+            # TemplateEngine removed — module deleted
+            raise HTTPException(status_code=501, detail="TemplateEngine removed — niche generation unavailable")
         except HTTPException:
             raise
         except Exception as e:
@@ -168,16 +160,10 @@ def register_agent_routes(
         if not code:
             raise HTTPException(status_code=400, detail="Missing 'code' field")
         try:
-            from src.core.test_generator import TestGenerator
-            gen = TestGenerator()
-            test_code = gen.generate_tests(
-                code=code, module_name=body.get("module_name", "module"),
-                project_name=body.get("project_name", "test_project"),
-            )
-            return {"status": "generated", "test_code": test_code, "lines": len(test_code.split("\n"))}
-        except Exception as e:
-            logger.error("Test generation error: %s", e, exc_info=True)
-            raise HTTPException(status_code=500, detail=str(e))
+            # TestGenerator removed — module deleted
+            raise HTTPException(status_code=501, detail="TestGenerator removed — test generation unavailable")
+        except HTTPException:
+            raise
 
     # ── /v1/generate/multilang ──────────────────────────────
     @app.post("/v1/generate/multilang")

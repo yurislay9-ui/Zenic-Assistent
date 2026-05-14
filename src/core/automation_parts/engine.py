@@ -47,12 +47,9 @@ class AutomationEngine(CoreCRUDMixin, ExecutionMixin, ProjectGenMixin):
         self._load_workflows()
 
         # Lazy-init template engine if not provided
+        # TemplateEngine removed — module deleted
         if self._template_engine is None:
-            try:
-                from src.core.template_engine import TemplateEngine
-                self._template_engine = TemplateEngine()
-            except ImportError:
-                logger.warning("AutomationEngine: TemplateEngine not available, using legacy generation")
+            self._template_engine = None  # TemplateEngine removed — module deleted
 
         # Lazy-init executor registry if not provided
         if self._executor_registry is None:

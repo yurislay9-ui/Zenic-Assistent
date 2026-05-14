@@ -366,32 +366,9 @@ class PostMixinCoreMixin:
             if not description:
                 self._send_json({"error": "Missing 'niche' or 'description' field"}, status=400)
                 return
-            try:
-                from src.core.template_engine import TemplateEngine
-                engine = TemplateEngine()
-                results = engine.search_niches(description, limit=1)
-                if results:
-                    niche_name = results[0].get("name", "")
-                else:
-                    self._send_json({"error": f"No niche found matching: {description}"}, status=404)
-                    return
-            except Exception as e:
-                self._send_json({"error": str(e)}, status=500)
-                return
+            # TemplateEngine removed — module deleted; niche search unavailable
+            self._send_json({"error": "TemplateEngine removed — niche search unavailable"}, status=501)
+            return
         output_dir = data.get("output_dir", "")
-        try:
-            from src.core.template_engine import TemplateEngine
-            engine = TemplateEngine()
-            plan = engine.get_niche_plan(niche_name)
-            if not plan:
-                self._send_json({"error": f"Niche '{niche_name}' not found"}, status=404)
-                return
-            files = engine.render_niche(niche_name)
-            self._send_json({
-                "niche": niche_name, "files_generated": len(files),
-                "files": list(files.keys()), "entities": len(plan.entities),
-                "blocks": plan.blocks,
-            })
-        except Exception as e:
-            logger.error(f"Niche generation error: {e}", exc_info=True)
-            self._send_json({"error": str(e)}, status=500)
+        # TemplateEngine removed — module deleted; niche generation unavailable
+        self._send_json({"error": "TemplateEngine removed — niche generation unavailable"}, status=501)

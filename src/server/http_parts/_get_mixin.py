@@ -72,9 +72,9 @@ class GetMixin:
             "Theorem_Cache", "Skeleton_Hash", "K_Path_Limiting",
             "Symbolic_Execution", "Abortive_Protocol",
             "Partial_Reasoning", "Contextual_CodeGen",
-            "ThinkingEngine", "AppGenerator", "AutomationEngine",
-            "SchemaDesigner", "SmartMemory_Enhanced",
-            "ReasoningEngine", "ChainValidator", "ChainExecutor",
+            "ThinkingEngine", "AppGenerator_unavailable", "AutomationEngine",
+            "SchemaDesigner_unavailable", "SmartMemory_Enhanced",
+            "ReasoningEngine", "ChainValidator_unavailable", "ChainExecutor_unavailable",
         ]
         if gov:
             features.append("Resource_Governor")
@@ -144,13 +144,15 @@ class GetMixin:
     def _handle_list_templates(self):
         """GET /v1/templates - Lista templates disponibles."""
         try:
-            from src.core.app_generator import AppGenerator
-            templates = AppGenerator.list_templates()
+            # AppGenerator removed — module deleted
+            templates = {"templates": [], "note": "AppGenerator removed — module deleted"}
             try:
-                from src.core.template_engine import TemplateEngine
+                from src.core.template_engine import TemplateEngine  # TemplateEngine removed — module deleted
                 engine = TemplateEngine()
                 templates["niche_templates"] = engine.list_niches()
                 templates["niche_domains"] = engine.list_domains()
+            except ImportError:
+                logger.debug("HTTP: TemplateEngine not available")
             except Exception as e:
                 logger.debug("HTTP: TemplateEngine niche listing failed: %s", e)
             self._send_json(templates)
@@ -161,33 +163,39 @@ class GetMixin:
         """GET /v1/niches - Lista nichos disponibles."""
         try:
             domain = params.get("domain", [""])[0]
-            from src.core.template_engine import TemplateEngine
-            engine = TemplateEngine()
-            niches = engine.list_niches(domain)
-            result = []
-            for name in niches:
-                plan = engine.get_niche_plan(name)
-                if plan:
-                    result.append({
-                        "name": name,
-                        "entities": len(plan.entities),
-                        "blocks": plan.blocks,
-                    })
-            self._send_json({"niches": result, "total": len(result), "domain": domain or "all"})
+            try:
+                from src.core.template_engine import TemplateEngine  # TemplateEngine removed — module deleted
+                engine = TemplateEngine()
+                niches = engine.list_niches(domain)
+                result = []
+                for name in niches:
+                    plan = engine.get_niche_plan(name)
+                    if plan:
+                        result.append({
+                            "name": name,
+                            "entities": len(plan.entities),
+                            "blocks": plan.blocks,
+                        })
+                self._send_json({"niches": result, "total": len(result), "domain": domain or "all"})
+            except ImportError:
+                self._send_json({"error": "TemplateEngine removed — niche listing unavailable", "niches": [], "total": 0}, status=501)
         except Exception as e:
             self._send_json({"error": str(e)}, status=500)
 
     def _handle_list_domains(self):
         """GET /v1/niches/domains - Lista dominios de nichos."""
         try:
-            from src.core.template_engine import TemplateEngine
-            engine = TemplateEngine()
-            domains = engine.list_domains()
-            result = []
-            for d in domains:
-                niches = engine.list_niches(d)
-                result.append({"domain": d, "niche_count": len(niches), "niches": niches})
-            self._send_json({"domains": result, "total": len(result)})
+            try:
+                from src.core.template_engine import TemplateEngine  # TemplateEngine removed — module deleted
+                engine = TemplateEngine()
+                domains = engine.list_domains()
+                result = []
+                for d in domains:
+                    niches = engine.list_niches(d)
+                    result.append({"domain": d, "niche_count": len(niches), "niches": niches})
+                self._send_json({"domains": result, "total": len(result)})
+            except ImportError:
+                self._send_json({"error": "TemplateEngine removed — domain listing unavailable", "domains": [], "total": 0}, status=501)
         except Exception as e:
             self._send_json({"error": str(e)}, status=500)
 
@@ -198,10 +206,13 @@ class GetMixin:
             if not query:
                 self._send_json({"error": "Missing 'q' parameter"}, status=400)
                 return
-            from src.core.template_engine import TemplateEngine
-            engine = TemplateEngine()
-            results = engine.search_niches(query)
-            self._send_json({"results": results, "total": len(results), "query": query})
+            try:
+                from src.core.template_engine import TemplateEngine  # TemplateEngine removed — module deleted
+                engine = TemplateEngine()
+                results = engine.search_niches(query)
+                self._send_json({"results": results, "total": len(results), "query": query})
+            except ImportError:
+                self._send_json({"error": "TemplateEngine removed — niche search unavailable", "results": [], "total": 0, "query": query}, status=501)
         except Exception as e:
             self._send_json({"error": str(e)}, status=500)
 

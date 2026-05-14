@@ -11,6 +11,7 @@ build/
 venv/
 env/
 *.whl
+.pytest_cache/
 
 # Rust build artifacts
 target/
@@ -49,3 +50,9 @@ coverage.xml
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Agent context (session artifacts)
+agent-ctx/
+
+# PDFs (code-only repo)
+*.pdf

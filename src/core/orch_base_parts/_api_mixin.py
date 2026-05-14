@@ -128,6 +128,12 @@ class APIMixin:
 
     async def design_schema(self, description: str) -> dict:
         """Disena un esquema de base de datos a partir de una descripcion."""
+        # SchemaDesigner removed — module deleted
+        if self._schema_designer is None:
+            return {
+                "status": "unavailable",
+                "error": "SchemaDesigner removed — schema design is no longer available",
+            }
         schema = self._schema_designer.design_schema(description)
         sql = self._schema_designer.generate_sql(schema)
         models = self._schema_designer.generate_models(schema)

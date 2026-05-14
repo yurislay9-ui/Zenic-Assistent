@@ -114,22 +114,23 @@ class BaseInterfaceMixin:
         """
         Convierte ValidationOutput a ChainValidator.ValidationResult
         para compatibilidad con el pipeline existente.
+
+        NOTE: ChainValidator module has been deleted. This method now
+        returns a simple dict-based compatibility shim instead.
         """
-        from src.core.chain_validator import ValidationResult, ValidationError
-
-        result = ValidationResult()
-        for issue in output.issues:
-            if issue.severity == "error":
-                result.add_error(
-                    code=issue.code,
-                    message=issue.message,
-                    block_name="",
-                )
-            else:
-                result.add_warning(
-                    code=issue.code,
-                    message=issue.message,
-                    block_name="",
-                )
-
-        return result
+        # ChainValidator removed — module deleted
+        # Return a dict-based compatibility result instead of ValidationResult
+        errors = [
+            {"code": i.code, "message": i.message, "block_name": ""}
+            for i in output.issues if i.severity == "error"
+        ]
+        warnings = [
+            {"code": i.code, "message": i.message, "block_name": ""}
+            for i in output.issues if i.severity != "error"
+        ]
+        return {
+            "is_valid": output.is_valid,
+            "can_execute": output.is_valid or not errors,
+            "errors": errors,
+            "warnings": warnings,
+        }

@@ -18,15 +18,20 @@ from ._imports import (
     MerkleLedger, TheoremCache,
     get_isolation_manager, SandboxWorkspace, shutdown_isolation,
     SubtaskDescriptor, AbortiveProtocol, PartialReasoningManager,
-    CodeGenerator, CodeTransformer, AnalysisUtils,
-    ThinkingEngine, GenerationPlan, AppGenerator,
-    AutomationEngine, SchemaDesigner,
+    # CodeGenerator removed — module deleted
+    # CodeTransformer removed — module deleted
+    AnalysisUtils,
+    ThinkingEngine, GenerationPlan,
+    # AppGenerator removed — module deleted
+    AutomationEngine,
+    # SchemaDesigner removed — module deleted
     ExecutorRegistry, get_default_registry, LogicBuilder, AuthService,
     ReasoningEngine, ReasoningMode, ReasoningResult,
-    ChainValidator, ChainExecutor, execute_chain_safe, validate_chain, RecoveryAction,
+    # ChainValidator, ChainExecutor, execute_chain_safe, validate_chain, RecoveryAction removed — module deleted
     AgentRunner, AgentCache,
     SurgicalAgent, ReasoningAgent, BusinessLogicAgent,
-    CodeAgent, AutomationAgent, ValidationAgent,
+    # CodeAgent removed — module deleted
+    AutomationAgent, ValidationAgent,
 )
 
 
@@ -50,13 +55,18 @@ __all__ = [
     "MerkleLedger", "TheoremCache",
     "get_isolation_manager", "SandboxWorkspace", "shutdown_isolation",
     "SubtaskDescriptor", "AbortiveProtocol", "PartialReasoningManager",
-    "CodeGenerator", "CodeTransformer", "AnalysisUtils",
-    "ThinkingEngine", "GenerationPlan", "AppGenerator",
-    "AutomationEngine", "SchemaDesigner",
+    # "CodeGenerator" removed — module deleted
+    # "CodeTransformer" removed — module deleted
+    "AnalysisUtils",
+    "ThinkingEngine", "GenerationPlan",
+    # "AppGenerator" removed — module deleted
+    "AutomationEngine",
+    # "SchemaDesigner" removed — module deleted
     "ExecutorRegistry", "get_default_registry", "LogicBuilder", "AuthService",
     "ReasoningEngine", "ReasoningMode", "ReasoningResult",
-    "ChainValidator", "ChainExecutor", "execute_chain_safe", "validate_chain", "RecoveryAction",
+    # "ChainValidator", "ChainExecutor", "execute_chain_safe", "validate_chain", "RecoveryAction" removed — module deleted
     "AgentRunner", "AgentCache",
     "SurgicalAgent", "ReasoningAgent", "BusinessLogicAgent",
-    "CodeAgent", "AutomationAgent", "ValidationAgent",
+    # "CodeAgent" removed — module deleted
+    "AutomationAgent", "ValidationAgent",
 ]

@@ -1,6 +1,6 @@
 <div align="center">
 
-# ZENIC-AGENTS v2.5.0
+# ZENIC-AGENTS v3.0.0
 
 ### Plataforma de Asistencia Empresarial Inteligente
 
@@ -13,9 +13,9 @@ Core critico compilado en **Rust** con bindings **PyO3**.
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![Rust 1.85+](https://img.shields.io/badge/Rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Agents](https://img.shields.io/badge/Agents-48%20%7C%209%20Layers-orange.svg)](src/core/agents_v2/)
-[![Niches](https://img.shields.io/badge/Niches-24%20Compiled%20Rust-critical.svg)](native/src/catalog.rs)
-[![PyO3](https://img.shields.io/badge/PyO3-23%20Rust%20Modules-blueviolet.svg)](native/src/lib.rs)
+[![Agents](https://img.shields.io/badge/Agents-42%20%7C%209%20Layers-orange.svg)](src/core/agents_v2/)
+[![Niches](https://img.shields.io/badge/Niches-24%20Compiled%20Rust-critical.svg)](zenic-v2/zenic-pybridge/src/catalog.rs)
+[![PyO3](https://img.shields.io/badge/PyO3-21%20Rust%20Modules-blueviolet.svg)](zenic-v2/zenic-pybridge/src/lib.rs)
 
 </div>
 
@@ -25,7 +25,9 @@ Core critico compilado en **Rust** con bindings **PyO3**.
 
 > **Un agente = una funcion. Sin excepciones.**
 
-Zenic-Agents es una plataforma de asistencia empresarial que opera bajo el Principio de Responsabilidad Unica (SRP). Cada uno de sus **48 agentes atomicos** tiene exactamente una responsabilidad, un fallback determinista, y proteccion con circuit breaker, retry y auditoria completa. El orquestador unificado (Unified DAG) maneja **59 nodos** con ejecucion paralela via `asyncio.gather()`, comunicacion inter-agente por **SharedMemoryBus** con respaldo SQLite WAL, y cache de ruteo LRU con TTL.
+Zenic-Agents es una **plataforma de asistencia empresarial** que opera bajo el Principio de Responsabilidad Unica (SRP). Cada uno de sus **42 agentes atomicos** tiene exactamente una responsabilidad, un fallback determinista, y proteccion con circuit breaker, retry y auditoria completa. El orquestador unificado (Unified DAG) maneja **59 nodos** con ejecucion paralela via `asyncio.gather()`, comunicacion inter-agente por **SharedMemoryBus** con respaldo SQLite WAL, y cache de ruteo LRU con TTL.
+
+> **Nota**: Zenic es un **agente asistente**, NO un generador de codigos. Los modulos de generacion de codigo (CodeGenerator, AppGenerator, TemplateEngine, FractalGenerator, SchemaDesigner, CodeAgent) fueron eliminados en v3.0.0.
 
 El core de alto rendimiento esta implementado en **Rust** y expuesto a Python via **PyO3**, cubriendo criptografia, hashing, base de datos cifrada, auditoria forense, rollback atomico, event bus, simulacion DAG, prediccion de riesgo, licenciamiento, nichos, ingesta de documentos, extraccion de campos, completado de plantillas, certificacion de blueprints y pipeline E2E completo.
 
@@ -46,7 +48,7 @@ El core de alto rendimiento esta implementado en **Rust** y expuesto a Python vi
 
 | Fase | Nombre | Estado | Descripcion |
 |------|--------|--------|-------------|
-| **1** | Core Rust + PyO3 | Completo | 23 modulos Rust via PyO3: crypto, hash, db, forensic, rollback, eventbus, simulation, risk, bus, safety_gate, license, niche, catalog, template, ingest, extractor, completer, certifier, safety_gate_extended, e2e_pipeline |
+| **1** | Core Rust + PyO3 | Completo | 21 modulos Rust via PyO3: crypto, hash, db, forensic, rollback, eventbus, simulation, risk, bus, safety_gate, license, niche, catalog, template, ingest, extractor, completer, certifier, safety_gate_extended, e2e_pipeline |
 | **2** | Capa Conversacional | Completo | Session manager, LLM translator, adapters Telegram/Discord, memory, routing, tools |
 | **3** | 9 Executors Directos | Completo | email, http, db, file, notification, schedule, transform, webhook, base |
 | **4** | Sistema Nervioso Autonomo | Completo | Scheduler, monitores LIVIANOS/MEDIANOS/PESADOS, umbrales |
@@ -54,7 +56,7 @@ El core de alto rendimiento esta implementado en **Rust** y expuesto a Python vi
 | **6** | Nichos Dinamicos + Seguridad | Completo | 24 nichos compilados en Rust, generacion dinamica de YAML desde documentos del usuario, Q&A interactivo, certificacion, safety extendido |
 | **7** | Frontend Web + Billing | Completo | HTMX+Alpine.js, Stripe billing, CI/CD GitHub Actions |
 
-### zenic-v2 Workspace (Rust puro)
+### zenic-v2 Workspace (Rust unificado — 11 crates)
 
 | Crate | Estado | Descripcion |
 |-------|--------|-------------|
@@ -65,6 +67,7 @@ El core de alto rendimiento esta implementado en **Rust** y expuesto a Python vi
 | `zenic-policy` | Completo | Motor de politicas, roles, permisos, reglas, auditoria |
 | `zenic-safety` | Completo | Veredictos, compliance, sensitividad, reglas de dominio |
 | `zenic-core` | Completo | Orquestador, router, sesiones, configuracion |
+| `zenic-pybridge` | Completo | Puente PyO3 — expone Rust a Python como `_zenic_native` (21 modulos) |
 | `zenic-ffi` | Stub | FFI bindings para integracion externa |
 | `zenic-bench` | Stub | Benchmarks de rendimiento |
 | `zenic-tests` | Stub | Tests de integracion del workspace |
@@ -102,17 +105,16 @@ USER INPUT
     v
 +------------------------------------------------------------------+
 |  ROUTING: AST_ANALYZE -> THEOREM_CACHE -> ROUTE -> ROUTE_DECISION |
-|  ROUTE_DECISION -> {code | biz | auto | reason | high_crit |      |
-|                    visual | abortive}                              |
+|  ROUTE_DECISION -> {biz | auto | reason | high_crit | abortive}  |
 +------------------------------------------------------------------+
-    |       |        |       |        |
-    v       v        v       v        v
-+--------+ +------+ +-----+ +------+ +--------+
-| CODE   | | BIZ  | |AUTO | |REASON| |SOLVER  |
-| PATH   | | PATH | |PATH | | PATH | |VERIFY  |
-+--------+ +------+ +-----+ +------+ +--------+
-    |       |        |       |        |
-    +-------+--------+-------+--------+
+    |       |        |        |
+    v       v        v        v
++------+ +-----+ +------+ +--------+
+| BIZ  | |AUTO | |REASON| |SOLVER  |
+| PATH | |PATH | | PATH | |VERIFY  |
++------+ +-----+ +------+ +--------+
+    |       |        |        |
+    +-------+--------+--------+
             |
             v
 +------------------------------------------------------------------+
@@ -137,7 +139,7 @@ USER INPUT
 
 ---
 
-## Arquitectura de 9 Capas - 48 Agentes SRP
+## Arquitectura de 9 Capas — 42 Agentes SRP
 
 ```
  CAPA 1: UNDERSTANDING          CAPA 2: MEMORY & CONTEXT
@@ -145,38 +147,32 @@ USER INPUT
  A02 EntityExtractor            A06 RelevanceScorer
  A03 TargetResolver             A07 ContextCompressor
  A04 CriticalityScorer          A08 ContextPrefetcher
- A48 BilingualRouter
+ A42 BilingualRouter
 
- CAPA 3: BUSINESS               CAPA 4: CODE OPS
- A09 InvoiceProcessor           A17 CodeGenerator
- A10 InventoryManager           A18 CodeRefactorer
- A11 CRMPipeline                A19 CodeOptimizer
- A12 TaskScheduler              A20 CodeFixer
- A13 ReportGenerator            A21 ProjectScaffolder
- A14 NotificationDispatcher     A22 DefensiveInjector
+ CAPA 3: BUSINESS               CAPA 4: VALIDATION
+ A09 InvoiceProcessor           A23 SecurityScanner
+ A10 InventoryManager           A24 SyntaxValidator
+ A11 CRMPipeline                A25 ChainValidator
+ A12 TaskScheduler              A26 ConfigValidator
+ A13 ReportGenerator            A27 RiskCalculator
+ A14 NotificationDispatcher     A28 FixSuggester
  A15 DataAnalyzer
  A16 OperationRouter
 
- CAPA 5: VALIDATION             CAPA 6: AUTOMATION
- A23 SecurityScanner            A29 TriggerInferrer
- A24 SyntaxValidator            A30 ActionInferrer
- A25 ChainValidator             A31 ScheduleParser
- A26 ConfigValidator            A32 ConditionExtractor
- A27 RiskCalculator            A33 AutomationNamer
- A28 FixSuggester              A34 WorkflowSerializer
+ CAPA 5: AUTOMATION             CAPA 6: REASONING
+ A29 TriggerInferrer            A35 ProblemDetector
+ A30 ActionInferrer             A36 StepDecomposer
+ A31 ScheduleParser             A37 TemplateReasoner
+ A32 ConditionExtractor         A38 ConfidenceEstimator
+ A33 AutomationNamer            A39 ConclusionExtractor
+ A34 WorkflowSerializer
 
- CAPA 7: REASONING              CAPA 8: VERDICT (AI Arbiter)
- A35 ProblemDetector            A40 DeterministicPipeline
- A36 StepDecomposer             A41 EvidenceCollector
- A37 TemplateReasoner           A42 ConsensusResolver
- A38 ConfidenceEstimator        A43 VerdictEngine <- UNICO punto con IA
- A39 ConclusionExtractor
-
- CAPA 9: INFRASTRUCTURE
- A44 AgentRunner
- A45 HealthMonitor
- A46 AuditLogger
- A47 CircuitBreakerManager
+ CAPA 7: VERDICT (AI Arbiter)   CAPA 8: INFRASTRUCTURE
+ A40 DeterministicPipeline      A44 AgentRunner
+ A41 EvidenceCollector          A45 HealthMonitor
+ A42 ConsensusResolver          A46 AuditLogger
+ A43 VerdictEngine <- UNICO     A47 CircuitBreakerManager
+     punto con IA
 ```
 
 ---
@@ -227,7 +223,7 @@ La Fase 6 implementa un sistema de nichos de vanguardia donde las plantillas YAM
 
 ## Core Rust (PyO3 Native Extension)
 
-El modulo `_zenic_native` expone **23 modulos Rust** de alto rendimiento a Python:
+El modulo `_zenic_native` expone **21 modulos Rust** de alto rendimiento a Python via `zenic-pybridge`:
 
 | Modulo | Funcionalidad | Funciones/Clases |
 |--------|--------------|-----------------|
@@ -244,7 +240,7 @@ El modulo `_zenic_native` expone **23 modulos Rust** de alto rendimiento a Pytho
 | `license` | Licencias ECDSA, anti-tampering, hardware binding | 8 funciones + 3 clases |
 | `niche` | Tipos de nicho compilados | 2 funciones + 7 clases |
 | `catalog` | Catalogo de 24 nichos | 5 funciones |
-| `template` | Generacion/validacion YAML | 6 funciones |
+| `template` | Generacion/validacion YAML de nichos | 6 funciones |
 | `ingest` | Ingesta de documentos | 8 funciones + 3 clases |
 | `extractor` | Extraccion de campos | 5 funciones + 2 clases |
 | `completer` | Q&A interactivo de completado | 10 funciones + 4 clases |
@@ -276,20 +272,6 @@ Interaccion multi-turno unificada en `src/core/conversational/`:
 | `session_manager.py` | Gestion de sesiones con estado estructurado |
 | `personality_manager.py` | Personalidad y tono del asistente |
 | `adapters/` | Telegram, Discord |
-
----
-
-## Sistema Nervioso Autonomo (SNA)
-
-Monitoreo proactivo sin solicitud del usuario:
-
-| Clasificacion | Ejemplos | Intervalo |
-|---|---|---|
-| **LIVIANOS** | Stock bajo, factura vencida, cita manana | 5-15 min |
-| **MEDIANOS** | Tendencia ventas, ratio conversion CRM | 30-60 min |
-| **PESADOS** | Analisis multi-fuente, proyecciones demanda | 2-6 horas |
-
-Flujo: SNA detecta anomalia -> POST al DAG -> DAG valida -> notifica via Executor
 
 ---
 
@@ -342,7 +324,7 @@ pip install -r requirements.txt
 
 # Compilar extension Rust nativa (requiere Rust 1.85+)
 pip install maturin
-cd native && maturin develop --release && cd ..
+cd zenic-v2/zenic-pybridge && maturin develop --release && cd ../..
 
 # Opcional: Z3 para verificacion formal
 pip install z3-solver
@@ -384,112 +366,27 @@ pip install -r requirements.txt
 
 ```bash
 # Servidor estandar
-python main_headless.py --port 5000 --ram-limit 2048
+python src/entrypoints/main_headless.py --port 5000 --ram-limit 2048
 
 # Servidor FastAPI (SaaS)
-python main_headless.py --server fastapi --auth
+python src/entrypoints/main_headless.py --server fastapi --auth
 
 # Modo daemon (background)
-python main_headless.py --daemon
+python src/entrypoints/main_headless.py --daemon
 ```
 
 ### Interfaz Textual (TUI)
 
 ```bash
 pip install textual
-python main.py
+python src/entrypoints/main.py
 ```
 
 ### Modo Asistente (Conversacional)
 
 ```bash
-python main_conversational.py
+python src/entrypoints/main_conversational.py
 ```
-
-### API OpenAI-Compatible
-
-```http
-POST /v1/chat/completions
-Content-Type: application/json
-
-{
-  "model": "zenic-agents",
-  "messages": [
-    {"role": "user", "content": "crear modulo auth.py con JWT"}
-  ],
-  "temperature": 0.15,
-  "max_tokens": 600,
-  "stream": false
-}
-```
-
----
-
-## API Endpoints
-
-### Core
-
-| Metodo | Endpoint | Descripcion |
-|--------|----------|-------------|
-| POST | `/v1/chat/completions` | Chat OpenAI-compatible (SSE streaming soportado) |
-| GET | `/v1/models` | Listar modelos disponibles |
-| GET | `/health` | Liveness probe (K8s-style) |
-| GET | `/ready` | Readiness probe |
-
-### Autenticacion
-
-| Metodo | Endpoint | Descripcion |
-|--------|----------|-------------|
-| POST | `/v1/auth/register` | Registro de usuario |
-| POST | `/v1/auth/login` | Login -> JWT tokens |
-| POST | `/v1/auth/refresh` | Renovar access token |
-| POST | `/v1/auth/logout` | Logout con blacklisting |
-| POST | `/v1/auth/api-keys` | Crear API key |
-
-### Multi-Tenancy
-
-| Metodo | Endpoint | Descripcion |
-|--------|----------|-------------|
-| GET/POST | `/v1/tenants` | Listar/crear tenants |
-| GET/PATCH/DELETE | `/v1/tenants/{id}` | Gestionar tenant |
-| GET | `/v1/tenants/{id}/usage` | Uso y quotas |
-| POST | `/v1/tenants/{id}/assign/{user_id}` | Asignar usuario |
-
-**Planes**: Free (10 RPM) / Pro (60 RPM) / Enterprise (200 RPM)
-
-### Generacion, Razonamiento y Nichos
-
-| Metodo | Endpoint | Descripcion |
-|--------|----------|-------------|
-| POST | `/v1/generate/app` | Generar aplicacion completa |
-| POST | `/v1/generate/automation` | Generar automatizacion |
-| POST | `/v1/think` | ThinkingEngine |
-| POST | `/v1/reason` | Razonamiento avanzado |
-| POST | `/v1/chain/validate` | Validar cadena logica |
-| POST | `/v1/design/schema` | Disenar esquema de BD |
-| GET | `/v1/niches` | Listar nichos disponibles |
-| POST | `/v1/niches/{id}/onboard` | Iniciar onboarding de nicho |
-| POST | `/v1/niches/{id}/upload` | Subir documentos al nicho |
-| GET | `/v1/niches/{id}/questions` | Obtener preguntas faltantes |
-| POST | `/v1/niches/{id}/certify` | Certificar blueprint del nicho |
-
-### SNA & Blueprints
-
-| Metodo | Endpoint | Descripcion |
-|--------|----------|-------------|
-| GET | `/v1/sna/monitors` | Listar monitores activos |
-| POST | `/v1/sna/monitors` | Crear monitor |
-| GET | `/v1/blueprints` | Listar Blueprints certificados |
-| POST | `/v1/blueprints/compose` | Componer Blueprints |
-
-### Cluster & Observabilidad
-
-| Metodo | Endpoint | Descripcion |
-|--------|----------|-------------|
-| GET | `/v1/cluster/nodes` | Nodos del cluster |
-| POST | `/v1/saga/start` | Iniciar saga workflow |
-| GET | `/metrics` | Prometheus metrics |
-| GET | `/v1/audit/events` | Query audit events |
 
 ---
 
@@ -497,42 +394,14 @@ Content-Type: application/json
 
 ```
 Zenic-Agents/
-├── main.py                          # Interfaz Textual (TUI)
-├── main_headless.py                 # Servidor CLI
-├── main_conversational.py           # Modo conversacional
 ├── pyproject.toml                   # Configuracion del proyecto + maturin
 ├── requirements.txt                 # Dependencias
 ├── Dockerfile                       # Docker build
 ├── docker-compose.yml               # Docker compose
-├── docs/                            # Documentacion y whitepaper
+├── buildozer.spec                   # Android/Termux build
+├── docs/                            # Documentacion
 │
-├── native/                          # Extension Rust (PyO3) - 23 modulos
-│   ├── Cargo.toml                   # zenic-agents-native v1.0.0
-│   ├── build.rs                     # Build script
-│   └── src/
-│       ├── lib.rs                   # Entry point _zenic_native (100+ funciones)
-│       ├── crypto.rs                # PBKDF2, Argon2id
-│       ├── hash.rs                  # BLAKE3, xxHash64, Merkle
-│       ├── db.rs                    # SQLCipher
-│       ├── forensic.rs              # Cadena Merkle, integridad
-│       ├── rollback.rs              # Rollback atomico
-│       ├── eventbus.rs              # Event bus de alta velocidad
-│       ├── simulation.rs            # Simulacion DAG
-│       ├── risk.rs                  # Prediccion de riesgo
-│       ├── bus.rs                   # SharedMemoryBus, RingBuffer
-│       ├── safety_gate.rs           # Safety Gate determinista
-│       ├── license.rs               # Licencias ECDSA, anti-tampering
-│       ├── niche.rs                 # Tipos de nicho (Phase 6.A)
-│       ├── catalog.rs               # Catalogo 24 nichos (Phase 6.A)
-│       ├── template.rs              # YAML dinamico (Phase 6.A)
-│       ├── ingest.rs                # Ingesta documentos (Phase 6.B)
-│       ├── extractor.rs             # Extraccion campos (Phase 6.B)
-│       ├── completer.rs             # Q&A interactivo (Phase 6.C)
-│       ├── certifier.rs             # Certificacion (Phase 6.D)
-│       ├── safety_gate_extended.rs  # Safety por dominio (Phase D)
-│       └── e2e_pipeline.rs          # Pipeline E2E (Phase D)
-│
-├── zenic-v2/                        # Workspace Rust puro (10 crates)
+├── zenic-v2/                        # Workspace Rust unificado (11 crates)
 │   ├── Cargo.toml                   # Workspace config
 │   ├── zenic-proto/                 # Tipos base, IDs, dominio
 │   ├── zenic-graph/                 # Grafo DAG, subgrafos, supernodos
@@ -541,18 +410,27 @@ Zenic-Agents/
 │   ├── zenic-policy/                # Roles, permisos, reglas
 │   ├── zenic-safety/                # Veredictos, compliance
 │   ├── zenic-core/                  # Orquestador, router, sesiones
+│   ├── zenic-pybridge/              # Puente PyO3 (_zenic_native)
+│   │   ├── Cargo.toml
+│   │   ├── build.rs
+│   │   └── src/                     # 21 modulos Rust
 │   ├── zenic-ffi/                   # FFI bindings (stub)
 │   ├── zenic-bench/                 # Benchmarks (stub)
 │   └── zenic-tests/                 # Tests integracion (stub)
 │
 ├── src/
+│   ├── entrypoints/                 # Puntos de entrada
+│   │   ├── main.py                  # Interfaz Textual (TUI)
+│   │   ├── main_headless.py         # Servidor CLI
+│   │   └── main_conversational.py   # Modo conversacional
+│   │
 │   ├── config/                      # Configuracion (YAML + loader)
+│   │
 │   ├── core/
-│   │   ├── agents_v2/               # 48 Agentes SRP (9 capas)
+│   │   ├── agents_v2/               # 42 Agentes SRP (9 capas)
 │   │   │   ├── understanding/       # Capa 1: Intent, Entity, Target, Criticality
 │   │   │   ├── memory/              # Capa 2: Memory, Relevance, Context
 │   │   │   ├── business/            # Capa 3: Invoice, CRM, Inventory, Reports
-│   │   │   ├── code_ops/            # Capa 4: Generator, Refactorer, Fixer
 │   │   │   ├── validation/          # Capa 5: Security, Syntax, Chain, Risk
 │   │   │   ├── automation/          # Capa 6: Trigger, Action, Schedule
 │   │   │   ├── reasoning/           # Capa 7: Problem, Step, Confidence
@@ -562,8 +440,17 @@ Zenic-Agents/
 │   │   │   ├── schemas/             # Tipos compartidos
 │   │   │   └── pipeline_orchestrator/ # Orquestador + niche onboarding
 │   │   │
+│   │   ├── agents/                  # Agentes V1 (legacy pipeline)
+│   │   │   ├── intent_agent.py      # IntentAgent
+│   │   │   ├── surgical_agent.py    # SurgicalAgent
+│   │   │   ├── context_agent.py     # ContextAgent
+│   │   │   ├── reasoning_agent.py   # ReasoningAgent
+│   │   │   ├── business_logic_agent.py  # BusinessLogicAgent
+│   │   │   ├── automation_agent.py  # AutomationAgent
+│   │   │   ├── validation_agent.py  # ValidationAgent
+│   │   │   └── criticality_agent.py # CriticalityAgent
+│   │   │
 │   │   ├── conversational/          # Capa conversacional multi-turno
-│   │   ├── dag_parts/               # Unified DAG Orchestrator (59 nodos)
 │   │   ├── executors/               # 9 Executors (email, http, db, etc.)
 │   │   ├── sna/                     # Sistema Nervioso Autonomo
 │   │   ├── blueprints/              # Blueprints Certificados
@@ -577,37 +464,58 @@ Zenic-Agents/
 │   │   ├── distributed/             # SAGA + Circuit Breaker
 │   │   ├── observability/           # Tracing + Metrics + Health
 │   │   ├── patterns/                # Design patterns (18 modulos)
-│   │   ├── tenant/                  # Multi-tenancy
-│   │   ├── roi/                     # ROI tracking
-│   │   ├── chaos/                   # Chaos engineering
-│   │   ├── mini_ai_parts/           # Mini AI engine (verdict + tasks)
-│   │   ├── level3_graph_ast/        # AST analysis
-│   │   ├── level6_reflexion_sandbox/# Sandbox de ejecucion
-│   │   ├── level7_merkle_ledger/    # Ledger Merkle
-│   │   ├── level8_theorem_cache/    # Cache de teoremas
-│   │   ├── logic_blocks/            # Bloques de logica de negocio
-│   │   ├── events/                  # Eventos + schema registry
-│   │   └── ...                      # 40+ sub-modulos mas
+│   │   ├── niche_rust/              # Python bridge a _zenic_native
+│   │   ├── native/                  # Native module loader
+│   │   └── ...                      # Otros sub-modulos
 │   │
 │   ├── server/                      # FastAPI HTTP server
 │   │   ├── fastapi_app.py           # App principal
 │   │   ├── fastapi_parts/           # Rutas modulares
 │   │   ├── templates/               # Jinja2 (HTMX)
 │   │   ├── static/                  # CSS + JS (Alpine.js, Chart.js)
-│   │   ├── security_middleware/     # Middleware de seguridad
-│   │   └── ...
+│   │   └── security_middleware/     # Middleware de seguridad
 │   │
-│   └── templates/                   # Jinja2 + DNA templates
+│   └── templates/                   # DNA domain knowledge (YAML)
+│       └── dna/                     # Glossary, logic modules, rules
 │
 ├── tests/                           # 408+ tests
 │   ├── unit/                        # Tests unitarios
 │   ├── integration/                 # Tests de integracion
-│   └── e2e/                         # Tests end-to-end
+│   ├── e2e/                         # Tests end-to-end
+│   └── phase_d/                     # Tests Phase D
 │
 ├── deploy/                          # Docker, nginx, systemd, scripts
 ├── scripts/                         # Install + deploy scripts
 └── .github/workflows/               # CI/CD (Rust+PyO3+Nuitka)
 ```
+
+---
+
+## Cambios v3.0.0 (Limpieza de Generador de Codigos)
+
+Se eliminaron todos los modulos de generacion de codigo ya que Zenic es un **agente asistente**, no un generador de codigos:
+
+| Eliminado | Razon |
+|-----------|-------|
+| `code_gen_parts/` (15 archivos) | CodeGenerator — genera codigo desde pipelines |
+| `code_trans_parts/` (6 archivos) | CodeTransformer — refactoriza, corrige, optimiza |
+| `app_gen_parts/` (7 archivos) | AppGenerator — genera apps completas |
+| `template_parts/` (7 archivos) | TemplateEngine — motor Jinja2 de generacion |
+| `fractal_parts/` (6 archivos) | FractalGenerator — genera apps multi-archivo |
+| `schema_parts/` (7 archivos) | SchemaDesigner — genera modelos Python + SQL |
+| `chain_valid_parts/` (5 archivos) | ChainValidator — valida cadenas de generacion |
+| `agents/code_agent.py` + `code_agent_parts/` | CodeAgent V1 |
+| `agents_v2/code_ops/` (6 archivos) | 6 agentes de operaciones de codigo (A17-A22) |
+| `src/templates/apps/` (9 .j2) | Templates Jinja2 de apps |
+| `src/templates/automations/` (5 .j2) | Templates Jinja2 de automatizaciones |
+| `src/templates/blocks/` (22 .j2) | Templates Jinja2 de bloques de codigo |
+| `docs/*.pdf` | Repositorio solo codigo |
+| `agent-ctx/` | Artefactos de sesion anterior |
+
+**Reorganizacion:**
+- `native/` fusionado en `zenic-v2/zenic-pybridge/` (workspace Rust unificado)
+- `main.py`, `main_conversational.py`, `main_headless.py` movidos a `src/entrypoints/`
+- `.gitignore` actualizado con `.pytest_cache/`, `agent-ctx/`, `*.pdf`
 
 ---
 
@@ -640,12 +548,6 @@ pytest tests/integration/ -v
 # Ejecutar tests E2E
 pytest tests/e2e/ -v
 
-# Ejecutar todos los tests
-pytest tests/ -v
-
-# Con cobertura
-pytest tests/ --cov=src --cov-report=term-missing
-
 # Tests Rust (workspace zenic-v2)
 cd zenic-v2 && cargo test --workspace
 ```
@@ -677,6 +579,6 @@ MIT License - ver [LICENSE](LICENSE) para detalles.
 
 <div align="center">
 
-**ZENIC-AGENTS** — 48 Agentes SRP | DAG 59 Nodos | 9 Executors | 24 Nichos Rust | SNA | Blueprints | Defense in Depth | Conversacional | PyO3
+**ZENIC-AGENTS** — 42 Agentes SRP | DAG 59 Nodos | 9 Executors | 24 Nichos Rust | SNA | Blueprints | Defense in Depth | Conversacional | PyO3
 
 </div>

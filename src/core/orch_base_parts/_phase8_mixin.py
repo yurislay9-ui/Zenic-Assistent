@@ -2,7 +2,10 @@
 Phase 8 Intelligence API mixin for BaseOrchestrator.
 """
 
-from ._imports import logger, AppGenerator, RecoveryAction, ChainExecutor
+from ._imports import logger
+# AppGenerator removed — module deleted
+# RecoveryAction removed — module deleted
+# ChainExecutor removed — module deleted
 
 
 class Phase8Mixin:
@@ -67,31 +70,21 @@ class Phase8Mixin:
                 "risk_score": output.risk_score,
                 "source": output.source,
             }
+            # ChainValidator removed — legacy chain validation unavailable
             if self._logic_builder:
                 chain = self._logic_builder.build_from_description(description)
-                validation = self._chain_validator.validate(chain)
                 result["block_count"] = len(chain.blocks)
-                result["legacy_errors"] = [
-                    {"code": e.code, "message": e.message, "block": e.block_name}
-                    for e in validation.errors
-                ]
-                result["legacy_warnings"] = [
-                    {"code": e.code, "message": e.message, "block": e.block_name}
-                    for e in validation.warnings
-                ]
             return result
 
         if not self._logic_builder:
             return {"error": "LogicBuilder not available"}
+        # ChainValidator removed — legacy chain validation unavailable
         chain = self._logic_builder.build_from_description(description)
-        validation = self._chain_validator.validate(chain)
         return {
-            "is_valid": validation.is_valid,
-            "can_execute": validation.can_execute,
-            "errors": [{"code": e.code, "message": e.message, "block": e.block_name}
-                       for e in validation.errors],
-            "warnings": [{"code": e.code, "message": e.message, "block": e.block_name}
-                         for e in validation.warnings],
+            "is_valid": None,
+            "can_execute": None,
+            "errors": [],
+            "warnings": [{"code": "DEPRECATED", "message": "ChainValidator removed — legacy validation unavailable", "block": ""}],
             "block_count": len(chain.blocks),
         }
 
@@ -101,30 +94,8 @@ class Phase8Mixin:
         if not self._logic_builder:
             return {"error": "LogicBuilder not available"}
 
-        chain = self._logic_builder.build_from_description(description)
-        recovery_map = {
-            "retry": RecoveryAction.RETRY,
-            "skip": RecoveryAction.SKIP,
-            "fallback": RecoveryAction.FALLBACK,
-            "abort": RecoveryAction.ABORT,
-            "rollback": RecoveryAction.ROLLBACK,
-        }
-        recovery_action = recovery_map.get(recovery, RecoveryAction.SKIP)
-
-        executor = ChainExecutor(default_recovery=recovery_action, max_retries=1)
-        result = executor.execute(chain, data or {}, validate_first=True)
-
-        return {
-            "status": result.status.value,
-            "steps_completed": result.steps_completed,
-            "steps_failed": result.steps_failed,
-            "steps_skipped": result.steps_skipped,
-            "rollback_count": result.rollback_count,
-            "total_duration_ms": result.total_duration_ms,
-            "final_data": result.final_data,
-            "error": result.error,
-            "validation_passed": result.validation.is_valid if result.validation else None,
-        }
+        # ChainExecutor/RecoveryAction removed — module deleted
+        return {"error": "ChainExecutor removed — logic chain execution is no longer available. Use ValidationAgent instead.", "status": "unavailable"}
 
     async def get_intelligence_status(self) -> dict:
         """Obtiene estado del sistema de inteligencia (Phase 8)."""
@@ -162,7 +133,7 @@ class Phase8Mixin:
                 "memory_available": self._memory is not None,
             },
             "thinking_engine": self._thinking.stats,
-            "app_templates": AppGenerator.list_templates(),
+            "app_templates": {},  # AppGenerator removed — module deleted
             "automation_stats": self._automation.stats,
             "memory_stats": self._memory.enhanced_stats if self._memory else {},
             "phase7_engines": {

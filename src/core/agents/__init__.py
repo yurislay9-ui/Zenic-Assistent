@@ -40,7 +40,7 @@ from src.core.agents.surgical_agent import SurgicalAgent
 from src.core.agents.context_agent import ContextAgent
 from src.core.agents.reasoning_agent import ReasoningAgent
 from src.core.agents.business_logic_agent import BusinessLogicAgent
-from src.core.agents.code_agent import CodeAgent
+# CodeAgent removed — module deleted
 from src.core.agents.automation_agent import AutomationAgent
 from src.core.agents.validation_agent import ValidationAgent
 from src.core.agents.criticality_agent import CriticalityAgent
@@ -63,7 +63,7 @@ __all__ = [
     "ContextAgent",
     "ReasoningAgent",
     "BusinessLogicAgent",
-    "CodeAgent",
+    # "CodeAgent" removed — module deleted
     "AutomationAgent",
     "ValidationAgent",
     "CriticalityAgent",

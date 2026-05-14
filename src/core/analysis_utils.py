@@ -30,8 +30,8 @@ class AnalysisUtils:
 
     def apply_fix(self, code, intent, lang):
         if lang == "python" and code:
-            from src.core.code_transformer import CodeTransformer
-            return CodeTransformer.fix_python(code, {})
+            # CodeTransformer removed — module deleted; return code as-is
+            return code
         return code or ""
 
     @staticmethod

@@ -1,8 +1,8 @@
 [package]
-name = "zenic-agents-native"
-version = "1.0.0"
+name = "zenic-pybridge"
+version = "2.5.0"
 edition = "2021"
-description = "Native Rust extensions for Zenic-Agents via PyO3"
+description = "PyO3 bridge — exposes Zenic Rust core to Python as _zenic_native"
 authors = ["Zenic-Agents Team"]
 license = "MIT"
 

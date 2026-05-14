@@ -174,14 +174,14 @@ def _register_handlers(worker: "DistributedWorker") -> None:
 
     # Try to register code generation handler
     try:
-        from src.core.code_generator import CodeGenerator
+        from src.core.code_generator import CodeGenerator  # CodeGenerator removed — module deleted
         worker.register_handler("code_generation", _handle_generic)
     except ImportError:
         logger.debug("Worker: CodeGenerator not available")
 
     # Try to register app generation handler
     try:
-        from src.core.app_generator import AppGenerator
+        from src.core.app_generator import AppGenerator  # AppGenerator removed — module deleted
         worker.register_handler("app_generation", _handle_generic)
     except ImportError:
         logger.debug("Worker: AppGenerator not available")

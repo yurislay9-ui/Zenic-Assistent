@@ -153,14 +153,8 @@ class PostMixinExtraMixin:
         if not code:
             self._send_json({"error": "Missing 'code' field"}, status=400)
             return
-        try:
-            from src.core.template_engine import TemplateEngine
-            engine = TemplateEngine()
-            result = engine.validate_niche_code(code, niche_name)
-            self._send_json(result)
-        except Exception as e:
-            logger.error(f"DNA validate error: {e}", exc_info=True)
-            self._send_json({"error": str(e)}, status=500)
+        # TemplateEngine removed — module deleted
+        self._send_json({"error": "TemplateEngine removed — DNA validation unavailable"}, status=501)
     def _handle_dna_polish(self):
         """POST /v1/dna/polish - Pulir texto técnico a corporativo."""
         try:
@@ -174,14 +168,8 @@ class PostMixinExtraMixin:
         if not text:
             self._send_json({"error": "Missing 'text' field"}, status=400)
             return
-        try:
-            from src.core.template_engine import TemplateEngine
-            engine = TemplateEngine()
-            polished = engine.polish_output(text)
-            self._send_json({"original": text, "polished": polished})
-        except Exception as e:
-            logger.error(f"DNA polish error: {e}", exc_info=True)
-            self._send_json({"error": str(e)}, status=500)
+        # TemplateEngine removed — module deleted
+        self._send_json({"error": "TemplateEngine removed — DNA polish unavailable"}, status=501)
 
     def _handle_design_schema(self):
         """POST /v1/design/schema - Disenar esquema de BD."""

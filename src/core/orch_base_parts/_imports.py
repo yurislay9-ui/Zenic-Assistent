@@ -25,15 +25,14 @@ from src.core.shared.sandbox_isolation import (
 from src.core.subtask_descriptor import SubtaskDescriptor
 from src.core.abortive_protocol import AbortiveProtocol
 from src.core.partial_reasoning import PartialReasoningManager
-from src.core.code_generator import CodeGenerator
-from src.core.code_transformer import CodeTransformer
+# CodeGenerator and CodeTransformer removed — Zenic is an assistant agent, not a code generator
 from src.core.analysis_utils import AnalysisUtils
 
 # Extended AI Architecture
 from src.core.thinking_engine import ThinkingEngine, GenerationPlan
-from src.core.app_generator import AppGenerator
+# AppGenerator removed — not part of assistant agent concept
 from src.core.automation_engine import AutomationEngine
-from src.core.schema_designer import SchemaDesigner
+# SchemaDesigner removed — code generation feature
 
 # Phase 7: Real Engines
 from src.core.action_executor import ExecutorRegistry, get_default_registry
@@ -42,14 +41,14 @@ from src.core.auth_service import AuthService
 
 # Phase 8: Intelligence
 from src.core.reasoning_engine import ReasoningEngine, ReasoningMode, ReasoningResult
-from src.core.chain_validator import ChainValidator, ChainExecutor, execute_chain_safe, validate_chain, RecoveryAction
+# ChainValidator removed — code generation pipeline component
 
 # Agent Framework (F1-F5)
 from src.core.agents import AgentRunner, AgentCache
 from src.core.agents.surgical_agent import SurgicalAgent
 from src.core.agents.reasoning_agent import ReasoningAgent
 from src.core.agents.business_logic_agent import BusinessLogicAgent
-from src.core.agents.code_agent import CodeAgent
+# CodeAgent removed — code generation agent
 from src.core.agents.automation_agent import AutomationAgent
 from src.core.agents.validation_agent import ValidationAgent
 
