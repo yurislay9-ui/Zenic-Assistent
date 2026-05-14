@@ -8,503 +8,239 @@
 
 <h1 align="center">Zenic-Agents</h1>
 
-<p align="center"><strong>Plataforma de Asistencia Empresarial Inteligente</strong></p>
+<p align="center"><strong>IA enjaulada. Seguridad por diseno. Determinismo garantizado.</strong></p>
 
 <p align="center">
-  IA como arbitro binario (SÍ/NO) | DAG Fractal de 121 nodos | Motor Rust de alto rendimiento | Defensa en 6 capas | 24 nichos industriales
+  La unica plataforma empresarial donde la IA nunca genera — solo arbitra SÍ/NO.
 </p>
 
 ---
 
-## Tabla de Contenidos
+## El Problema
 
-- [Vision General](#vision-general)
-- [6 Invariantes Arquitectonicos](#6-invariantes-arquitectonicos)
-- [Arquitectura del Veredicto](#arquitectura-del-veredicto-4-capas)
-- [Motor Rust (PyO3)](#motor-rust-pyo3)
-- [Workspace Rust zenic-v2](#workspace-rust-zenic-v2)
-- [24 Nichos Industriales](#24-nichos-industriales)
-- [Safety Gate Inbypassable](#safety-gate-inbypassable)
-- [Defensa en Profundidad](#defensa-en-profundidad-6-capas)
-- [Sistema Nervioso Autonomo](#sistema-nervioso-autonomo-sna)
-- [Ejecutores de Acciones](#19-ejecutores-de-acciones)
-- [Sistema Distribuido](#sistema-distribuido)
-- [Capa Conversacional](#capa-conversacional)
-- [Billing y SaaS](#billing-y-saas)
-- [Autopilot por Objetivos](#autopilot-por-objetivos)
-- [Blueprints Certificados](#blueprints-certificados)
-- [Servidor y API](#servidor-y-api)
-- [Despliegue](#despliegue)
-- [Instalacion Rapida](#instalacion-rapida)
-- [Variables de Entorno](#variables-de-entorno)
-- [Estructura del Proyecto](#estructura-del-proyecto)
-- [Stack Tecnologico](#stack-tecnologico)
-- [Comparativa](#comparativa-con-proyectos-similares)
-- [Licencia](#licencia)
+Los agentes de IA actuales tienen un defecto fundamental: **confianza ciega en la generacion**. Cada respuesta, cada decision, cada linea de codigo que produce un LLM es una apuesta. Y las casas siempre ganan — pero aqui pierdes tu.
+
+### Que falla en los agentes actuales
+
+- **Alucinaciones inevitables**: Todo LLM genera informacion falsa con total conviccion. No es un bug, es una propiedad estadistica del modelo. En un contexto empresarial, una sola alucinacion puede significar una transferencia equivocada, un diagnostico incorrecto o un contrato invalido.
+
+- **Superficie de ataque masiva**: Cuando la IA genera codigo, SQL, decisiones de negocio o respuestas a clientes, cada token es un vector de ataque. No puedes auditar lo que no puedes predecir, y no puedes predecir lo que es probabilistico.
+
+- **Dependencia de la nube**: Cada agente popular — LangChain, AutoGPT, CrewAI — requiere conexion a APIs cloud. Si se cae el servidor, se cae tu operacion. Si se cae tu internet, se cae todo. Y en mercados emergentes, la conectividad no es garantia, es lujo.
+
+- **Peso inaceptable**: Ninguno de los frameworks existentes funciona en menos de 4GB de RAM. Ninguno corre en un telefono Android. Ninguno esta disenado para recursos limitados. Estan hechos para servidores con GPU, no para la realidad de la mayoria de los negocios del mundo.
+
+- **Cero responsabilidad**: Cuando un agente toma una mala decision, no hay cadena de auditoria inmutable. No hay veto de seguridad inbypassable. No hay modo degradado. El sistema simplemente falla, y tu quedas responsable.
+
+### Por que la IA generativa sola no es suficiente
+
+La IA generativa es extraordinaria para crear — texto, codigo, imagenes, analisis. Pero en un contexto empresarial, **crear sin control es un riesgo sistematico**. Un agente que puede generar una respuesta tambien puede generar un error. Un agente que puede ejecutar una accion tambien puede ejecutar la accion equivocada.
+
+El problema no es la capacidad de la IA. Es la falta de limites arquitectonicos. Cuando la IA puede hacer cualquier cosa, eventualmente hara algo que no deberia. No es una cuestion de *si*, sino de *cuando*.
+
+La solucion no es mejor IA. Es **mejor arquitectura**: un sistema donde la IA solo pueda aprobar o rechazar, donde toda accion productiva sea deterministica, y donde exista un veto de seguridad que ni la propia IA pueda sobrepasar.
 
 ---
 
-## Vision General
+## La Propuesta
 
-**Zenic-Agents** es una plataforma de asistencia empresarial inteligente con un principio radicalmente diferente a todo lo existente: **la IA NUNCA genera, solo arbitra SÍ o NO**. Toda tarea productiva es 100% deterministica. La IA (Qwen3-0.6B local, CPU-only) solo interviene como arbitro final cuando el pipeline deterministico no alcanza consenso.
+Zenic-Agents invierte el paradigma: **la IA no genera, solo arbitra**.
 
-Disenado para operar en dispositivos con recursos limitados: Android/Termux ARM64, CPU-only, 500MB-4GB RAM. Ningun competidor ofrece esta combinacion de seguridad, determinismo y eficiencia.
+### IA como arbitro binario
 
-### Que hace diferente a Zenic-Agents
+En Zenic-Agents, la IA (Qwen3-0.6B, CPU-only, local) tiene exactamente dos salidas posibles: **SÍ** o **NO**. No genera texto. No genera codigo. No genera decisiones. Solo responde a una pregunta binaria: *"Dada la evidencia, esta accion es aceptable?"*
 
-| Caracteristica | Zenic-Agents | Otros |
-|---------------|-------------|-------|
-| IA generativa | **Solo SÍ/NO (enjaulada)** | Genera codigo, texto, decisiones |
-| Alucinaciones de IA | **Imposibles por diseno** | Riesgo constante |
-| Funciona offline/CPU | **Si (Qwen3 local)** | Requiere API cloud |
-| Android/Termux | **Disenado para eso** | No soportado |
-| Motor Rust nativo | **16+ modulos PyO3** | Python puro |
-| Safety Gate | **Inbypassable (doble capa)** | No existe |
-| Anti-tampering | **6 capas con modo degradado** | No existe |
+Esto elimina las alucinaciones por diseno, no por convencion:
 
----
+- La IA no puede inventar datos porque no se le pide datos — se le pide un veredicto.
+- La IA no puede generar codigo malicioso porque no genera codigo.
+- La IA no puede tomar decisiones fuera de contexto porque solo puede aprobar o rechazar lo que el pipeline deterministico le presenta.
 
-## 6 Invariantes Arquitectonicos
+### Todo lo demas es deterministico
 
-Estas son reglas que **no se pueden violar** bajo ninguna circunstancia:
-
-1. **No LLM directo** — La IA nunca genera contenido. Solo emite veredictos binarios.
-2. **Solo SÍ/NO** — La unica salida de la IA es un booleano. No hay gradaciones.
-3. **Fallback deterministico** — Si la IA no responde, el sistema funciona con logica deterministica.
-4. **Sin duplicacion** — Cada funcion tiene exactamente un responsable.
-5. **Auditoria completa** — Toda accion queda registrada en Merkle Ledger inmutable.
-6. **Veto de seguridad** — Si SafetyGate dice DENY, no existe override posible.
-
----
-
-## Arquitectura del Veredicto (4 Capas)
-
-El corazn de Zenic-Agents. Toda decision pasa por 4 capas secuenciales:
+El 100% del trabajo productivo lo hacen pipelines deterministicos: clasificacion por reglas, extraccion por patrones, generacion por templates, validacion por schemas. La IA solo interviene como arbitraje final cuando el pipeline deterministico no alcanza consenso — y aun entonces, solo puede decir SÍ o NO.
 
 ```
-  Capa 1: DeterministicPipeline (7 tareas deterministicas)
-      |
-      v
-  Capa 2: EvidenceCollector (evidencia a favor y en contra)
-      |
-      v
-  Capa 3: ConsensusResolver (consenso multi-senal ponderado)
-      |
-      v
-  Capa 4: VerdictEngine (arbitraje binario — IA solo si hay empate)
-```
-
-| Capa | Funcion | Usa IA? |
-|------|---------|---------|
-| **DeterministicPipeline** | Clasifica, extrae, genera, valida — 7 tareas sin IA | No |
-| **EvidenceCollector** | Recoleccion de evidencia a favor y en contra | No |
-| **ConsensusResolver** | Consenso multi-senal ponderado | No |
-| **VerdictEngine** | Arbitraje SÍ/NO — solo interviene si hay empate | Solo SÍ/NO |
-
-**Ningun otro proyecto hace esto.** En todos los demas, la IA genera respuestas que pueden ser incorrectas. Aqui la IA esta enjaulada: solo puede aprobar o rechazar, nunca crear.
-
----
-
-## Motor Rust (PyO3)
-
-Extension Python compilada con PyO3/maturin que expone operaciones de alto rendimiento implementadas en Rust. El modulo se importa como `_zenic_native`.
-
-| Submodulo Rust | Funcion |
-|----------------|---------|
-| **crypto** | PBKDF2, Argon2id, comparacion en tiempo constante |
-| **hash** | BLAKE3 (obligatorio), xxHash64, Merkle root |
-| **db** | SQLCipher via rusqlite |
-| **forensic** | Hash forense, verificacion de cadena Merkle, pruebas Merkle, verificacion batch |
-| **rollback** | Snapshot/restauracion atomica de archivos |
-| **eventbus** | Dispatch de eventos, wildcard matching, deduplicacion |
-| **simulation** | Ordenamiento topologico DAG, deteccion de ciclos, simulacion dry-run |
-| **risk** | Radio de explosion, propagacion de riesgos, camino critico |
-| **bus** | SharedMemoryBus, RingBuffer, comunicacion inter-agente |
-| **safety_gate** | Validacion de seguridad deterministica, rate limiting |
-| **license** | Fingerprint de hardware, firma ECDSA, kill switch remoto |
-
-Todos los modulos tienen fallback en Python (`src/core/native/_fallbacks.py`) para cuando la extension Rust no esta disponible.
-
----
-
-## Workspace Rust zenic-v2
-
-Workspace Rust puro con 10 crates, 7 completos con 408 tests:
-
-| Crate | Funcion | Estado |
-|-------|---------|--------|
-| **zenic-proto** | Tipos compartidos, IDs, enums de dominio, serializacion bincode+zstd | Completo |
-| **zenic-graph** | Primitivas de DAG fractal: NodeDescriptor, EdgeDescriptor, SuperNode, SubGraph, NodeCatalog | Completo |
-| **zenic-flow** | Motor de workflows duraderos: Checkpoint/restore, SAGA compensation, RetryPolicy | Completo |
-| **zenic-policy** | Motor de politicas: RBAC, reglas allow/deny, SafetyVeto inmutable, CriticalityGate | Completo |
-| **zenic-safety** | Safety gate extendido: DomainSafetyGate (4 capas), ComplianceEngine, 35 reglas de dominio | Completo |
-| **zenic-runtime** | Runtime: ExecutionContext, DagScheduler (topologico), MemoryManager, FractalLoader | Completo |
-| **zenic-core** | Orquestador Rust: Orchestrator, Session, RequestRouter, DagStepExecutor | Completo |
-| **zenic-ffi** | Interfaz FFI C para integracion con otros lenguajes | Completo |
-| **zenic-pybridge** | Puente PyO3 con 16+ submodulos para Python | Completo |
-| **zenic-bench** | Benchmarks de rendimiento | Stub |
-| **zenic-tests** | Tests de integracion del workspace | Stub |
-
-### DAG Fractal (3 niveles)
-
-```
-SuperNode (dominio + criticidad + load_policy)
-  └── SubGraph (maximo 8 activos simultaneos)
-       └── Node (hoja ejecutable)
-```
-
-Cada nodo tiene:
-- **BusinessDomain** — 24 dominios de negocio
-- **NodeCategory** — 17 categorias (Orchestrator, DataIngestion, Decision, Compliance, Verdict, etc.)
-- **NodeCriticality** — 4 niveles (Critical, High, Medium, Low)
-- **LoadPolicy** — Always, OnDemand, Cache, Lazy
-
----
-
-## 24 Nichos Industriales
-
-Los nichos son plantillas industriales compiladas estaticamente en Rust que definen reglas de seguridad, compliance regulatorio, campos de configuracion y comportamiento del pipeline para cada sector.
-
-### 7 Categorias
-
-| Categoria | Nichos | Compliance |
-|-----------|--------|------------|
-| **IA y Datos** | Automatización IA, Análisis de Datos, Operaciones ML, Servicios PLN | GDPR, SOC2 |
-| **Tecnología Financiera** | Protocolos DeFi, Banca Digital, Tecnología Aseguradora, Tecnología Regulatoria | PCI-DSS, AML, KYC, SOX, Basel III |
-| **Tecnología de la Salud** | Telemedicina, IA de Salud Mental, Genómica, Salud con Wearables | HIPAA, GDPR, FDA, GINA |
-| **Tecnología Verde** | Seguimiento de Carbono, Red Eléctrica Inteligente, Economía Circular | GHG Protocol, NERC, IEC 61850 |
-| **Tecnología Educativa** | Aprendizaje Adaptativo, Educación en RV, Microcredenciales | FERPA, COPPA |
-| **Tecnología Inmobiliaria** | Edificios Inteligentes, Gemelos Digitales, Propiedad Fraccional | BREEAM, LEED, SEC, ISO 23247 |
-| **Tecnología Jurídica** | Contratos Inteligentes, IA Jurídica, Automatización de Cumplimiento | SOX, eIDAS, ABA, ISO 27001 |
-
-### 4 Niveles de Sensibilidad
-
-| Nivel | Escalamiento de Veredicto |
-|-------|---------------------------|
-| **Low** | Sin escalamiento |
-| **Medium** | Sin escalamiento |
-| **High** | ALLOW → CONFIRM, CONFIRM → APPROVE |
-| **Critical** | ALLOW → CONFIRM, CONFIRM → APPROVE, APPROVE → DENY |
-
-### Pipeline de Onboarding (8 pasos)
-
-```
-1. SELECT_NICHE       → Buscar en catalogo + generar template
-2. UPLOAD_DOCUMENTS   → Ingesta de documentos + extraccion de campos
-3. GENERATE_QUESTIONS → Identificar campos faltantes
-4. COLLECT_ANSWERS    → Q&A interactiva con validacion
-5. VALIDATE_TEMPLATE  → Verificar completitud
-6. SAFETY_CHECK       → Domain safety + compliance gate (inbypassable)
-7. CERTIFY_BLUEPRINT  → Firma ECDSA + blueprint certificado
-8. EXPORT             → Exportacion YAML + metadata
-```
-
-### 35 Reglas de Seguridad por Dominio (5 por categoria)
-
-8 reglas tienen **DENY absoluto** — estas acciones no se pueden ejecutar bajo ninguna circunstancia:
-
-| Regla | Dominio | Accion Bloqueada |
-|-------|---------|-----------------|
-| `fintech_unauthorized_transfer` | Tecnología Financiera | Transferencias no autorizadas |
-| `fintech_compliance_bypass` | Tecnología Financiera | Bypass de compliance/KYC/AML |
-| `healthtech_prescription_mod` | Tecnología de la Salud | Modificar recetas medicas |
-| `edtech_grade_modify` | Tecnología Educativa | Modificar calificaciones |
-| `edtech_content_filter` | Tecnología Educativa | Filtrar contenido educativo |
-| `legaltech_document_delete` | Tecnología Jurídica | Borrar documentos legales |
-
----
-
-## Safety Gate Inbypassable
-
-Toda accion pasa por SafetyGate ANTES de ejecutarse. **Si devuelve DENY, no existe mecanismo de override.** Esto es arquitectonicamente garantizado, no convencionalmente.
-
-### Doble capa Rust + Python
-
-```
-Accion del usuario
+Pipeline Deterministico (7 tareas sin IA)
     |
     v
-SafetyGate (Python) → categoriza: SAFE / MODERATE / DESTRUCTIVE / FINANCIAL / SYSTEM
+Evidence Collector (evidencia a favor y en contra)
     |
     v
-DomainSafetyGate (Rust, 4 capas):
-    Capa 1: 10 reglas genericas base
-    Capa 2: 5 reglas de dominio (35 total)
-    Capa 3: 8 estandares regulatorios (HIPAA, PCI-DSS, GDPR, SOX, AML, COPPA, ISO, SOC2)
-    Capa 4: Escalamiento por sensibilidad (Critical → auto-deny)
+Consensus Resolver (consenso multi-senal ponderado)
     |
     v
-DENY → BLOQUEADO (no hay override)
-ALLOW / CONFIRM / APPROVE → ejecutar con restricciones
+Verdict Engine (IA solo si hay empate — y solo SÍ/NO)
 ```
 
-**Invariantes del Safety Gate:**
-- Las reglas de dominio SOLO PUEDEN ESCALAR veredictos, **nunca degradar**
-- Si la base devuelve DENY, el domain gate **no puede** sobreescribir
-- Violaciones criticas de compliance → **DENY automatico**
-- Toda la logica es **deterministica** — sin IA, sin aleatoriedad
+Si la IA no responde, el sistema funciona con logica deterministica. Si la IA dice NO, la accion se bloquea. Si la IA dice SÍ, la accion procede con restricciones. **Nunca hay un escenario donde la IA genere algo.**
 
 ---
 
-## Defensa en Profundidad (6 Capas)
+## Diferenciadores
 
-| Capa | Componente | Funcion |
-|------|-----------|---------|
-| **1** | Anti-Tampering | Anti-debug (ptrace), deteccion de timing anomaly, verificacion de integridad de codigo, monitoreo continuo en background |
-| **2** | Binary Hardening | Nuitka compilation, Rust FFI, code signing |
-| **3** | Encryption | SQLCipher + Fernet + PBKDF2 + hardware binding |
-| **4** | Integrity | Hash chains, cross-verification, monitoreo de archivos criticos |
-| **5** | Licensing | ECDSA signing, kill switch remoto, heartbeat |
-| **6** | Server Secrets | Verificacion remota, grace period |
+| Diferenciador | Que significa | Por que importa |
+|---------------|---------------|-----------------|
+| **IA enjaulada (SÍ/NO)** | La IA solo emite veredictos binarios, nunca genera contenido | Elimina alucinaciones por arquitectura, no por convencion |
+| **Offline / CPU-only** | Funciona sin internet con Qwen3-0.6B local | Tu operacion no depende de la nube ni de la conectividad |
+| **Android / Termux** | Disenado para ARM64, corre en un telefono | Accesible para mercados donde un servidor es un lujo |
+| **Motor Rust nativo** | 18+ modulos PyO3 con fallback Python | Rendimiento nativo donde importa, compatibilidad donde necesitas |
+| **Safety Gate inbypassable** | Si dice DENY, no existe override — arquitectonicamente garantizado | Ningun bug, ningun agente, ningun administrador puede sobrepasar la seguridad |
+| **Defensa en 6 capas** | Anti-tampering, binary hardening, cifrado, integridad, licencias, secrets | Si detecta manipulacion → modo degradado (paralisis selectiva) |
+| **Auditoria Merkle** | Cada accion queda registrada en un ledger inmutable con hash chains | Cadena de responsabilidad criptograficamente verificable |
+| **500MB RAM minimo** | Disenado para recursos limitados | Funciona donde ningun otro framework puede |
 
-Si detecta tampering → **modo degradado** (paralisis selectiva, solo lectura). El DefenseManager orquesta las 6 capas con scoring 0-100 y escalado automatico.
+### Lo que NO tiene nadie mas
 
----
-
-## Sistema Nervioso Autonomo (SNA)
-
-Monitoreo proactivo **sin que el usuario pida nada**. 13 monitores en 3 pesos:
-
-| Peso | Monitores |
-|------|----------|
-| **Lightweight** | LowStock, OverdueInvoice, TomorrowAppointment, DiskSpace, SystemHealth |
-| **Medium** | SalesTrend, CRMConversion, ResponseTime, ErrorRate |
-| **Heavy** | DemandProjection, MultiSourceAnalysis, CapacityPlanning |
-
-Incluye: alarmas Android/Termux wake-up, deduplicacion de alertas, bypass reflejo para lo time-critical, y persistencia SQLite/SQLCipher.
+- **Doble capa de seguridad**: SafetyGate (Python) + DomainSafetyGate (Rust, 4 capas). Las reglas de dominio SOLO PUEDEN escalar veredictos — nunca degradar. Si la base dice DENY, el domain gate no puede sobreescribir.
+- **35 reglas de dominio** con 8 DENY absolutos (transferencias no autorizadas, modificar recetas medicas, bypass de compliance, borrar documentos legales...). Estas acciones **no se pueden ejecutar bajo ninguna circunstancia**.
+- **10 crates Rust** con 408 tests compilados en el binario — seguridad verificable, no documentable.
+- **24 nichos industriales** con compliance integrado (HIPAA, PCI-DSS, GDPR, SOX, AML/KYC, COPPA, ISO 27001, SOC 2).
 
 ---
 
-## 19 Ejecutores de Acciones
+## Pruebas
 
-Todos pasan por SafetyGate + AuditLogger antes de ejecutarse:
+### Tests
 
-| Ejecutor | Funcion |
-|----------|---------|
-| DatabaseExecutor | CRUD en SQLCipher/SQLite |
-| EmailExecutor | Envio de emails con templates y rate limiting |
-| FileExecutor | Operaciones de archivos (read/write/delete/move) |
-| HTTPExecutor | Requests HTTP/HTTPS |
-| WebhookExecutor | Disparo de webhooks |
-| ScheduleExecutor | Programacion de tareas (APScheduler) |
-| NotificationExecutor | Notificaciones multi-canal con rate limiting |
-| DiscordExecutor | Integracion con Discord |
-| TransformExecutor | Transformaciones de datos |
-| DryRunExecutor | Simulacion sin efectos reales |
-| SimulationEngine | Simulacion de impacto DAG (dry-run) |
-| PolicyEngine | Motor de politicas para ejecutores |
-| ImpactPreview | Vista previa de impacto antes de ejecutar |
-| CoordinatedRollback | Rollback atomico cross-recurso |
-| AuditLogger | Auditoria de todas las acciones (Merkle + persistencia) |
-| BlueprintSchema | Esquema para ejecutores de blueprints |
-| DispatchAction | Despacho central de acciones |
-| DiffPreview | Vista previa de diffs |
-| DBJournal | Journaling de operaciones DB |
+| Componente | Tests | Ubicacion |
+|------------|-------|-----------|
+| Workspace Rust (7 crates completos) | **408** | `zenic-v2/zenic-*/tests/` |
+| PyO3 Bridge (18 modulos) | Integrados | `zenic-v2/zenic-pybridge/src/` |
+| Python unitarios | **77 archivos** | `tests/unit/` |
+| Python E2E | **4 suites** | `tests/e2e/` |
+| Yamil Agent | **57 tests** | `tests/unit/test_yamil*.py` |
+
+### Safety Gate — Verificacion de invariantes
+
+El Safety Gate tiene invariantes arquitectonicos que se verifican por diseno, no por testing:
+
+- **DENY es inmutable**: El campo `verdict` de `SafetyCheckResult` es privado con solo getters. No existe `set_verdict`. No existe mutacion. Confirm y Approve rechazan acciones denegadas.
+- **Las reglas solo escalan**: Domain rules solo pueden cambiar ALLOW→CONFIRM, CONFIRM→APPROVE, APPROVE→DENY. Nunca al reves. El compilador lo garantiza.
+- **Rate limiting**: 30 acciones/minuto por tipo, 200/hora por categoria, 10 destructivas/hora, 20 financieras/hora. Thread-safe.
+
+### Benchmarks
+
+Los benchmarks de rendimiento estan en `zenic-v2/zenic-bench/` (stub, pendiente de Phase 8). Los modulos criticos de rendimiento (crypto, hash, db) estan implementados en Rust nativo con PyO3.
 
 ---
 
-## Sistema Distribuido
-
-Transforma patrones de un solo proceso en componentes multi-nodo respaldados por PostgreSQL:
-
-| Componente | Funcion |
-|-----------|---------|
-| PgBackend | Backend PostgreSQL (produccion) |
-| MemoryBackend | Backend en-proceso (dev/testing) |
-| DistributedTaskQueue | Cola de tareas persistente con prioridad + leasing |
-| DistributedWorker | Worker con heartbeats, auto-discovery, work-stealing |
-| DistributedSagaCoordinator | SAGA cross-proceso con estado persistido |
-| DistributedCircuitBreaker | Circuit breaker con estado compartido |
-| LeaderElection | Eleccion de lider (PostgreSQL advisory locks) |
-| DistributedLockManager | Locking distribuido cross-nodo |
-| ClusterTopology | Registro de nodos, heartbeats, gestion de topologia |
-
----
-
-## Capa Conversacional
-
-Motor de conversacion multi-turno con:
-
-- **Sesiones** multi-turno con estado
-- **Adaptadores de canal**: Telegram, Discord
-- **Memoria**: Working/Episodic/Long-term (v1 + v2)
-- **Personalidad** configurable
-- **Herramientas** con permisos granulares
-- **Confirm Manager** para acciones sensibles
-- **LLM Translator/Drafter** para interaccion en lenguaje natural
-
----
-
-## Billing y SaaS
-
-Subsistema completo de facturacion SaaS:
-
-| Componente | Funcion |
-|-----------|---------|
-| BillingService | Fachada unificada (singleton) |
-| StripeClient | Integracion HTTP real con Stripe API |
-| SubscriptionManager | Lifecycle de suscripciones, uso, control de acceso |
-| TrialManager | Trials con inicio, expiracion, extension, recordatorios |
-| WebhookHandler | Procesamiento de webhooks de Stripe |
-| Planes | Free / Pro / Enterprise |
-
----
-
-## Autopilot por Objetivos
-
-Automatizacion autonoma orientada a KPIs de negocio:
+## Arquitectura Resumida
 
 ```
-Objetivo → Descomposicion → Ejecucion → Medicion → Ajuste
+┌─────────────────────────────────────────────────┐
+│                 Entrada del usuario              │
+│              (TUI / API / Conversacional)        │
+└──────────────────────┬──────────────────────────┘
+                       │
+                       v
+┌─────────────────────────────────────────────────┐
+│            Motor de Veredicto (4 capas)          │
+│                                                  │
+│  1. DeterministicPipeline — 7 tareas sin IA      │
+│  2. EvidenceCollector — evidencia a favor/contra │
+│  3. ConsensusResolver — consenso ponderado        │
+│  4. VerdictEngine — IA solo SÍ/NO si hay empate  │
+└──────────────────────┬──────────────────────────┘
+                       │
+                       v
+┌─────────────────────────────────────────────────┐
+│           Safety Gate (doble capa)               │
+│                                                  │
+│  Python: clasifica SAFE/DESTRUCTIVE/FINANCIAL    │
+│  Rust: 10 reglas base + 35 de dominio +          │
+│        8 estandares compliance + sensibilidad    │
+│                                                  │
+│  DENY → BLOQUEADO (no hay override)              │
+└──────────────────────┬──────────────────────────┘
+                       │
+                       v
+┌─────────────────────────────────────────────────┐
+│           19 Ejecutores de Acciones              │
+│  DB, Email, HTTP, Webhook, File, Discord...     │
+│  Todos auditados en Merkle Ledger                │
+└─────────────────────────────────────────────────┘
 ```
 
-- **Objective**: Objetivo de negocio con targets medibles
-- **KPITracker**: Medicion y analisis de tendencias
-- **AutopilotPlanner**: Descomposicion en pasos accionables
-- **ClosedLoopFeedback**: Medicion de resultados y ajuste de estrategia
-- **AutonomyConfig**: Niveles de autonomia (aprobacion humana → auto-ejecucion)
+### Componentes clave
+
+- **Orquestador**: `ZenicOrchestrator` — pipeline de 8 niveles con arquitectura de veredicto
+- **DAG Fractal**: 121 nodos en 3 niveles (SuperNode → SubGraph → Node) con 24 dominios de negocio
+- **Blueprints Certificados**: YAML → Template → Validacion → Safety → Firma ECDSA → Blueprint certificado
+- **Yamil**: Agente creador de plantillas — del nicho al blueprint certificado en un flujo unificado
+- **SNA**: Sistema Nervioso Autonomo — 13 monitores proactivos sin intervencion del usuario
+- **Defensa**: 6 capas con scoring 0-100 y modo degradado ante manipulacion
+- **Distribuido**: PostgreSQL, SAGA cross-proceso, circuit breaker, leader election, work-stealing
+
+### Stack
+
+| Capa | Tecnologia |
+|------|-----------|
+| Backend | Python 3.10+, FastAPI, Uvicorn |
+| Motor nativo | Rust (PyO3/maturin), BLAKE3, SQLCipher, Argon2id |
+| IA | Qwen3-0.6B (CPU-only, local) — solo SÍ/NO |
+| Base de datos | SQLite/SQLCipher (dev), PostgreSQL (produccion) |
+| Seguridad | ECDSA, PBKDF2, Fernet, anti-tampering, kill switch |
+| Plataformas | x86_64, ARM64 (Android/Termux) |
 
 ---
 
-## Blueprints Certificados
+## Casos de Uso
 
-Sistema de plantillas YAML → Blueprints certificados con firma ECDSA:
+### 1. Clinica de Telemedicina (HealthTech)
 
-- **BlueprintLoaderV2**: Carga desde YAML/JSON/dict
-- **NicheConverter**: Conversion Niche YAML → CertifiedBlueprint
-- **BlueprintComposer**: Composicion de multiples Blueprints
-- **BlueprintValidatorV2**: Validacion de schema + compatibilidad
-- **BlueprintCertifier**: Firma ECDSA + verificacion
-- **OnboardingEngine**: Flujo de setup guiado
-- **BlueprintSDK**: API para partners + revenue share
-- **PartnerRegistry**: Registro de partners
+Una clinica pequena necesita gestionar citas, historiales y recetas sin infraestructura costosa. Zenic-Agents corre en un telefono Android con Termux, protege datos medicos con compliance HIPAA integrado, y bloquea cualquier intento de modificar recetas (DENY absoluto). El Safety Gate escala automaticamente las acciones al nivel de sensibilidad **Critical** del nicho de Telemedicina.
 
-## Yamil — Agente Creador de Plantillas
+### 2. Microfinanciera Rural (FinTech)
 
-**Yamil** es el agente unificado de creacion de plantillas que orquesta el flujo completo desde la seleccion de nicho hasta la certificacion del Blueprint. Integra y simplifica los componentes que antes estaban fragmentados (NicheBridge, NicheOnboardingPipeline, NicheConverter, OnboardingEngine, BlueprintCertifier).
+Una cooperativa de credito en zona rural opera con internet intermitente. Zenic-Agents funciona offline con Qwen3 local, protege transferencias con compliance PCI-DSS y AML/KYC, y bloquea transferencias no autorizadas y bypass de compliance (2 reglas con DENY absoluto). El modo degradado garantiza operacion parcial incluso con conectividad limitada.
 
-### Flujo de Yamil
+### 3. Plataforma Educativa (EdTech)
 
-```
-1. Seleccionar nicho         → list_niches() / search_niches()
-2. Crear plantilla            → create_template("telemedicine")
-3. Llenar campos              → fill_field() / fill_fields_batch()
-4. Validar completitud        → validate()
-5. Safety check (inbypassable)→ safety_check()
-6. Certificar ECDSA           → certify()
-7. Exportar YAML              → export_yaml()
-```
+Una plataforma de aprendizaje adaptativo para menores necesita proteger datos estudiantiles. Zenic-Agents aplica compliance COPPA y FERPA, bloquea modificacion de calificaciones y filtrado de contenido educativo (DENY absoluto), y opera con el minimo de recursos en dispositivos de bajo costo.
 
-### API Principal
+### 4. Inmobiliaria con Gemelos Digitales (PropTech)
 
-```python
-from src.core.agents.yamil import YamilAgent
+Una inmobiliaria gestiona edificios inteligentes con gemelos digitales. Zenic-Agents aplica compliance BREEAM/LEED, protege datos de propiedad con GDPR y SOX, y asegura que las operaciones sobre gemelos digitales pasen por Safety Gate con sensibilidad High.
 
-yamil = YamilAgent()
+### 5. Estudio Juridico (LegalTech)
 
-# Explorar nichos
-niches = yamil.list_niches()          # 24 nichos
-categories = yamil.list_categories()   # 7 categorias
-results = yamil.search_niches("health") # Busqueda por texto
-
-# Crear plantilla
-result = yamil.create_template("telemedicine")
-session_id = result.session_id
-
-# Llenar campos
-yamil.fill_field(session_id, "business_identity", "business_name", "Mi Clinica")
-yamil.fill_fields_batch(session_id, {
-    "business_type": "Healthcare",
-    "tax_id": "123456789",
-    "country": "CU",
-    "admin_email": "admin@clinic.com",
-})
-
-# Completar pipeline
-yamil.validate(session_id)
-yamil.safety_check(session_id)
-yamil.certify(session_id, private_key="...")
-yaml_output = yamil.export_yaml(session_id)
-
-# O ejecutar todo de una vez
-result = yamil.run_full(
-    niche_id="telemedicine",
-    answers={"business_name": "Mi Clinica", ...},
-    private_key="...",
-)
-```
-
-### Caracteristicas
-
-| Caracteristica | Detalle |
-|---------------|---------|
-| **Hereda de BaseAgent** | Implementa build_prompt, parse_response, fallback |
-| **Fallback deterministico** | Funciona sin Rust extension (24 nichos hardcodeados) |
-| **Sesiones resumables** | Cada paso puede reintentarse independientemente |
-| **Audit log** | Toda accion queda registrada con timestamp |
-| **Safety Gate inbypassable** | Si DENY, el pipeline se detiene |
-| **57 tests** | Cobertura completa de catalogo, template, validacion, safety, certificacion |
+Un estudio juridico automatiza contratos y cumplimiento regulatorio. Zenic-Agents bloquea el borrado de documentos legales (DENY absoluto), aplica compliance SOX y eIDAS, y certifica blueprints con firma ECDSA para cadena de custodia criptografica.
 
 ---
 
-## Servidor y API
+## Instalacion y Demo
 
-Servidor **OpenAI-compatible** en puerto 5000 con FastAPI:
+### Requisitos
 
-### Endpoints principales
+- Python 3.10+
+- Rust 1.85+ (opcional, para extension nativa)
+- 500MB RAM minimo
 
-| Endpoint | Funcion |
-|----------|---------|
-| `POST /v1/chat/completions` | Chat con SSE streaming (compatible con Cline/Aide/OpenCode) |
-| `POST /v1/generate/*` | Generacion deterministica |
-| `POST /v1/think` | Motor de pensamiento |
-| `POST /v1/reason` | Razonamiento multi-paso |
-| `POST /v1/chain/*` | Cadenas de agentes |
-| `POST /v1/actions/*` | Ejecutores de acciones |
-| `GET /health` | Health check |
-| `GET /v1/models` | Modelos disponibles |
-
-### UI Web
-
-Dashboard web completo con HTMX/Alpine/Chart.js: CRM, billing, audit, SNA, inventory, onboarding, settings, defense, license, channels, ROI, modules.
-
-### Entrypoints
-
-| Modo | Comando |
-|------|---------|
-| **TUI** | `python -m src.entrypoints.main` |
-| **Conversacional** | `python -m src.entrypoints.main_conversational` |
-| **Headless CLI** | `python -m src.entrypoints.main_headless` |
-| **Servidor HTTP** | `uvicorn src.server.fastapi_app:create_app_from_env --factory` |
-
----
-
-## Despliegue
-
-### Docker (recomendado)
+### 3 pasos para ejecutar
 
 ```bash
-# Build
-docker build -t zenic-agents:latest .
-docker build --target production -t zenic-agents:prod .
+# 1. Clonar e instalar
+git clone https://github.com/yurislay9-ui/Zenic-Agents.git
+cd Zenic-Agents && pip install -r requirements.txt
 
-# Run
-docker-compose up -d
-```
-
-### VPS manual
-
-```bash
-# Usando el script de despliegue
-bash deploy/scripts/deploy-vps.sh
-
-# O manualmente
-pip install -r requirements.txt
+# 2. Compilar extension Rust (opcional pero recomendado)
 cd zenic-v2/zenic-pybridge && maturin develop --release && cd ../..
+
+# 3. Iniciar
 uvicorn src.server.fastapi_app:create_app_from_env --host 0.0.0.0 --port 5000 --factory
 ```
 
-### Termux / Android
+### Modos de ejecucion
+
+| Modo | Comando |
+|------|---------|
+| Servidor HTTP | `uvicorn src.server.fastapi_app:create_app_from_env --factory` |
+| TUI interactiva | `python -m src.entrypoints.main` |
+| Conversacional | `python -m src.entrypoints.main_conversational` |
+| Headless CLI | `python -m src.entrypoints.main_headless` |
+
+### Android / Termux
 
 ```bash
 pkg install python rust
@@ -513,171 +249,75 @@ cd zenic-v2/zenic-pybridge && maturin develop --release && cd ../..
 python main.py
 ```
 
----
-
-## Instalacion Rapida
-
-```bash
-# 1. Clonar
-git clone https://github.com/yurislay9-ui/Zenic-Agents.git
-cd Zenic-Agents
-
-# 2. Instalar dependencias Python
-pip install -r requirements.txt
-
-# 3. Compilar extension Rust (opcional pero recomendado)
-cd zenic-v2/zenic-pybridge
-maturin develop --release
-cd ../..
-
-# 4. Iniciar servidor
-uvicorn src.server.fastapi_app:create_app_from_env --host 0.0.0.0 --port 5000 --factory
-```
-
-### Instalacion con extras
-
-```bash
-pip install -e ".[all]"        # Todo (Z3, embeddings, Stripe, LLM)
-pip install -e ".[z3]"         # Solver Z3 SMT
-pip install -e ".[tui]"        # TUI con Textual
-pip install -e ".[stripe]"     # Integracion Stripe
-pip install -e ".[llm]"        # Soporte LLM local (llama.cpp)
-pip install -e ".[observability]" # OpenTelemetry + Prometheus
-```
-
----
-
-## Variables de Entorno
+### Variables esenciales
 
 | Variable | Default | Descripcion |
 |----------|---------|-------------|
-| `ZENIC_ENV` | `development` | Entorno: development / production |
-| `ZENIC_SERVER_MODE` | `fastapi` | Modo: fastapi / http |
+| `ZENIC_ENV` | `development` | Entorno de ejecucion |
 | `ZENIC_PORT` | `5000` | Puerto del servidor |
-| `ZENIC_AUTH_ENABLED` | `false` | Habilitar autenticacion |
 | `ZENIC_DATA_DIR` | `~/.zenic-agents/data` | Directorio de datos |
-| `ZENIC_DB_URL` | `sqlite+aiosqlite:///zenic.db` | URL de base de datos |
-| `ZENIC_USE_UNIFIED_DAG` | `0` | Activar agentes v2 (experimental) |
-| `ZENIC_LICENSE_KEY` | — | Clave de licencia |
 
 ---
 
-## Estructura del Proyecto
+## Roadmap
 
-```
-Zenic-Agents/
-├── main.py                    # Entrypoint TUI
-├── main_conversational.py     # Entrypoint conversacional
-├── main_headless.py           # Entrypoint headless CLI
-├── pyproject.toml             # Configuracion del proyecto
-├── requirements.txt           # Dependencias Python
-├── Dockerfile                 # Multi-stage: Rust → Python → Production
-├── deploy/                    # Despliegue (nginx, systemd, scripts, SQL)
-│
-├── src/
-│   ├── core/
-│   │   ├── agents/            # Agentes v1 (10 agentes especializados)
-│   │   ├── agents_v2/         # Agentes v2 (9 capas, ~30 agentes)
-│   │   ├── verdict_parts/     # Arquitectura de veredicto (4 capas)
-│   │   ├── mini_ai_parts/     # Motor de IA mini (Qwen3, solo SÍ/NO)
-│   │   ├── executors/         # 19 ejecutores de acciones + SafetyGate
-│   │   ├── defense/           # Defensa en 6 capas
-│   │   ├── license/           # Licenciamiento criptografico ECDSA
-│   │   ├── billing/           # SaaS billing + Stripe
-│   │   ├── distributed/       # Sistema distribuido (PgBackend, SAGA, etc.)
-│   │   ├── conversational/    # Capa conversacional multi-turno
-│   │   ├── autopilot/         # Autopilot por objetivos
-│   │   ├── blueprints/        # Blueprints certificados ECDSA
-│   │   ├── chaos/             # Chaos engineering
-│   │   ├── knowledge/         # Grafo de conocimiento
-│   │   ├── learning/          # Motor de aprendizaje
-│   │   ├── plugins/           # Sistema de plugins
-│   │   ├── patterns/          # 30+ patrones de diseno
-│   │   ├── observability/     # Tracing, metricas, audit, forense
-│   │   ├── sna/               # Sistema Nervioso Autonomo
-│   │   ├── native/            # Puente Rust (_zenic_native) + fallbacks
-│   │   ├── niche_rust/        # Bridge de nichos Rust → Python
-│   │   ├── shared/            # Infraestructura compartida (DB, bus, Z3, etc.)
-│   │   └── ...                # +20 modulos mas
-│   │
-│   ├── server/                # FastAPI + HTTP server + UI web
-│   │   ├── fastapi_parts/     # App factory, rutas, middleware
-│   │   ├── htmx_routes/       # Rutas HTMX para UI web
-│   │   ├── templates/         # Jinja2 templates (dashboard, CRM, etc.)
-│   │   └── static/            # CSS, JS (Alpine, Chart.js, HTMX)
-│   │
-│   └── templates/
-│       └── dna/               # Templates DNA (reglas, modulos, glosario)
-│
-├── native/                    # Extension Rust PyO3 (modulos nativos)
-│   ├── Cargo.toml
-│   └── src/                   # crypto, hash, db, forensic, rollback, etc.
-│
-├── zenic-v2/                  # Workspace Rust puro (10 crates)
-│   ├── zenic-proto/           # Tipos compartidos, IDs, serializacion
-│   ├── zenic-graph/           # DAG fractal (nodos, aristas, SuperNodes)
-│   ├── zenic-flow/            # Workflows duraderos, SAGA, checkpoint
-│   ├── zenic-policy/          # RBAC, SafetyVeto, CriticalityGate
-│   ├── zenic-safety/          # DomainSafetyGate, ComplianceEngine
-│   ├── zenic-runtime/         # Scheduler topologico, MemoryManager
-│   ├── zenic-core/            # Orquestador Rust
-│   ├── zenic-ffi/             # FFI C interface
-│   ├── zenic-pybridge/        # Puente PyO3 (16+ submodulos)
-│   ├── zenic-bench/           # Benchmarks
-│   └── zenic-tests/           # Tests de integracion
-│
-├── tests/
-│   ├── unit/                  # Tests unitarios por capa
-│   └── e2e/                   # Tests end-to-end
-│
-└── agent-ctx/                 # Contexto de agentes (documentacion)
-```
+### Completado
+
+- [x] Motor Rust (PyO3) — 18+ modulos nativos con fallback Python
+- [x] Workspace zenic-v2 — 7 crates completos con 408 tests
+- [x] Safety Gate doble capa — base + dominio + compliance + sensibilidad
+- [x] 24 nichos industriales con compliance integrado
+- [x] Arquitectura de Veredicto (4 capas) — IA solo SÍ/NO
+- [x] Blueprint certificado con firma ECDSA
+- [x] Yamil — Agente creador de plantillas (57 tests)
+- [x] E2E Onboarding Pipeline (8 pasos resumible)
+- [x] Defensa en 6 capas con modo degradado
+- [x] Sistema Nervioso Autonomo (13 monitores)
+- [x] 19 ejecutores de acciones con auditoria Merkle
+- [x] Billing SaaS con Stripe
+- [x] Sistema distribuido (PostgreSQL, SAGA, circuit breaker)
+- [x] API OpenAI-compatible (drop-in para Cline/Aide/OpenCode)
+- [x] UI Web (HTMX/Alpine/Chart.js)
+
+### En progreso
+
+- [ ] Nombres de nichos en espanol (traduccion cross-cutting)
+- [ ] Benchmarks de rendimiento (`zenic-bench`)
+
+### Pendiente
+
+- [ ] Tests de integracion del workspace (`zenic-tests`)
+- [ ] FFI C interface (`zenic-ffi`) — bindings para otros lenguajes
+- [ ] Demos interactivas y screenshots
+- [ ] Casos de estudio documentados con metricas reales
+- [ ] Documentacion de API completa (OpenAPI/Swagger)
+- [ ] CI/CD con tests automaticos en ARM64
+- [ ] Marketplace de Blueprints certificados
+- [ ] Plugin SDK para terceros
 
 ---
 
-## Stack Tecnologico
+## Comparativa
 
-| Capa | Tecnologia |
-|------|-----------|
-| **Backend** | Python 3.10+, FastAPI, Uvicorn, Gunicorn |
-| **Motor nativo** | Rust (PyO3/maturin), BLAKE3, SQLCipher, Argon2id |
-| **IA** | Qwen3-0.6B (CPU-only, local), OpenAI API compatible |
-| **Base de datos** | SQLite/SQLCipher (dev), PostgreSQL (produccion) |
-| **Billing** | Stripe API (HTTP real) |
-| **Observabilidad** | OpenTelemetry, Prometheus, Jaeger |
-| **Frontend** | HTMX, Alpine.js, Chart.js, Jinja2 |
-| **Solver** | Z3 SMT, MCTS (Monte Carlo Tree Search) |
-| **Seguridad** | ECDSA, PBKDF2, Fernet, Anti-tampering, Kill switch |
-| **Despliegue** | Docker multi-stage, Nginx, Systemd |
-| **Plataformas** | x86_64, ARM64 (Android/Termux) |
-
----
-
-## Comparativa con Proyectos Similares
-
-| Caracteristica | **Zenic-Agents** | LangChain | AutoGPT | CrewAI | Semantic Kernel |
-|---------------|-----------------|-----------|---------|--------|----------------|
-| IA solo SÍ/NO | **Si** | No | No | No | No |
-| Fallback deterministico 100% | **Si** | No | No | No | Parcial |
-| Offline / CPU-only | **Si** | No | No | No | No |
-| Android/Termux | **Si** | No | No | No | No |
-| Motor Rust nativo | **16+ modulos** | No | No | No | No |
-| Safety Gate inbypassable | **Doble capa** | No | No | No | No |
-| Anti-tampering 6 capas | **Si** | No | No | No | No |
-| 24 nichos industriales | **Si** | No | No | No | No |
-| Compliance (HIPAA/GDPR/PCI) | **8 estandares** | No | No | No | No |
-| Billing/Stripe | **Integrado** | No | No | No | No |
-| Chaos Engineering | **Integrado** | No | No | No | No |
-| SAGA distribuida | **Si** | No | No | No | No |
-| API OpenAI-compatible | **Drop-in** | Framework | No | No | No |
-| 500MB RAM minimo | **Disenado para eso** | Pesado | Muy pesado | Pesado | Pesado |
-| Madurez ecosistema | Nuevo | Muy maduro | Popular | Creciendo | Corporativo |
+| | **Zenic-Agents** | LangChain | AutoGPT | CrewAI |
+|---|---|---|---|---|
+| IA solo SÍ/NO | **Si** | No | No | No |
+| Alucinaciones | **Imposibles** | Riesgo constante | Riesgo constante | Riesgo constante |
+| Offline / CPU | **Si** | No | No | No |
+| Android/Termux | **Si** | No | No | No |
+| Motor Rust nativo | **18+ modulos** | No | No | No |
+| Safety Gate inbypassable | **Doble capa** | No | No | No |
+| Anti-tampering | **6 capas** | No | No | No |
+| Compliance integrado | **8 estandares** | No | No | No |
+| 500MB RAM | **Disenado para eso** | Pesado | Muy pesado | Pesado |
+| Auditoria Merkle | **Si** | No | No | No |
+| API OpenAI-compatible | **Drop-in** | Framework | No | No |
 
 ---
 
 ## Licencia
 
-Propietaria. Todos los derechos reservados. El uso requiere licencia valida firmada con ECDSA. Consulte los terminos de licencia antes de usar este software.
+Propietaria. Todos los derechos reservados. El uso requiere licencia valida firmada con ECDSA.
 
 ---
 
