@@ -1,6 +1,6 @@
 [project]
 name = "zenic-agents"
-version = "1.0.0"
+version = "3.0.0"
 description = "Zenic-Agents - Plataforma de Asistencia Empresarial Inteligente con DAG Core, SNA, Blueprints Certificados y Defensa en Profundidad"
 requires-python = ">=3.10"
 dependencies = [
@@ -22,9 +22,6 @@ dependencies = [
     # Configuration
     "pyyaml>=6.0",
 
-    # Production Server
-    "gunicorn>=21.2.0",
-
     # Scheduling & Async
     "apscheduler>=3.10.0",
     "aiohttp>=3.8.0",
@@ -35,8 +32,8 @@ dependencies = [
     "passlib[bcrypt]>=1.7.4",
     "bcrypt>=4.0.0,<4.1.0",  # passlib 1.7.4 requires bcrypt <4.1 for __about__
 
-    # Utilities
-    "aiofiles>=23.0.0",
+    # Async file I/O (used by executors)
+    # "aiofiles>=23.0.0",  # REMOVED: zero imports in src/
 ]
 
 [project.optional-dependencies]
@@ -44,11 +41,9 @@ z3 = ["z3-solver>=4.12.0"]
 tui = ["textual>=2.0.0"]
 embeddings = ["fastembed>=0.2.0"]
 stripe = ["stripe>=7.0.0"]
-sheets = ["gspread>=5.0.0", "oauth2client>=4.1.0"]
 llm = ["llama-cpp-python>=0.3.0"]
-pdf = ["weasyprint>=59.0"]
 observability = [
-    "aioredis>=2.0.0",
+    "redis[hiredis]>=5.0.0",
     "opentelemetry-api>=1.20.0",
     "opentelemetry-sdk>=1.20.0",
     "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
@@ -59,10 +54,7 @@ all = [
     "z3-solver>=4.12.0",
     "fastembed>=0.2.0",
     "stripe>=7.0.0",
-    "gspread>=5.0.0",
-    "oauth2client>=4.1.0",
     "llama-cpp-python>=0.3.0",
-    "weasyprint>=59.0",
 ]
 
 [tool.pytest.ini_options]
@@ -91,9 +83,9 @@ exclude_lines = [
 
 [tool.maturin]
 # Configuration for building the native Rust extension with maturin.
-# To build: cd native && maturin develop --release
-# Or from project root: maturin develop --manifest-path native/Cargo.toml --release
-manifest-path = "native/Cargo.toml"
+# To build: cd zenic-v2/zenic-pybridge && maturin develop --release
+# Or from project root: maturin develop --manifest-path zenic-v2/zenic-pybridge/Cargo.toml --release
+manifest-path = "zenic-v2/zenic-pybridge/Cargo.toml"
 module-name = "_zenic_native"
 python-source = "src"
 strip = true

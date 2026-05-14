@@ -55,7 +55,6 @@ use pyo3::types::PyDict;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::niche::DataSensitivity;
 
 // ═══════════════════════════════════════════════════════════════
 //  Constants
@@ -77,7 +76,7 @@ const MAX_ACTIONS: usize = 100;
 const MAX_DB_TABLES: usize = 200;
 
 /// Hash algorithm identifier for integrity.
-const HASH_ALGORITHM: &str = "sha256";
+const HASH_ALGORITHM: &str = "blake3";
 
 // ═══════════════════════════════════════════════════════════════
 //  CertificationStatus — certification state machine

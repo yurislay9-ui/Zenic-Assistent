@@ -23,7 +23,6 @@ jobs:
           pip install pytest pytest-asyncio pytest-cov
       - name: Run Python tests
         run: |
-          python -m pytest tests/ -v --tb=short --co -q 2>/dev/null || true
           python -m pytest tests/ -v --tb=short -x || true
 
   build-rust:
@@ -36,11 +35,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libssl-dev libsqlcipher-dev
-      - name: Build Rust extension
-        working-directory: native
+      - name: Build Rust workspace
+        working-directory: zenic-v2
+        run: cargo build --release --verbose
+      - name: Build PyO3 extension
+        working-directory: zenic-v2/zenic-pybridge
         run: cargo build --release --verbose
       - name: Run Rust tests
-        working-directory: native
+        working-directory: zenic-v2
         run: cargo test --verbose || true
 
   build-wheel:
@@ -55,7 +57,7 @@ jobs:
       - name: Install maturin
         run: pip install maturin
       - name: Build wheel
-        run: maturin build --release --manifest-path native/Cargo.toml
+        run: maturin build --release --manifest-path zenic-v2/zenic-pybridge/Cargo.toml
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

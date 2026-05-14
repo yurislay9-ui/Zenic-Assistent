@@ -532,3 +532,30 @@ class NicheBridge:
     def template_to_yaml(self, template_dict: Dict[str, Any]) -> Optional[str]:
         """Export template to YAML string."""
         return self._template.to_yaml(template_dict)
+
+
+# ──────────────────────────────────────────────────────────────
+#  Factory Function
+# ──────────────────────────────────────────────────────────────
+
+_bridge_instance: Optional[NicheBridge] = None
+
+
+def get_bridge() -> Optional[NicheBridge]:
+    """Get or create the singleton NicheBridge instance.
+
+    Returns None if the Rust extension is not available.
+
+    Usage::
+
+        from src.core.niche_rust.bridge import get_bridge
+        bridge = get_bridge()
+        if bridge is not None:
+            niches = bridge.list_niches()
+    """
+    global _bridge_instance
+    if not _NATIVE_AVAILABLE:
+        return None
+    if _bridge_instance is None:
+        _bridge_instance = NicheBridge()
+    return _bridge_instance

@@ -570,8 +570,8 @@ pub fn e2e_upload_documents(
         let (updated_session, auto_filled) = crate::completer::completer_ingest_documents(
             session.clone(), template_dict, extracted_texts, py,
         )?;
+        state.documents_ingested = updated_session.documents_ingested();
         *session = updated_session;
-        state.documents_ingested = session.documents_ingested;
         state.fields_auto_filled = auto_filled;
     } else {
         state.add_error("No completion session — call e2e_start first".to_string());
@@ -687,9 +687,21 @@ pub fn e2e_submit_answers(
 ) -> PyResult<(E2EPipelineState, usize)> {
     match &state.completion_session {
         Some(session) => {
-            let (updated_session, count) = crate::completer::completer_submit_answers(
-                session.clone(), template_dict, answers, py,
+            // Convert PyDict answers to PyList of dicts for completer_submit_answers
+            let answers_list = PyList::empty_bound(py);
+            for (key, value) in answers.iter() {
+                let field_name: String = key.extract()?;
+                let field_value: String = value.extract()?;
+                let entry = PyDict::new_bound(py);
+                entry.set_item("field_name", field_name)?;
+                entry.set_item("value", field_value)?;
+                answers_list.append(entry.unbind())?;
+            }
+
+            let (updated_session, round) = crate::completer::completer_submit_answers(
+                session.clone(), template_dict, &answers_list, py,
             )?;
+            let count = round.answers_applied;
             state.completion_session = Some(updated_session);
             state.fields_manual_filled += count;
             state.set_step(E2EPipelineStep::CollectAnswers);

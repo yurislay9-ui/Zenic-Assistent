@@ -31,7 +31,6 @@
 use once_cell::sync::Lazy;
 use pyo3::prelude::*;
 use std::collections::HashMap;
-use std::sync::RwLock;
 
 use crate::niche::{
     DataSensitivity, FieldRequirement, NicheCategory, NicheDefinition,
@@ -193,11 +192,11 @@ fn build_ai_automation() -> NicheDefinition {
         "ai".into(),
         DataSensitivity::High,
     );
-    n.subdomain = "automation".into();
-    n.scale = "enterprise".into();
-    n.tags = vec!["ai".into(), "automation".into(), "agents".into(), "workflows".into()];
-    n.required_documents = vec!["process_documentation".into(), "workflow_diagrams".into()];
-    n.compliance = vec!["GDPR".into(), "SOC2".into()];
+    n.set_subdomain("automation".into());
+    n.set_scale("enterprise".into());
+    n.set_tags(vec!["ai".into(), "automation".into(), "agents".into(), "workflows".into()]);
+    n.set_required_documents(vec!["process_documentation".into(), "workflow_diagrams".into()]);
+    n.set_compliance(vec!["GDPR".into(), "SOC2".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_ai_model_config());
     n.add_section(section_workflow_automation());
@@ -214,11 +213,11 @@ fn build_data_analytics() -> NicheDefinition {
         "data".into(),
         DataSensitivity::Medium,
     );
-    n.subdomain = "analytics".into();
-    n.scale = "large".into();
-    n.tags = vec!["analytics".into(), "dashboards".into(), "etl".into(), "reports".into()];
-    n.required_documents = vec!["data_dictionary".into(), "report_specs".into()];
-    n.compliance = vec!["GDPR".into()];
+    n.set_subdomain("analytics".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["analytics".into(), "dashboards".into(), "etl".into(), "reports".into()]);
+    n.set_required_documents(vec!["data_dictionary".into(), "report_specs".into()]);
+    n.set_compliance(vec!["GDPR".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_data_sources());
     n.add_section(section_analytics_config());
@@ -235,11 +234,11 @@ fn build_ml_operations() -> NicheDefinition {
         "ml".into(),
         DataSensitivity::High,
     );
-    n.subdomain = "mlops".into();
-    n.scale = "enterprise".into();
-    n.tags = vec!["mlops".into(), "ml".into(), "deployment".into(), "monitoring".into()];
-    n.required_documents = vec!["model_documentation".into(), "training_data_spec".into()];
-    n.compliance = vec!["GDPR".into(), "SOC2".into()];
+    n.set_subdomain("mlops".into());
+    n.set_scale("enterprise".into());
+    n.set_tags(vec!["mlops".into(), "ml".into(), "deployment".into(), "monitoring".into()]);
+    n.set_required_documents(vec!["model_documentation".into(), "training_data_spec".into()]);
+    n.set_compliance(vec!["GDPR".into(), "SOC2".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_ai_model_config());
     n.add_section(section_ml_pipeline());
@@ -256,11 +255,11 @@ fn build_nlp_services() -> NicheDefinition {
         "nlp".into(),
         DataSensitivity::Medium,
     );
-    n.subdomain = "nlp".into();
-    n.scale = "large".into();
-    n.tags = vec!["nlp".into(), "chatbot".into(), "sentiment".into(), "translation".into()];
-    n.required_documents = vec!["corpus_documentation".into(), "language_specs".into()];
-    n.compliance = vec!["GDPR".into()];
+    n.set_subdomain("nlp".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["nlp".into(), "chatbot".into(), "sentiment".into(), "translation".into()]);
+    n.set_required_documents(vec!["corpus_documentation".into(), "language_specs".into()]);
+    n.set_compliance(vec!["GDPR".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_nlp_config());
     n.add_section(section_security_access());
@@ -278,11 +277,11 @@ fn build_defi_protocols() -> NicheDefinition {
         "defi".into(),
         DataSensitivity::Critical,
     );
-    n.subdomain = "defi".into();
-    n.scale = "enterprise".into();
-    n.tags = vec!["defi".into(), "blockchain".into(), "staking".into(), "lending".into()];
-    n.required_documents = vec!["protocol_spec".into(), "audit_report".into(), "tokenomics".into()];
-    n.compliance = vec!["AML".into(), "KYC".into(), "SEC".into()];
+    n.set_subdomain("defi".into());
+    n.set_scale("enterprise".into());
+    n.set_tags(vec!["defi".into(), "blockchain".into(), "staking".into(), "lending".into()]);
+    n.set_required_documents(vec!["protocol_spec".into(), "audit_report".into(), "tokenomics".into()]);
+    n.set_compliance(vec!["AML".into(), "KYC".into(), "SEC".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_blockchain_config());
     n.add_section(section_financial_config());
@@ -299,11 +298,11 @@ fn build_neo_banking() -> NicheDefinition {
         "banking".into(),
         DataSensitivity::Critical,
     );
-    n.subdomain = "digital_banking".into();
-    n.scale = "enterprise".into();
-    n.tags = vec!["banking".into(), "digital".into(), "payments".into(), "cards".into()];
-    n.required_documents = vec!["banking_license".into(), "compliance_docs".into()];
-    n.compliance = vec!["PCI-DSS".into(), "AML".into(), "KYC".into(), "SOX".into()];
+    n.set_subdomain("digital_banking".into());
+    n.set_scale("enterprise".into());
+    n.set_tags(vec!["banking".into(), "digital".into(), "payments".into(), "cards".into()]);
+    n.set_required_documents(vec!["banking_license".into(), "compliance_docs".into()]);
+    n.set_compliance(vec!["PCI-DSS".into(), "AML".into(), "KYC".into(), "SOX".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_banking_config());
     n.add_section(section_financial_config());
@@ -320,11 +319,11 @@ fn build_insurtech() -> NicheDefinition {
         "insurance".into(),
         DataSensitivity::Critical,
     );
-    n.subdomain = "insurance".into();
-    n.scale = "large".into();
-    n.tags = vec!["insurance".into(), "claims".into(), "underwriting".into(), "risk".into()];
-    n.required_documents = vec!["insurance_product_spec".into(), "risk_model_docs".into()];
-    n.compliance = vec!["GDPR".into(), "Solvency II".into(), "AML".into()];
+    n.set_subdomain("insurance".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["insurance".into(), "claims".into(), "underwriting".into(), "risk".into()]);
+    n.set_required_documents(vec!["insurance_product_spec".into(), "risk_model_docs".into()]);
+    n.set_compliance(vec!["GDPR".into(), "Solvency II".into(), "AML".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_insurance_config());
     n.add_section(section_financial_config());
@@ -341,11 +340,11 @@ fn build_regtech() -> NicheDefinition {
         "regulatory".into(),
         DataSensitivity::Critical,
     );
-    n.subdomain = "compliance".into();
-    n.scale = "enterprise".into();
-    n.tags = vec!["compliance".into(), "regulatory".into(), "reporting".into(), "risk".into()];
-    n.required_documents = vec!["regulation_requirements".into(), "compliance_checklist".into()];
-    n.compliance = vec!["GDPR".into(), "SOX".into(), "AML".into(), "Basel III".into()];
+    n.set_subdomain("compliance".into());
+    n.set_scale("enterprise".into());
+    n.set_tags(vec!["compliance".into(), "regulatory".into(), "reporting".into(), "risk".into()]);
+    n.set_required_documents(vec!["regulation_requirements".into(), "compliance_checklist".into()]);
+    n.set_compliance(vec!["GDPR".into(), "SOX".into(), "AML".into(), "Basel III".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_regtech_config());
     n.add_section(section_security_access());
@@ -363,11 +362,11 @@ fn build_telemedicine() -> NicheDefinition {
         "health".into(),
         DataSensitivity::Critical,
     );
-    n.subdomain = "virtual_care".into();
-    n.scale = "large".into();
-    n.tags = vec!["telemedicine".into(), "video".into(), "health".into(), "hipaa".into()];
-    n.required_documents = vec!["medical_license".into(), "hipaa_compliance".into()];
-    n.compliance = vec!["HIPAA".into(), "GDPR".into()];
+    n.set_subdomain("virtual_care".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["telemedicine".into(), "video".into(), "health".into(), "hipaa".into()]);
+    n.set_required_documents(vec!["medical_license".into(), "hipaa_compliance".into()]);
+    n.set_compliance(vec!["HIPAA".into(), "GDPR".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_patient_config());
     n.add_section(section_consultation_config());
@@ -384,11 +383,11 @@ fn build_mental_health_ai() -> NicheDefinition {
         "health".into(),
         DataSensitivity::Critical,
     );
-    n.subdomain = "mental_health".into();
-    n.scale = "large".into();
-    n.tags = vec!["mental_health".into(), "therapy".into(), "ai".into(), "wellness".into()];
-    n.required_documents = vec!["clinical_protocols".into(), "ethics_approval".into()];
-    n.compliance = vec!["HIPAA".into(), "GDPR".into(), "APA".into()];
+    n.set_subdomain("mental_health".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["mental_health".into(), "therapy".into(), "ai".into(), "wellness".into()]);
+    n.set_required_documents(vec!["clinical_protocols".into(), "ethics_approval".into()]);
+    n.set_compliance(vec!["HIPAA".into(), "GDPR".into(), "APA".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_patient_config());
     n.add_section(section_mental_health_config());
@@ -405,11 +404,11 @@ fn build_genomics() -> NicheDefinition {
         "health".into(),
         DataSensitivity::Critical,
     );
-    n.subdomain = "genomics".into();
-    n.scale = "enterprise".into();
-    n.tags = vec!["genomics".into(), "dna".into(), "sequencing".into(), "pharmacogenomics".into()];
-    n.required_documents = vec!["lab_certification".into(), "genetic_counseling_license".into()];
-    n.compliance = vec!["HIPAA".into(), "GINA".into(), "GDPR".into()];
+    n.set_subdomain("genomics".into());
+    n.set_scale("enterprise".into());
+    n.set_tags(vec!["genomics".into(), "dna".into(), "sequencing".into(), "pharmacogenomics".into()]);
+    n.set_required_documents(vec!["lab_certification".into(), "genetic_counseling_license".into()]);
+    n.set_compliance(vec!["HIPAA".into(), "GINA".into(), "GDPR".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_genomics_config());
     n.add_section(section_medical_compliance());
@@ -425,11 +424,11 @@ fn build_wearables_health() -> NicheDefinition {
         "health".into(),
         DataSensitivity::High,
     );
-    n.subdomain = "wearables".into();
-    n.scale = "large".into();
-    n.tags = vec!["wearables".into(), "vitals".into(), "fitness".into(), "monitoring".into()];
-    n.required_documents = vec!["device_specifications".into(), "medical_clearance".into()];
-    n.compliance = vec!["HIPAA".into(), "FDA".into(), "GDPR".into()];
+    n.set_subdomain("wearables".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["wearables".into(), "vitals".into(), "fitness".into(), "monitoring".into()]);
+    n.set_required_documents(vec!["device_specifications".into(), "medical_clearance".into()]);
+    n.set_compliance(vec!["HIPAA".into(), "FDA".into(), "GDPR".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_wearables_config());
     n.add_section(section_medical_compliance());
@@ -447,11 +446,11 @@ fn build_carbon_tracking() -> NicheDefinition {
         "environment".into(),
         DataSensitivity::Medium,
     );
-    n.subdomain = "carbon".into();
-    n.scale = "large".into();
-    n.tags = vec!["carbon".into(), "esg".into(), "emissions".into(), "sustainability".into()];
-    n.required_documents = vec!["emission_factors".into(), "esg_framework".into()];
-    n.compliance = vec!["GHG Protocol".into(), "TCFD".into()];
+    n.set_subdomain("carbon".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["carbon".into(), "esg".into(), "emissions".into(), "sustainability".into()]);
+    n.set_required_documents(vec!["emission_factors".into(), "esg_framework".into()]);
+    n.set_compliance(vec!["GHG Protocol".into(), "TCFD".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_carbon_config());
     n.add_section(section_security_access());
@@ -467,11 +466,11 @@ fn build_smart_grid() -> NicheDefinition {
         "energy".into(),
         DataSensitivity::High,
     );
-    n.subdomain = "smart_grid".into();
-    n.scale = "enterprise".into();
-    n.tags = vec!["grid".into(), "energy".into(), "iot".into(), "distribution".into()];
-    n.required_documents = vec!["grid_topology".into(), "scada_specs".into()];
-    n.compliance = vec!["NERC".into(), "IEC 61850".into()];
+    n.set_subdomain("smart_grid".into());
+    n.set_scale("enterprise".into());
+    n.set_tags(vec!["grid".into(), "energy".into(), "iot".into(), "distribution".into()]);
+    n.set_required_documents(vec!["grid_topology".into(), "scada_specs".into()]);
+    n.set_compliance(vec!["NERC".into(), "IEC 61850".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_smart_grid_config());
     n.add_section(section_security_access());
@@ -487,11 +486,11 @@ fn build_circular_economy() -> NicheDefinition {
         "environment".into(),
         DataSensitivity::Medium,
     );
-    n.subdomain = "circular".into();
-    n.scale = "large".into();
-    n.tags = vec!["circular".into(), "recycling".into(), "sustainability".into(), "waste".into()];
-    n.required_documents = vec!["material_catalog".into(), "supply_chain_map".into()];
-    n.compliance = vec!["EU Circular Economy".into()];
+    n.set_subdomain("circular".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["circular".into(), "recycling".into(), "sustainability".into(), "waste".into()]);
+    n.set_required_documents(vec!["material_catalog".into(), "supply_chain_map".into()]);
+    n.set_compliance(vec!["EU Circular Economy".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_circular_config());
     n.add_section(section_security_access());
@@ -509,11 +508,11 @@ fn build_adaptive_learning() -> NicheDefinition {
         "education".into(),
         DataSensitivity::Medium,
     );
-    n.subdomain = "adaptive".into();
-    n.scale = "large".into();
-    n.tags = vec!["learning".into(), "adaptive".into(), "ai".into(), "education".into()];
-    n.required_documents = vec!["curriculum_docs".into(), "assessment_framework".into()];
-    n.compliance = vec!["FERPA".into(), "COPPA".into()];
+    n.set_subdomain("adaptive".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["learning".into(), "adaptive".into(), "ai".into(), "education".into()]);
+    n.set_required_documents(vec!["curriculum_docs".into(), "assessment_framework".into()]);
+    n.set_compliance(vec!["FERPA".into(), "COPPA".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_learning_config());
     n.add_section(section_security_access());
@@ -529,11 +528,11 @@ fn build_vr_education() -> NicheDefinition {
         "education".into(),
         DataSensitivity::Medium,
     );
-    n.subdomain = "vr".into();
-    n.scale = "large".into();
-    n.tags = vec!["vr".into(), "immersive".into(), "simulation".into(), "education".into()];
-    n.required_documents = vec!["vr_content_spec".into(), "hardware_requirements".into()];
-    n.compliance = vec!["FERPA".into(), "COPPA".into()];
+    n.set_subdomain("vr".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["vr".into(), "immersive".into(), "simulation".into(), "education".into()]);
+    n.set_required_documents(vec!["vr_content_spec".into(), "hardware_requirements".into()]);
+    n.set_compliance(vec!["FERPA".into(), "COPPA".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_vr_config());
     n.add_section(section_security_access());
@@ -549,11 +548,11 @@ fn build_micro_credentials() -> NicheDefinition {
         "education".into(),
         DataSensitivity::Medium,
     );
-    n.subdomain = "credentials".into();
-    n.scale = "medium".into();
-    n.tags = vec!["credentials".into(), "badges".into(), "blockchain".into(), "skills".into()];
-    n.required_documents = vec!["credential_framework".into(), "skills_taxonomy".into()];
-    n.compliance = vec!["FERPA".into()];
+    n.set_subdomain("credentials".into());
+    n.set_scale("medium".into());
+    n.set_tags(vec!["credentials".into(), "badges".into(), "blockchain".into(), "skills".into()]);
+    n.set_required_documents(vec!["credential_framework".into(), "skills_taxonomy".into()]);
+    n.set_compliance(vec!["FERPA".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_credentials_config());
     n.add_section(section_security_access());
@@ -571,11 +570,11 @@ fn build_smart_buildings() -> NicheDefinition {
         "realestate".into(),
         DataSensitivity::High,
     );
-    n.subdomain = "smart_building".into();
-    n.scale = "large".into();
-    n.tags = vec!["iot".into(), "building".into(), "energy".into(), "access".into()];
-    n.required_documents = vec!["building_plans".into(), "iot_device_catalog".into()];
-    n.compliance = vec!["BREEAM".into(), "LEED".into()];
+    n.set_subdomain("smart_building".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["iot".into(), "building".into(), "energy".into(), "access".into()]);
+    n.set_required_documents(vec!["building_plans".into(), "iot_device_catalog".into()]);
+    n.set_compliance(vec!["BREEAM".into(), "LEED".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_smart_building_config());
     n.add_section(section_security_access());
@@ -591,11 +590,11 @@ fn build_digital_twins() -> NicheDefinition {
         "realestate".into(),
         DataSensitivity::High,
     );
-    n.subdomain = "digital_twin".into();
-    n.scale = "enterprise".into();
-    n.tags = vec!["digital_twin".into(), "simulation".into(), "3d".into(), "bim".into()];
-    n.required_documents = vec!["bim_models".into(), "sensor_data_spec".into()];
-    n.compliance = vec!["ISO 23247".into()];
+    n.set_subdomain("digital_twin".into());
+    n.set_scale("enterprise".into());
+    n.set_tags(vec!["digital_twin".into(), "simulation".into(), "3d".into(), "bim".into()]);
+    n.set_required_documents(vec!["bim_models".into(), "sensor_data_spec".into()]);
+    n.set_compliance(vec!["ISO 23247".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_digital_twin_config());
     n.add_section(section_security_access());
@@ -611,11 +610,11 @@ fn build_fractional_ownership() -> NicheDefinition {
         "realestate".into(),
         DataSensitivity::Critical,
     );
-    n.subdomain = "fractional".into();
-    n.scale = "large".into();
-    n.tags = vec!["fractional".into(), "tokenization".into(), "blockchain".into(), "realestate".into()];
-    n.required_documents = vec!["property_legal_docs".into(), "tokenomics".into()];
-    n.compliance = vec!["SEC".into(), "AML".into(), "KYC".into()];
+    n.set_subdomain("fractional".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["fractional".into(), "tokenization".into(), "blockchain".into(), "realestate".into()]);
+    n.set_required_documents(vec!["property_legal_docs".into(), "tokenomics".into()]);
+    n.set_compliance(vec!["SEC".into(), "AML".into(), "KYC".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_fractional_config());
     n.add_section(section_security_access());
@@ -633,11 +632,11 @@ fn build_smart_contracts() -> NicheDefinition {
         "legal".into(),
         DataSensitivity::Critical,
     );
-    n.subdomain = "smart_contract".into();
-    n.scale = "enterprise".into();
-    n.tags = vec!["smart_contract".into(), "blockchain".into(), "solidity".into(), "audit".into()];
-    n.required_documents = vec!["contract_templates".into(), "audit_requirements".into()];
-    n.compliance = vec!["SEC".into(), "eIDAS".into()];
+    n.set_subdomain("smart_contract".into());
+    n.set_scale("enterprise".into());
+    n.set_tags(vec!["smart_contract".into(), "blockchain".into(), "solidity".into(), "audit".into()]);
+    n.set_required_documents(vec!["contract_templates".into(), "audit_requirements".into()]);
+    n.set_compliance(vec!["SEC".into(), "eIDAS".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_smart_contract_config());
     n.add_section(section_security_access());
@@ -653,11 +652,11 @@ fn build_legal_ai() -> NicheDefinition {
         "legal".into(),
         DataSensitivity::Critical,
     );
-    n.subdomain = "legal_ai".into();
-    n.scale = "large".into();
-    n.tags = vec!["legal".into(), "ai".into(), "contracts".into(), "research".into()];
-    n.required_documents = vec!["legal_document_samples".into(), "jurisdiction_specs".into()];
-    n.compliance = vec!["GDPR".into(), "ABA".into(), "SOX".into()];
+    n.set_subdomain("legal_ai".into());
+    n.set_scale("large".into());
+    n.set_tags(vec!["legal".into(), "ai".into(), "contracts".into(), "research".into()]);
+    n.set_required_documents(vec!["legal_document_samples".into(), "jurisdiction_specs".into()]);
+    n.set_compliance(vec!["GDPR".into(), "ABA".into(), "SOX".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_legal_ai_config());
     n.add_section(section_security_access());
@@ -673,11 +672,11 @@ fn build_compliance_automation() -> NicheDefinition {
         "legal".into(),
         DataSensitivity::Critical,
     );
-    n.subdomain = "compliance".into();
-    n.scale = "enterprise".into();
-    n.tags = vec!["compliance".into(), "automation".into(), "audit".into(), "risk".into()];
-    n.required_documents = vec!["compliance_framework".into(), "audit_schedule".into()];
-    n.compliance = vec!["SOX".into(), "GDPR".into(), "ISO 27001".into()];
+    n.set_subdomain("compliance".into());
+    n.set_scale("enterprise".into());
+    n.set_tags(vec!["compliance".into(), "automation".into(), "audit".into(), "risk".into()]);
+    n.set_required_documents(vec!["compliance_framework".into(), "audit_schedule".into()]);
+    n.set_compliance(vec!["SOX".into(), "GDPR".into(), "ISO 27001".into()]);
     n.add_section(section_business_identity());
     n.add_section(section_compliance_auto_config());
     n.add_section(section_security_access());
@@ -694,8 +693,8 @@ fn section_business_identity() -> TemplateSection {
         "business_identity".into(),
         "Business Identity".into(),
     );
-    s.description = "Core business identification and branding.".into();
-    s.order = 1;
+    s.set_description("Core business identification and branding.".into());
+    s.set_order(1);
     s.add_field(field("business_name", "Business Name", TemplateFieldType::Text, FieldRequirement::Required));
     s.add_field(field("business_type", "Business Type", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("tax_id", "Tax ID / RUC", TemplateFieldType::Text, FieldRequirement::Required));
@@ -712,8 +711,8 @@ fn section_security_access() -> TemplateSection {
         "security_access".into(),
         "Security & Access".into(),
     );
-    s.description = "Authentication, authorization and security configuration.".into();
-    s.order = 99;
+    s.set_description("Authentication, authorization and security configuration.".into());
+    s.set_order(99);
     s.add_field(field("auth_method", "Authentication Method", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("admin_email", "Admin Email", TemplateFieldType::Email, FieldRequirement::Required));
     s.add_field(field("admin_phone", "Admin Phone", TemplateFieldType::Phone, FieldRequirement::Optional));
@@ -728,8 +727,8 @@ fn section_ai_model_config() -> TemplateSection {
         "ai_model_config".into(),
         "AI Model Configuration".into(),
     );
-    s.description = "Configuration for AI/ML models used in automation.".into();
-    s.order = 2;
+    s.set_description("Configuration for AI/ML models used in automation.".into());
+    s.set_order(2);
     s.add_field(field("model_provider", "Model Provider", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("model_name", "Model Name", TemplateFieldType::Text, FieldRequirement::Required));
     s.add_field(field("temperature", "Temperature", TemplateFieldType::Number, FieldRequirement::Optional));
@@ -745,8 +744,8 @@ fn section_workflow_automation() -> TemplateSection {
         "workflow_automation".into(),
         "Workflow Automation".into(),
     );
-    s.description = "Automated workflow definitions and triggers.".into();
-    s.order = 3;
+    s.set_description("Automated workflow definitions and triggers.".into());
+    s.set_order(3);
     s.add_field(field("workflow_name", "Workflow Name", TemplateFieldType::Text, FieldRequirement::Required));
     s.add_field(field("trigger_type", "Trigger Type", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("steps_count", "Number of Steps", TemplateFieldType::Number, FieldRequirement::Required));
@@ -761,8 +760,8 @@ fn section_data_sources() -> TemplateSection {
         "data_sources".into(),
         "Data Sources".into(),
     );
-    s.description = "External data source connections and configuration.".into();
-    s.order = 2;
+    s.set_description("External data source connections and configuration.".into());
+    s.set_order(2);
     s.add_field(field("source_type", "Source Type", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("connection_string", "Connection String", TemplateFieldType::Text, FieldRequirement::Required));
     s.add_field(field("sync_interval", "Sync Interval (seconds)", TemplateFieldType::Number, FieldRequirement::Optional));
@@ -776,8 +775,8 @@ fn section_analytics_config() -> TemplateSection {
         "analytics_config".into(),
         "Analytics Configuration".into(),
     );
-    s.description = "Dashboard and reporting configuration.".into();
-    s.order = 3;
+    s.set_description("Dashboard and reporting configuration.".into());
+    s.set_order(3);
     s.add_field(field("dashboard_name", "Dashboard Name", TemplateFieldType::Text, FieldRequirement::Required));
     s.add_field(field("refresh_interval", "Refresh Interval (seconds)", TemplateFieldType::Number, FieldRequirement::Optional));
     s.add_field(field("export_format", "Export Format", TemplateFieldType::Enum, FieldRequirement::Optional));
@@ -791,8 +790,8 @@ fn section_ml_pipeline() -> TemplateSection {
         "ml_pipeline".into(),
         "ML Pipeline".into(),
     );
-    s.description = "Machine learning pipeline configuration for training and deployment.".into();
-    s.order = 3;
+    s.set_description("Machine learning pipeline configuration for training and deployment.".into());
+    s.set_order(3);
     s.add_field(field("pipeline_name", "Pipeline Name", TemplateFieldType::Text, FieldRequirement::Required));
     s.add_field(field("training_data_source", "Training Data Source", TemplateFieldType::Text, FieldRequirement::Required));
     s.add_field(field("validation_split", "Validation Split %", TemplateFieldType::Percentage, FieldRequirement::Optional));
@@ -807,8 +806,8 @@ fn section_nlp_config() -> TemplateSection {
         "nlp_config".into(),
         "NLP Configuration".into(),
     );
-    s.description = "Natural language processing service configuration.".into();
-    s.order = 2;
+    s.set_description("Natural language processing service configuration.".into());
+    s.set_order(2);
     s.add_field(field("primary_language", "Primary Language", TemplateFieldType::Text, FieldRequirement::Required));
     s.add_field(field("supported_languages", "Supported Languages", TemplateFieldType::Json, FieldRequirement::Optional));
     s.add_field(field("enable_sentiment", "Enable Sentiment Analysis", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -823,8 +822,8 @@ fn section_blockchain_config() -> TemplateSection {
         "blockchain_config".into(),
         "Blockchain Configuration".into(),
     );
-    s.description = "Blockchain network and smart contract configuration.".into();
-    s.order = 2;
+    s.set_description("Blockchain network and smart contract configuration.".into());
+    s.set_order(2);
     s.add_field(field("network", "Blockchain Network", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("contract_address", "Contract Address", TemplateFieldType::Text, FieldRequirement::Required));
     s.add_field(field("gas_limit", "Gas Limit", TemplateFieldType::Number, FieldRequirement::Optional));
@@ -838,8 +837,8 @@ fn section_financial_config() -> TemplateSection {
         "financial_config".into(),
         "Financial Configuration".into(),
     );
-    s.description = "Currency, pricing, and payment configuration.".into();
-    s.order = 3;
+    s.set_description("Currency, pricing, and payment configuration.".into());
+    s.set_order(3);
     s.add_field(field("base_currency", "Base Currency", TemplateFieldType::Currency, FieldRequirement::Required));
     s.add_field(field("payment_gateway", "Payment Gateway", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("tax_rate", "Tax Rate %", TemplateFieldType::Percentage, FieldRequirement::Optional));
@@ -853,8 +852,8 @@ fn section_banking_config() -> TemplateSection {
         "banking_config".into(),
         "Banking Configuration".into(),
     );
-    s.description = "Core banking features and account management.".into();
-    s.order = 2;
+    s.set_description("Core banking features and account management.".into());
+    s.set_order(2);
     s.add_field(field("account_types", "Account Types", TemplateFieldType::Json, FieldRequirement::Required));
     s.add_field(field("enable_virtual_cards", "Enable Virtual Cards", TemplateFieldType::Boolean, FieldRequirement::Optional));
     s.add_field(field("daily_transfer_limit", "Daily Transfer Limit", TemplateFieldType::Currency, FieldRequirement::Required));
@@ -868,8 +867,8 @@ fn section_insurance_config() -> TemplateSection {
         "insurance_config".into(),
         "Insurance Configuration".into(),
     );
-    s.description = "Insurance product and underwriting configuration.".into();
-    s.order = 2;
+    s.set_description("Insurance product and underwriting configuration.".into());
+    s.set_order(2);
     s.add_field(field("product_type", "Insurance Product Type", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("coverage_amount", "Default Coverage Amount", TemplateFieldType::Currency, FieldRequirement::Required));
     s.add_field(field("enable_ai_underwriting", "Enable AI Underwriting", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -883,8 +882,8 @@ fn section_regtech_config() -> TemplateSection {
         "regtech_config".into(),
         "RegTech Configuration".into(),
     );
-    s.description = "Regulatory compliance monitoring configuration.".into();
-    s.order = 2;
+    s.set_description("Regulatory compliance monitoring configuration.".into());
+    s.set_order(2);
     s.add_field(field("regulations", "Applicable Regulations", TemplateFieldType::Json, FieldRequirement::Required));
     s.add_field(field("monitoring_frequency", "Monitoring Frequency", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("enable_auto_reporting", "Enable Auto Reporting", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -898,8 +897,8 @@ fn section_patient_config() -> TemplateSection {
         "patient_config".into(),
         "Patient Configuration".into(),
     );
-    s.description = "Patient management and registration configuration.".into();
-    s.order = 2;
+    s.set_description("Patient management and registration configuration.".into());
+    s.set_order(2);
     s.add_field(field("require_insurance", "Require Insurance", TemplateFieldType::Boolean, FieldRequirement::Required));
     s.add_field(field("patient_id_format", "Patient ID Format", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("enable_patient_portal", "Enable Patient Portal", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -913,8 +912,8 @@ fn section_consultation_config() -> TemplateSection {
         "consultation_config".into(),
         "Consultation Configuration".into(),
     );
-    s.description = "Virtual consultation settings and video session configuration.".into();
-    s.order = 3;
+    s.set_description("Virtual consultation settings and video session configuration.".into());
+    s.set_order(3);
     s.add_field(field("default_duration_minutes", "Default Duration (minutes)", TemplateFieldType::Number, FieldRequirement::Required));
     s.add_field(field("enable_recording", "Enable Recording", TemplateFieldType::Boolean, FieldRequirement::Optional));
     s.add_field(field("max_participants", "Max Participants", TemplateFieldType::Number, FieldRequirement::Optional));
@@ -928,8 +927,8 @@ fn section_medical_compliance() -> TemplateSection {
         "medical_compliance".into(),
         "Medical Compliance".into(),
     );
-    s.description = "Healthcare compliance and data protection configuration.".into();
-    s.order = 4;
+    s.set_description("Healthcare compliance and data protection configuration.".into());
+    s.set_order(4);
     s.add_field(field("data_encryption_level", "Data Encryption Level", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("audit_retention_days", "Audit Retention (days)", TemplateFieldType::Number, FieldRequirement::Required));
     s.add_field(field("enable_consent_management", "Enable Consent Management", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -943,8 +942,8 @@ fn section_mental_health_config() -> TemplateSection {
         "mental_health_config".into(),
         "Mental Health Configuration".into(),
     );
-    s.description = "Mental health-specific AI triage and session settings.".into();
-    s.order = 3;
+    s.set_description("Mental health-specific AI triage and session settings.".into());
+    s.set_order(3);
     s.add_field(field("triage_model", "Triage Model", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("crisis_protocol", "Crisis Protocol", TemplateFieldType::Text, FieldRequirement::Required));
     s.add_field(field("session_duration_minutes", "Session Duration (minutes)", TemplateFieldType::Number, FieldRequirement::Required));
@@ -958,8 +957,8 @@ fn section_genomics_config() -> TemplateSection {
         "genomics_config".into(),
         "Genomics Configuration".into(),
     );
-    s.description = "Genomic analysis and variant interpretation configuration.".into();
-    s.order = 2;
+    s.set_description("Genomic analysis and variant interpretation configuration.".into());
+    s.set_order(2);
     s.add_field(field("sequencing_platform", "Sequencing Platform", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("reference_genome", "Reference Genome", TemplateFieldType::Text, FieldRequirement::Required));
     s.add_field(field("enable_pharmacogenomics", "Enable Pharmacogenomics", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -973,8 +972,8 @@ fn section_wearables_config() -> TemplateSection {
         "wearables_config".into(),
         "Wearables Configuration".into(),
     );
-    s.description = "Wearable device integration and health monitoring configuration.".into();
-    s.order = 2;
+    s.set_description("Wearable device integration and health monitoring configuration.".into());
+    s.set_order(2);
     s.add_field(field("supported_devices", "Supported Devices", TemplateFieldType::Json, FieldRequirement::Required));
     s.add_field(field("vital_signs_monitored", "Vital Signs Monitored", TemplateFieldType::Json, FieldRequirement::Required));
     s.add_field(field("alert_threshold_config", "Alert Thresholds", TemplateFieldType::Json, FieldRequirement::Optional));
@@ -988,8 +987,8 @@ fn section_carbon_config() -> TemplateSection {
         "carbon_config".into(),
         "Carbon Configuration".into(),
     );
-    s.description = "Carbon footprint measurement and ESG reporting configuration.".into();
-    s.order = 2;
+    s.set_description("Carbon footprint measurement and ESG reporting configuration.".into());
+    s.set_order(2);
     s.add_field(field("emission_scopes", "Emission Scopes", TemplateFieldType::Json, FieldRequirement::Required));
     s.add_field(field("reporting_framework", "Reporting Framework", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("enable_offset_tracking", "Enable Offset Tracking", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -1003,8 +1002,8 @@ fn section_smart_grid_config() -> TemplateSection {
         "smart_grid_config".into(),
         "Smart Grid Configuration".into(),
     );
-    s.description = "Smart grid monitoring and distribution configuration.".into();
-    s.order = 2;
+    s.set_description("Smart grid monitoring and distribution configuration.".into());
+    s.set_order(2);
     s.add_field(field("grid_type", "Grid Type", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("meter_count", "Number of Meters", TemplateFieldType::Number, FieldRequirement::Required));
     s.add_field(field("enable_demand_response", "Enable Demand Response", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -1018,8 +1017,8 @@ fn section_circular_config() -> TemplateSection {
         "circular_config".into(),
         "Circular Economy Configuration".into(),
     );
-    s.description = "Material tracking and recycling process configuration.".into();
-    s.order = 2;
+    s.set_description("Material tracking and recycling process configuration.".into());
+    s.set_order(2);
     s.add_field(field("material_categories", "Material Categories", TemplateFieldType::Json, FieldRequirement::Required));
     s.add_field(field("tracking_method", "Tracking Method", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("enable_recycling_marketplace", "Enable Recycling Marketplace", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -1033,8 +1032,8 @@ fn section_learning_config() -> TemplateSection {
         "learning_config".into(),
         "Learning Configuration".into(),
     );
-    s.description = "Adaptive learning paths and assessment configuration.".into();
-    s.order = 2;
+    s.set_description("Adaptive learning paths and assessment configuration.".into());
+    s.set_order(2);
     s.add_field(field("learning_style_model", "Learning Style Model", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("assessment_types", "Assessment Types", TemplateFieldType::Json, FieldRequirement::Required));
     s.add_field(field("enable_ai_recommendations", "Enable AI Recommendations", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -1048,8 +1047,8 @@ fn section_vr_config() -> TemplateSection {
         "vr_config".into(),
         "VR Configuration".into(),
     );
-    s.description = "Virtual reality environment and content configuration.".into();
-    s.order = 2;
+    s.set_description("Virtual reality environment and content configuration.".into());
+    s.set_order(2);
     s.add_field(field("vr_platform", "VR Platform", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("max_concurrent_users", "Max Concurrent Users", TemplateFieldType::Number, FieldRequirement::Required));
     s.add_field(field("enable_haptic_feedback", "Enable Haptic Feedback", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -1063,8 +1062,8 @@ fn section_credentials_config() -> TemplateSection {
         "credentials_config".into(),
         "Credentials Configuration".into(),
     );
-    s.description = "Digital credential and badge configuration.".into();
-    s.order = 2;
+    s.set_description("Digital credential and badge configuration.".into());
+    s.set_order(2);
     s.add_field(field("credential_format", "Credential Format", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("enable_blockchain_verification", "Enable Blockchain Verification", TemplateFieldType::Boolean, FieldRequirement::Optional));
     s.add_field(field("issuer_name", "Issuer Name", TemplateFieldType::Text, FieldRequirement::Required));
@@ -1078,8 +1077,8 @@ fn section_smart_building_config() -> TemplateSection {
         "smart_building_config".into(),
         "Smart Building Configuration".into(),
     );
-    s.description = "IoT device and building automation configuration.".into();
-    s.order = 2;
+    s.set_description("IoT device and building automation configuration.".into());
+    s.set_order(2);
     s.add_field(field("building_type", "Building Type", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("iot_device_count", "IoT Device Count", TemplateFieldType::Number, FieldRequirement::Required));
     s.add_field(field("enable_energy_management", "Enable Energy Management", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -1093,8 +1092,8 @@ fn section_digital_twin_config() -> TemplateSection {
         "digital_twin_config".into(),
         "Digital Twin Configuration".into(),
     );
-    s.description = "Digital twin simulation and sensor configuration.".into();
-    s.order = 2;
+    s.set_description("Digital twin simulation and sensor configuration.".into());
+    s.set_order(2);
     s.add_field(field("twin_type", "Twin Type", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("simulation_fidelity", "Simulation Fidelity", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("sensor_count", "Sensor Count", TemplateFieldType::Number, FieldRequirement::Required));
@@ -1108,8 +1107,8 @@ fn section_fractional_config() -> TemplateSection {
         "fractional_config".into(),
         "Fractional Ownership Configuration".into(),
     );
-    s.description = "Property tokenization and co-ownership configuration.".into();
-    s.order = 2;
+    s.set_description("Property tokenization and co-ownership configuration.".into());
+    s.set_order(2);
     s.add_field(field("tokenization_standard", "Tokenization Standard", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("min_investment", "Minimum Investment", TemplateFieldType::Currency, FieldRequirement::Required));
     s.add_field(field("enable_dividend_distribution", "Enable Dividend Distribution", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -1123,8 +1122,8 @@ fn section_smart_contract_config() -> TemplateSection {
         "smart_contract_config".into(),
         "Smart Contract Configuration".into(),
     );
-    s.description = "Smart contract generation and deployment configuration.".into();
-    s.order = 2;
+    s.set_description("Smart contract generation and deployment configuration.".into());
+    s.set_order(2);
     s.add_field(field("contract_language", "Contract Language", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("target_network", "Target Network", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("enable_auto_audit", "Enable Auto Audit", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -1138,8 +1137,8 @@ fn section_legal_ai_config() -> TemplateSection {
         "legal_ai_config".into(),
         "Legal AI Configuration".into(),
     );
-    s.description = "Legal document analysis and AI research configuration.".into();
-    s.order = 2;
+    s.set_description("Legal document analysis and AI research configuration.".into());
+    s.set_order(2);
     s.add_field(field("jurisdiction", "Primary Jurisdiction", TemplateFieldType::Text, FieldRequirement::Required));
     s.add_field(field("document_types", "Document Types", TemplateFieldType::Json, FieldRequirement::Required));
     s.add_field(field("enable_contract_review", "Enable Contract Review", TemplateFieldType::Boolean, FieldRequirement::Optional));
@@ -1153,8 +1152,8 @@ fn section_compliance_auto_config() -> TemplateSection {
         "compliance_auto_config".into(),
         "Compliance Automation Configuration".into(),
     );
-    s.description = "Automated compliance monitoring and reporting configuration.".into();
-    s.order = 2;
+    s.set_description("Automated compliance monitoring and reporting configuration.".into());
+    s.set_order(2);
     s.add_field(field("compliance_frameworks", "Compliance Frameworks", TemplateFieldType::Json, FieldRequirement::Required));
     s.add_field(field("monitoring_scope", "Monitoring Scope", TemplateFieldType::Enum, FieldRequirement::Required));
     s.add_field(field("enable_auto_remediation", "Enable Auto Remediation", TemplateFieldType::Boolean, FieldRequirement::Optional));

@@ -207,6 +207,11 @@ impl CompletionSession {
     pub fn add_error(&mut self, msg: String) {
         self.errors.push(msg);
     }
+
+    /// Get the documents_ingested count.
+    pub fn documents_ingested(&self) -> usize {
+        self.documents_ingested
+    }
 }
 
 #[pymethods]

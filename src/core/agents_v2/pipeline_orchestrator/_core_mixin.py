@@ -4,6 +4,11 @@ import logging
 import time
 from typing import Any
 
+from ..schemas import (
+    SecurityResult, SyntaxResult, ConsensusResult,
+    Verdict, VerdictOutput, IntentResult,
+)
+
 logger = logging.getLogger("zenic_agents.agents_v2.pipeline_orchestrator")
 
 
@@ -119,9 +124,12 @@ class PipelineOrchestratorCoreMixin:
         is_reasoning = self._is_reasoning_intent(message, intent_result)
 
         if operation in ("CREATE", "OPTIMIZE", "REFACTOR", "DEBUG") and not is_automation:
-            # ── Code operation path ──
-            execution_result, execution_type = self._execute_code_operation(
-                operation, goal, message, code, language, criticality_result
+            # ── Code operation path — code_ops module DELETED ──
+            # Return a result indicating code operations are not available
+            logger.warning("Code operation requested (%s) but code_ops module is not available. "
+                          "Falling back to business operation.", operation)
+            execution_result, execution_type = self._execute_business_operation(
+                message, intent_result
             )
         elif is_automation:
             # ── Automation path ──
@@ -139,17 +147,8 @@ class PipelineOrchestratorCoreMixin:
                 message, intent_result
             )
 
-        # ── Defensive injection (if code was produced) ──
+        # ── Defensive injection — not available (code_ops deleted) ──
         defensive_result = None
-        if execution_result and hasattr(execution_result, 'code') and execution_result.code:
-            crit_level = criticality_result.level if criticality_result else 1
-            adjustments = criticality_result.adjustments if criticality_result else {}
-            defensive_result = self._run_agent(self._defensive_injector, {
-                "code": execution_result.code,
-                "language": language,
-                "criticality_level": crit_level,
-                "adjustments": adjustments,
-            })
 
         phases["execute"] = (time.monotonic() - phase_start) * 1000
 
@@ -262,62 +261,11 @@ class PipelineOrchestratorCoreMixin:
         }
 
     # ══════════════════════════════════════════════════════════
-    #  CODE OPERATION EXECUTION
+    #  CODE OPERATION EXECUTION — REMOVED (code_ops deleted)
     # ══════════════════════════════════════════════════════════
-
-    def _execute_code_operation(
-        self,
-        operation: str,
-        goal: str,
-        message: str,
-        code: str,
-        language: str,
-        criticality_result: Any,
-    ) -> tuple:
-        """Execute a code operation based on intent."""
-        if operation == "CREATE":
-            if goal == "FEATURE_ADD" and "project" in message.lower():
-                result = self._run_agent(self._project_scaffolder, {
-                    "requirements": message,
-                    "language": language,
-                })
-                return result, "scaffold"
-            else:
-                result = self._run_agent(self._code_generator, {
-                    "requirements": message,
-                    "language": language,
-                })
-                return result, "generate"
-
-        elif operation == "REFACTOR":
-            result = self._run_agent(self._code_refactorer, {
-                "existing_code": code,
-                "requirements": message,
-                "language": language,
-            })
-            return result, "refactor"
-
-        elif operation == "OPTIMIZE":
-            result = self._run_agent(self._code_optimizer, {
-                "existing_code": code,
-                "language": language,
-            })
-            return result, "optimize"
-
-        elif operation == "DEBUG":
-            result = self._run_agent(self._code_fixer, {
-                "existing_code": code,
-                "language": language,
-            })
-            return result, "fix"
-
-        else:
-            # Default: generate
-            result = self._run_agent(self._code_generator, {
-                "requirements": message,
-                "language": language,
-            })
-            return result, "generate"
+    # The code_ops module was deleted as part of the transition from
+    # code generator to assistant-agent architecture. Code operations
+    # now fall back to business operations. See _execute_business_operation.
 
     # ══════════════════════════════════════════════════════════
     #  BUSINESS OPERATION EXECUTION

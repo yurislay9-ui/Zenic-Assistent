@@ -3,6 +3,8 @@
 import logging
 from typing import Any
 
+from ..schemas import IntentResult
+
 logger = logging.getLogger("zenic_agents.agents_v2.pipeline_orchestrator")
 
 
@@ -175,13 +177,13 @@ class PipelineOrchestratorExtraMixin:
                 "understanding": 5,   # A48, A01-A04
                 "memory": 4,          # A05-A08
                 "business": 8,        # A09-A16
-                "code_ops": 6,        # A17-A22
+                "code_ops": 0,        # A17-A22 REMOVED (code_ops deleted)
                 "validation": 4,      # A23-A28
                 "automation": 6,      # A29-A34
                 "reasoning": 5,       # A35-A39
                 "verdict": 3,         # A40-A43
                 "infrastructure": 4,  # A44-A47 (wired externally)
-                "total": 45,          # 45 directly wired + 3 infrastructure = 48
+                "total": 39,          # 39 directly wired + 3 infrastructure = 42
             },
         }
 

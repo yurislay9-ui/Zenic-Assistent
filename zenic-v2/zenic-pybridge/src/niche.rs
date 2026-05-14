@@ -455,6 +455,16 @@ impl TemplateSection {
         self.fields.push(field);
     }
 
+    /// Set the description (used by catalog builders).
+    pub(crate) fn set_description(&mut self, value: String) {
+        self.description = value;
+    }
+
+    /// Set the display order (used by catalog builders).
+    pub(crate) fn set_order(&mut self, value: usize) {
+        self.order = value;
+    }
+
     /// Get the section_id.
     pub fn section_id(&self) -> &str {
         &self.section_id
@@ -597,6 +607,31 @@ impl NicheDefinition {
     /// Add a template section.
     pub fn add_section(&mut self, section: TemplateSection) {
         self.template_sections.push(section);
+    }
+
+    /// Set the subdomain (used by catalog builders).
+    pub(crate) fn set_subdomain(&mut self, value: String) {
+        self.subdomain = value;
+    }
+
+    /// Set the scale (used by catalog builders).
+    pub(crate) fn set_scale(&mut self, value: String) {
+        self.scale = value;
+    }
+
+    /// Set the tags (used by catalog builders).
+    pub(crate) fn set_tags(&mut self, value: Vec<String>) {
+        self.tags = value;
+    }
+
+    /// Set the required_documents (used by catalog builders).
+    pub(crate) fn set_required_documents(&mut self, value: Vec<String>) {
+        self.required_documents = value;
+    }
+
+    /// Set the compliance list (used by catalog builders).
+    pub(crate) fn set_compliance(&mut self, value: Vec<String>) {
+        self.compliance = value;
     }
 
     /// Get the niche_id.
@@ -968,8 +1003,7 @@ mod tests {
             "health".to_string(),
             DataSensitivity::Critical,
         );
-        niche.compliance.push("HIPAA".to_string());
-        niche.compliance.push("GDPR".to_string());
+        niche.set_compliance(vec!["HIPAA".to_string(), "GDPR".to_string()]);
         assert!(niche.has_compliance("HIPAA"));
         assert!(niche.has_compliance("hipaa"));
         assert!(niche.has_compliance("GDPR"));

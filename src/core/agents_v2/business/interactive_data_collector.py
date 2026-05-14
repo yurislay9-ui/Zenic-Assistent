@@ -163,12 +163,24 @@ class InteractiveDataCollector(BaseAgent[InteractiveCollectionResult]):
         self._python_sessions: Dict[str, _CompletionSession] = {}
 
     def _get_native(self):
-        """Lazy-load the _zenic_native Rust extension."""
+        """Lazy-load the zenic Rust extension (if available)."""
         if self._native is None:
             try:
-                from src.core.native import _zenic_native
-                self._native = _zenic_native
-            except ImportError:
+                # Import _zenic_native directly — the Rust PyO3 extension module
+                import _zenic_native as _native_mod  # type: ignore[import-not-found]
+                self._native = {
+                    "completer_start_session": _native_mod.completer_start_session,
+                    "completer_ingest_documents": _native_mod.completer_ingest_documents,
+                    "completer_get_questions": _native_mod.completer_get_questions,
+                    "completer_submit_answer": _native_mod.completer_submit_answer,
+                    "completer_submit_answers": _native_mod.completer_submit_answers,
+                    "completer_validate_answer": _native_mod.completer_validate_answer,
+                    "completer_get_progress": _native_mod.completer_get_progress,
+                    "completer_is_complete": _native_mod.completer_is_complete,
+                    "completer_finalize": _native_mod.completer_finalize,
+                    "completer_get_field_suggestions": _native_mod.completer_get_field_suggestions,
+                }
+            except (ImportError, AttributeError):
                 self._native = None
         return self._native
 
@@ -228,7 +240,7 @@ class InteractiveDataCollector(BaseAgent[InteractiveCollectionResult]):
     # ── Rust-backed methods ────────────────────────────────────
 
     def _start_session(self, native: Any, data: Dict[str, Any]) -> InteractiveCollectionResult:
-        session, template_dict = native.completer_start_session(data.get("niche_id", ""))
+        session, template_dict = native["completer_start_session"](data.get("niche_id", ""))
         return InteractiveCollectionResult(
             session_id=session.session_id,
             niche_id=session.niche_id,
@@ -243,7 +255,7 @@ class InteractiveDataCollector(BaseAgent[InteractiveCollectionResult]):
         template_dict = data.get("template_dict")
         if session is None or template_dict is None:
             return InteractiveCollectionResult(source="deterministic")
-        questions = native.completer_get_questions(session, template_dict)
+        questions = native["completer_get_questions"](session, template_dict)
         question_dicts = [
             {
                 "field_name": q.field_name, "display_name": q.display_name,
@@ -255,7 +267,7 @@ class InteractiveDataCollector(BaseAgent[InteractiveCollectionResult]):
             }
             for q in questions[:MAX_QUESTIONS_PER_ROUND]
         ]
-        progress = native.completer_get_progress(session, template_dict)
+        progress = native["completer_get_progress"](session, template_dict)
         return InteractiveCollectionResult(
             session_id=session.session_id, niche_id=session.niche_id,
             questions=question_dicts,
@@ -272,8 +284,8 @@ class InteractiveDataCollector(BaseAgent[InteractiveCollectionResult]):
         value = str(data.get("value", ""))[:MAX_ANSWER_LENGTH]
         if session is None or template_dict is None or not field_name:
             return InteractiveCollectionResult(source="deterministic")
-        updated_session, applied = native.completer_submit_answer(session, template_dict, field_name, value)
-        progress = native.completer_get_progress(updated_session, template_dict)
+        updated_session, applied = native["completer_submit_answer"](session, template_dict, field_name, value)
+        progress = native["completer_get_progress"](updated_session, template_dict)
         return InteractiveCollectionResult(
             session_id=updated_session.session_id, niche_id=updated_session.niche_id,
             answers_applied=1 if applied else 0, answers_rejected=0 if applied else 1,
@@ -289,8 +301,8 @@ class InteractiveDataCollector(BaseAgent[InteractiveCollectionResult]):
         answers = data.get("answers", {})
         if session is None or template_dict is None or not answers:
             return InteractiveCollectionResult(source="deterministic")
-        updated_session, count = native.completer_submit_answers(session, template_dict, answers)
-        progress = native.completer_get_progress(updated_session, template_dict)
+        updated_session, count = native["completer_submit_answers"](session, template_dict, answers)
+        progress = native["completer_get_progress"](updated_session, template_dict)
         return InteractiveCollectionResult(
             session_id=updated_session.session_id, niche_id=updated_session.niche_id,
             answers_applied=count, answers_rejected=len(answers) - count,
@@ -303,7 +315,7 @@ class InteractiveDataCollector(BaseAgent[InteractiveCollectionResult]):
     def _validate_answer(self, native: Any, data: Dict[str, Any]) -> InteractiveCollectionResult:
         field_type = data.get("field_type", "text")
         value = str(data.get("value", ""))
-        is_valid, _ = native.completer_validate_answer(field_type, value)
+        is_valid, _ = native["completer_validate_answer"](field_type, value)
         return InteractiveCollectionResult(
             answers_applied=1 if is_valid else 0,
             answers_rejected=0 if is_valid else 1,
@@ -315,7 +327,7 @@ class InteractiveDataCollector(BaseAgent[InteractiveCollectionResult]):
         template_dict = data.get("template_dict")
         if session is None or template_dict is None:
             return InteractiveCollectionResult(source="deterministic")
-        progress = native.completer_get_progress(session, template_dict)
+        progress = native["completer_get_progress"](session, template_dict)
         return InteractiveCollectionResult(
             session_id=session.session_id, niche_id=session.niche_id,
             still_missing=progress.get("missing_required", 0),
@@ -329,7 +341,7 @@ class InteractiveDataCollector(BaseAgent[InteractiveCollectionResult]):
         template_dict = data.get("template_dict")
         if session is None or template_dict is None:
             return InteractiveCollectionResult(source="deterministic")
-        complete = native.completer_is_complete(session, template_dict)
+        complete = native["completer_is_complete"](session, template_dict)
         return InteractiveCollectionResult(
             session_id=session.session_id, niche_id=session.niche_id,
             is_complete=complete, round_number=session.round_count,
@@ -341,7 +353,7 @@ class InteractiveDataCollector(BaseAgent[InteractiveCollectionResult]):
         template_dict = data.get("template_dict")
         if session is None or template_dict is None:
             return InteractiveCollectionResult(source="deterministic")
-        result = native.completer_finalize(session, template_dict)
+        result = native["completer_finalize"](session, template_dict)
         return InteractiveCollectionResult(
             session_id=result.session_id, niche_id=result.niche_id,
             completion_pct=result.completion_pct, is_complete=result.is_complete,
@@ -353,7 +365,7 @@ class InteractiveDataCollector(BaseAgent[InteractiveCollectionResult]):
         field_type = data.get("field_type", "text")
         if not field_name:
             return InteractiveCollectionResult(source="deterministic")
-        suggestions = native.completer_get_field_suggestions(field_name, field_type)
+        suggestions = native["completer_get_field_suggestions"](field_name, field_type)
         return InteractiveCollectionResult(
             questions=[{"field_name": field_name, "suggestions": suggestions}],
             source="deterministic",

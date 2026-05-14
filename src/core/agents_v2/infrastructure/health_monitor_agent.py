@@ -88,7 +88,7 @@ class HealthMonitorAgent(BaseAgent[HealthSnapshot]):
         """Get per-agent health snapshot."""
         snap = self._monitor.get_snapshot(agent_name)
         # Unknown agents have no data — report as unknown, not healthy
-        if snap.call_count == 0:
+        if snap.total_calls == 0:
             return HealthSnapshot(
                 healthy=False,
                 success_rates={agent_name: 0.0},

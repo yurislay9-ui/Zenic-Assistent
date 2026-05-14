@@ -6,6 +6,5 @@ rust-version.workspace = true
 license.workspace = true
 description = "Benchmarks for Zenic-Agents"
 
+# No dependencies yet — stub crate, implementation pending
 [dependencies]
-zenic-proto = { workspace = true }
-zenic-graph = { workspace = true }

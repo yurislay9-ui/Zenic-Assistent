@@ -38,16 +38,16 @@ jobs:
       - name: Run Python tests
         run: python -m pytest tests/ -v --tb=short -x || true
 
-      - name: Build Rust extension
-        working-directory: native
+      - name: Build Rust workspace
+        working-directory: zenic-v2
         run: cargo build --release --verbose
 
       - name: Run Rust tests
-        working-directory: native
+        working-directory: zenic-v2
         run: cargo test --verbose || true
 
       - name: Build wheel
-        run: maturin build --release --manifest-path native/Cargo.toml
+        run: maturin build --release --manifest-path zenic-v2/zenic-pybridge/Cargo.toml
 
       - name: Extract version from tag
         id: version
@@ -63,7 +63,7 @@ jobs:
           generate_release_notes: true
           files: |
             target/wheels/*.whl
-            native/target/release/libzenic_native.*
+            zenic-v2/target/release/libzenic_native.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

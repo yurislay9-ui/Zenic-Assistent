@@ -387,8 +387,8 @@ class DomainSafetyGate:
         """Lazy-load the _zenic_native Rust extension."""
         if self._native is None:
             try:
-                from src.core.native import _zenic_native
-                self._native = _zenic_native
+                import _zenic_native as _native_mod  # type: ignore[import-not-found]
+                self._native = _native_mod
             except ImportError:
                 self._native = None
         return self._native

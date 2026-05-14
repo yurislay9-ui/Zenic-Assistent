@@ -114,7 +114,7 @@ class NicheConverter:
         try:
             from src.core.niche_rust.bridge import get_bridge
             bridge = get_bridge()
-            all_niches = bridge.catalog_get_all()
+            all_niches = bridge.list_niches()
             results: List[CertifiedBlueprint] = []
             for niche in all_niches:
                 bp = self._convert_niche_definition(niche)
@@ -133,7 +133,7 @@ class NicheConverter:
         try:
             from src.core.niche_rust.bridge import get_bridge
             bridge = get_bridge()
-            return bridge.catalog_get_by_id(niche_id)
+            return bridge.get_niche(niche_id)
         except Exception as exc:
             logger.error("NicheConverter: Catalog lookup failed for '%s': %s", niche_id, exc)
             return None

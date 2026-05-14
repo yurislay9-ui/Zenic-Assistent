@@ -63,11 +63,9 @@ from .business import (
     ReportGenerator, NotificationDispatcher, DataAnalyzer, OperationRouter,
 )
 
-# Layer 4: Code
-from .code_ops import (
-    CodeGenerator, CodeRefactorer, CodeOptimizer, CodeFixer,
-    ProjectScaffolder, DefensiveInjector,
-)
+# Layer 4: Code — REMOVED (code_ops module deleted; code generation is not part of assistant-agent)
+# CodeGenerator, CodeRefactorer, CodeOptimizer, CodeFixer,
+# ProjectScaffolder, DefensiveInjector no longer available
 
 # Layer 5: Validation & Security
 from .validation import (
@@ -106,6 +104,7 @@ __all__ = [
     "MemoryEntries", "ScoredEntry", "ScoredEntries", "CompressedContext", "PrefetchResult",
     "BusinessData", "InvoiceResult", "InventoryResult", "CRMResult", "TaskResult",
     "ReportResult", "NotificationResult", "AnalyticsResult", "RoutedOperation",
+    # CodeResult types retained in schemas for backward compatibility
     "CodeRequest", "CodeResult", "ScaffoldResult",
     "SecurityResult", "SyntaxResult", "ChainResult", "ConfigResult", "RiskResult",
     "FixSuggestions", "ValidationIssue",
@@ -129,9 +128,9 @@ __all__ = [
     # Layer 3: Business
     "InvoiceProcessor", "InventoryManager", "CRMPipeline", "TaskScheduler",
     "ReportGenerator", "NotificationDispatcher", "DataAnalyzer", "OperationRouter",
-    # Layer 4: Code
-    "CodeGenerator", "CodeRefactorer", "CodeOptimizer", "CodeFixer",
-    "ProjectScaffolder", "DefensiveInjector",
+    # Layer 4: Code — REMOVED (code_ops deleted)
+    # "CodeGenerator", "CodeRefactorer", "CodeOptimizer", "CodeFixer",
+    # "ProjectScaffolder", "DefensiveInjector",
     # Layer 5: Validation & Security
     "SecurityScanner", "SyntaxValidator", "ChainValidator", "ConfigValidator",
     "RiskCalculator", "FixSuggester",
