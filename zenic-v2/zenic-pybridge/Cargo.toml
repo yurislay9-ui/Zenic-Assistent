@@ -11,6 +11,7 @@ name = "_zenic_native"
 crate-type = ["cdylib"]
 
 [dependencies]
+zenic-safety = { path = "../zenic-safety" }
 pyo3 = { version = "0.22", features = ["extension-module"] }
 blake3 = "1.5"
 xxhash-rust = { version = "0.8", features = ["xxh64"] }

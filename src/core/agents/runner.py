@@ -6,6 +6,11 @@ Cableado directo al MiniAIEngine existente (Qwen3-0.6B).
 
 Integrates Circuit Breaker, Retry with exponential backoff, and Bulkhead
 patterns from src.core.patterns.resilience for robust fault tolerance.
+
+.. deprecated::
+    This is the v1 AgentRunner. For new code, use the v2 agent infrastructure
+    in ``src.core.agents_v2`` which uses business operations instead of
+    code automation patterns.
 """
 
 import os
@@ -13,6 +18,7 @@ import time
 import json
 import threading
 import logging
+import warnings
 from typing import Any, Dict, Optional, TypeVar
 
 from src.core.agents.base import BaseAgent, AgentResult
@@ -94,6 +100,11 @@ class AgentRunner:
             circuit_breaker: Optional CircuitBreaker for fault tolerance
             bulkhead: Optional Bulkhead for concurrency limiting
         """
+        warnings.warn(
+            "AgentRunner (v1) is deprecated. Use agents_v2 infrastructure for new code.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self._mini_ai = mini_ai
         self._semantic_engine = semantic_engine
         self._smart_memory = smart_memory

@@ -121,6 +121,58 @@ except ImportError:
     )
 
 # ---------------------------------------------------------------------------
+# Lazy access to extended PyO3 modules (db, bus, safety_gate, license)
+# These are available when HAS_NATIVE=True but not imported eagerly
+# to avoid hard dependency on the Rust extension.
+# ---------------------------------------------------------------------------
+
+def get_native_module() -> Optional[Any]:
+    """Return the _zenic_native module if available, else None.
+
+    Use this for lazy access to PyO3 types like EncryptedDb,
+    SharedMemoryBus, SafetyVerdict, LicenseInfo, etc.
+    """
+    if not HAS_NATIVE:
+        return None
+    try:
+        import _zenic_native as _mod  # type: ignore[import-not-found]
+        return _mod
+    except ImportError:
+        return None
+
+
+def get_encrypted_db() -> Optional[type]:
+    """Return the EncryptedDb PyO3 class if native extension is available."""
+    _mod = get_native_module()
+    if _mod is None:
+        return None
+    return getattr(_mod, "EncryptedDb", None)
+
+
+def get_shared_memory_bus() -> Optional[type]:
+    """Return the SharedMemoryBus PyO3 class if native extension is available."""
+    _mod = get_native_module()
+    if _mod is None:
+        return None
+    return getattr(_mod, "SharedMemoryBus", None)
+
+
+def get_safety_verdict() -> Optional[type]:
+    """Return the SafetyVerdict PyO3 enum if native extension is available."""
+    _mod = get_native_module()
+    if _mod is None:
+        return None
+    return getattr(_mod, "SafetyVerdict", None)
+
+
+def get_license_info() -> Optional[type]:
+    """Return the LicenseInfo PyO3 class if native extension is available."""
+    _mod = get_native_module()
+    if _mod is None:
+        return None
+    return getattr(_mod, "LicenseInfo", None)
+
+# ---------------------------------------------------------------------------
 # Import pure Python fallbacks for original functions
 # ---------------------------------------------------------------------------
 
@@ -888,6 +940,12 @@ def multi_node_blast_radius(
 __all__ = [
     # Feature flag
     "HAS_NATIVE",
+    # Lazy access helpers for PyO3 types
+    "get_native_module",
+    "get_encrypted_db",
+    "get_shared_memory_bus",
+    "get_safety_verdict",
+    "get_license_info",
     # Crypto
     "argon2id_hash",
     "constant_time_compare",

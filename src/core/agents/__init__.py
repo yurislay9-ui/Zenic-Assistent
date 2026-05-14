@@ -19,7 +19,26 @@ Principios:
   - Cada agente tiene fallback determinista
   - Compatible con API OpenAI existente
   - Tests como contrato de comportamiento
+
+.. deprecated::
+    This module (agents v1) is the legacy pipeline. It will be replaced by
+    ``agents_v2`` which uses the Business Operations model (PROCESS, FORECAST,
+    RESOLVE) instead of the Code Automation model (CREATE, REFACTOR, DEBUG).
+    Import from ``src.core.agents_v2`` for new code.
+    Removal target: post v2.0 stable release.
 """
+
+import warnings
+
+warnings.warn(
+    "agents v1 (src.core.agents) is deprecated. "
+    "Use agents_v2 (src.core.agents_v2) for new code. "
+    "The v1 pipeline uses the Code Automation model (CREATE, REFACTOR, DEBUG) "
+    "which has been replaced by Business Operations (PROCESS, FORECAST, RESOLVE) "
+    "in v2. Removal target: post v2.0 stable release.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 from src.core.agents.base import BaseAgent, AgentResult
 from src.core.agents.runner import AgentRunner

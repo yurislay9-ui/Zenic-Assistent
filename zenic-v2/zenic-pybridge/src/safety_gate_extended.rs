@@ -6,6 +6,20 @@
 //! - Data sensitivity escalation logic
 //! - Domain-aware rate limiting
 //!
+//! # TODO: Deduplicate with zenic-safety crate
+//!
+//! This module duplicates logic already implemented in the `zenic-safety` crate
+//! (zenic-v2/zenic-safety/). The `zenic-safety` crate has:
+//! - `DomainSafetyGate` with the same 4-layer pipeline
+//! - `DomainRuleSet` with the same 35 domain rules
+//! - `ComplianceEngine` with the same compliance standards
+//! - `DataSensitivity` with the same escalation logic
+//!
+//! `zenic-pybridge` now depends on `zenic-safety` (added to Cargo.toml).
+//! Next step: refactor this module to delegate to `zenic-safety::DomainSafetyGate`
+//! and only add the PyO3 `#[pyclass]`/`#[pyfunction]` wrappers here,
+//! eliminating the ~700 lines of duplicated domain rules and compliance logic.
+//!
 //! # Architecture
 //!
 //! The extended gate layers on top of the base gate:

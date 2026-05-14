@@ -3,8 +3,9 @@
 #  Phase 3: VPS Deploy
 #
 #  Targets:
-#    - development: Hot-reload, debug, SQLite
-#    - production:  Gunicorn+Uvicorn workers, PostgreSQL, hardened
+#    - rust-builder:  Compiles the Rust PyO3 extension via maturin
+#    - development:   Hot-reload, debug, SQLite
+#    - production:    Gunicorn+Uvicorn workers, PostgreSQL, hardened
 #
 #  Build:
 #    docker build -t zenic-agents:latest .
@@ -14,7 +15,68 @@
 #    docker-compose up -d
 # ============================================================
 
-# ── Base stage: shared system packages ──────────────────────
+# ── Stage 1: Build Rust PyO3 extension ─────────────────────
+FROM python:3.12-slim AS rust-builder
+
+# Rust build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    pkg-config \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust toolchain
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.85.0
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install maturin for building Python wheels from Rust
+RUN pip install --no-cache-dir maturin>=1.5.0
+
+WORKDIR /build
+
+# Copy Rust workspace source (layer caching — Cargo.toml changes rarely)
+COPY zenic-v2/Cargo.toml zenic-v2/Cargo.lock ./zenic-v2/
+COPY zenic-v2/.cargo ./zenic-v2/.cargo/
+COPY zenic-v2/rust-toolchain.toml ./zenic-v2/
+
+# Copy each crate's Cargo.toml for dependency resolution
+COPY zenic-v2/zenic-proto/Cargo.toml ./zenic-v2/zenic-proto/
+COPY zenic-v2/zenic-graph/Cargo.toml ./zenic-v2/zenic-graph/
+COPY zenic-v2/zenic-runtime/Cargo.toml ./zenic-v2/zenic-runtime/
+COPY zenic-v2/zenic-flow/Cargo.toml ./zenic-v2/zenic-flow/
+COPY zenic-v2/zenic-policy/Cargo.toml ./zenic-v2/zenic-policy/
+COPY zenic-v2/zenic-safety/Cargo.toml ./zenic-v2/zenic-safety/
+COPY zenic-v2/zenic-core/Cargo.toml ./zenic-v2/zenic-core/
+COPY zenic-v2/zenic-ffi/Cargo.toml ./zenic-v2/zenic-ffi/
+COPY zenic-v2/zenic-pybridge/Cargo.toml ./zenic-v2/zenic-pybridge/
+COPY zenic-v2/zenic-bench/Cargo.toml ./zenic-v2/zenic-bench/
+COPY zenic-v2/zenic-tests/Cargo.toml ./zenic-v2/zenic-tests/
+
+# Create dummy src/lib.rs files so Cargo can resolve the workspace
+RUN mkdir -p zenic-v2/zenic-proto/src && echo "" > zenic-v2/zenic-proto/src/lib.rs && \
+    mkdir -p zenic-v2/zenic-graph/src && echo "" > zenic-v2/zenic-graph/src/lib.rs && \
+    mkdir -p zenic-v2/zenic-runtime/src && echo "" > zenic-v2/zenic-runtime/src/lib.rs && \
+    mkdir -p zenic-v2/zenic-flow/src && echo "" > zenic-v2/zenic-flow/src/lib.rs && \
+    mkdir -p zenic-v2/zenic-policy/src && echo "" > zenic-v2/zenic-policy/src/lib.rs && \
+    mkdir -p zenic-v2/zenic-safety/src && echo "" > zenic-v2/zenic-safety/src/lib.rs && \
+    mkdir -p zenic-v2/zenic-core/src && echo "" > zenic-v2/zenic-core/src/lib.rs && \
+    mkdir -p zenic-v2/zenic-ffi/src && echo "" > zenic-v2/zenic-ffi/src/lib.rs && \
+    mkdir -p zenic-v2/zenic-pybridge/src && echo "" > zenic-v2/zenic-pybridge/src/lib.rs && \
+    mkdir -p zenic-v2/zenic-pybridge && echo 'fn main() {}' > zenic-v2/zenic-pybridge/build.rs && \
+    mkdir -p zenic-v2/zenic-bench/src && echo "" > zenic-v2/zenic-bench/src/lib.rs && \
+    mkdir -p zenic-v2/zenic-tests/src && echo "" > zenic-v2/zenic-tests/src/lib.rs
+
+# Build dependencies only (cached layer)
+RUN cd zenic-v2/zenic-pybridge && maturin build --release --interpreter python3.12 2>/dev/null || true
+
+# Now copy the real Rust source code
+COPY zenic-v2/ ./zenic-v2/
+
+# Build the actual PyO3 wheel
+RUN cd zenic-v2/zenic-pybridge && maturin build --release --interpreter python3.12 --out /wheels
+
+# ── Stage 2: Base with Python + Rust extension ─────────────
 FROM python:3.12-slim AS base
 
 # Security: no cache, no interactive
@@ -39,6 +101,10 @@ RUN pip install --no-cache-dir -r requirements.txt \
        "gunicorn>=21.2.0" \
        "psycopg2-binary>=2.9.9" \
        "asyncpg>=0.29.0"
+
+# Install the compiled Rust extension from the builder stage
+COPY --from=rust-builder /wheels/*.whl /tmp/wheels/
+RUN pip install --no-cache-dir /tmp/wheels/*.whl && rm -rf /tmp/wheels
 
 # Copy source code
 COPY . .
