@@ -6,8 +6,12 @@
 //! workflow step. This bridge is the key integration point between
 //! the flow and runtime subsystems: durable workflows delegate actual
 //! node execution to the DAG scheduler through this struct.
+//!
+//! E-09 FIX: Catalog and executor registry are now shared via
+//! `Arc<RwLock<>>` so the DagStepExecutor uses the same populated
+//! catalog as the orchestrator, instead of receiving empty instances.
 
-use std::sync::Mutex;
+use std::sync::{Arc, RwLock};
 
 use zenic_flow::{StepExecutor, WorkflowStep};
 use zenic_graph::NodeCatalog;
@@ -25,38 +29,73 @@ use zenic_runtime::{DagScheduler, NodeExecutorRegistry};
 /// produce an empty success output (no-op).
 ///
 /// The executor holds references to the catalog and executor registry
-/// via `Mutex` so that it can be shared across the workflow engine's
-/// internal state machine, which requires `Send + Sync`.
+/// via `Arc<RwLock<>>` so that it shares the same populated instances
+/// as the orchestrator. Previously, fresh empty instances were created,
+/// causing "subgraph not found" errors for any workflow step that
+/// referenced a subgraph (E-09 FIX).
 pub struct DagStepExecutor {
-    /// The node catalog for DAG resolution.
-    catalog: Mutex<NodeCatalog>,
-    /// The node executor registry for node execution.
-    executors: Mutex<NodeExecutorRegistry>,
+    /// The node catalog for DAG resolution (shared with orchestrator).
+    catalog: Arc<RwLock<NodeCatalog>>,
+    /// The node executor registry for node execution (shared with orchestrator).
+    executors: Arc<RwLock<NodeExecutorRegistry>>,
     /// The DAG scheduler for running subgraphs.
-    scheduler: Mutex<DagScheduler>,
+    scheduler: Arc<RwLock<DagScheduler>>,
+    /// Session and tenant IDs from the originating request.
+    session_id: zenic_proto::SessionId,
+    tenant_id: zenic_proto::TenantId,
 }
 
 impl DagStepExecutor {
-    /// Creates a new DAG step executor.
+    /// Creates a new DAG step executor with shared catalog and executors.
+    ///
+    /// This is the preferred constructor — it shares the orchestrator's
+    /// populated catalog and executor registry, so workflow steps can
+    /// actually resolve and execute their subgraphs.
     pub fn new(
-        catalog: NodeCatalog,
-        executors: NodeExecutorRegistry,
-        scheduler: DagScheduler,
+        catalog: Arc<RwLock<NodeCatalog>>,
+        executors: Arc<RwLock<NodeExecutorRegistry>>,
+        scheduler: Arc<RwLock<DagScheduler>>,
     ) -> Self {
         Self {
-            catalog: Mutex::new(catalog),
-            executors: Mutex::new(executors),
-            scheduler: Mutex::new(scheduler),
+            catalog,
+            executors,
+            scheduler,
+            session_id: zenic_proto::SessionId::new(),
+            tenant_id: zenic_proto::TenantId::new(),
+        }
+    }
+
+    /// Creates a DAG step executor with explicit session and tenant IDs.
+    /// This is the preferred constructor to prevent session context leaks.
+    pub fn with_context(
+        catalog: Arc<RwLock<NodeCatalog>>,
+        executors: Arc<RwLock<NodeExecutorRegistry>>,
+        scheduler: Arc<RwLock<DagScheduler>>,
+        session_id: zenic_proto::SessionId,
+        tenant_id: zenic_proto::TenantId,
+    ) -> Self {
+        Self {
+            catalog,
+            executors,
+            scheduler,
+            session_id,
+            tenant_id,
         }
     }
 
     /// Creates a minimal executor with empty catalog and no node executors.
     /// Useful for testing or when the executor will be populated later.
+    ///
+    /// WARNING: Workflow steps referencing subgraphs will fail with
+    /// "subgraph not found" when using this constructor. Prefer `new()`
+    /// with a shared catalog from the orchestrator.
     pub fn empty() -> Self {
         Self {
-            catalog: Mutex::new(NodeCatalog::new()),
-            executors: Mutex::new(NodeExecutorRegistry::new()),
-            scheduler: Mutex::new(DagScheduler::new()),
+            catalog: Arc::new(RwLock::new(NodeCatalog::new())),
+            executors: Arc::new(RwLock::new(NodeExecutorRegistry::new())),
+            scheduler: Arc::new(RwLock::new(DagScheduler::new())),
+            session_id: zenic_proto::SessionId::new(),
+            tenant_id: zenic_proto::TenantId::new(),
         }
     }
 }
@@ -75,9 +114,9 @@ impl StepExecutor for DagStepExecutor {
             }
         };
 
-        // Look up the subgraph's DAG from the catalog.
-        let catalog = self.catalog.lock().map_err(|e| {
-            format!("failed to lock catalog: {}", e)
+        // Look up the subgraph's DAG from the shared catalog.
+        let catalog = self.catalog.read().map_err(|e| {
+            format!("failed to lock catalog for read: {}", e)
         })?;
 
         let sub_graph_desc = catalog.get_sub_graph(&sub_graph_id).ok_or_else(|| {
@@ -85,10 +124,6 @@ impl StepExecutor for DagStepExecutor {
         })?;
 
         // Build a minimal DAG from the subgraph's node IDs.
-        // In a full implementation, we would look up the actual DAG
-        // structure (edges, topology) from a persistent store.
-        // For Phase 5, we construct a simple linear DAG from the
-        // subgraph's node list.
         let mut dag = zenic_graph::DirectedAcyclicGraph::new();
         for node_id in &sub_graph_desc.node_ids {
             dag.add_node(*node_id).map_err(|e| format!("{}", e))?;
@@ -102,24 +137,31 @@ impl StepExecutor for DagStepExecutor {
                 .map_err(|e| format!("{}", e))?;
         }
 
+        // Drop catalog read lock before acquiring scheduler/executors.
+        drop(catalog);
+
         // Execute the DAG through the scheduler.
-        let mut scheduler = self.scheduler.lock().map_err(|e| {
+        let mut scheduler = self.scheduler.write().map_err(|e| {
             format!("failed to lock scheduler: {}", e)
         })?;
-        let executors = self.executors.lock().map_err(|e| {
+        let executors = self.executors.read().map_err(|e| {
             format!("failed to lock executors: {}", e)
         })?;
 
-        let session_id = zenic_proto::SessionId::new();
-        let tenant_id = zenic_proto::TenantId::new();
+        // Use the stored session_id and tenant_id (E-08 FIX).
+        let session_id = self.session_id;
+        let tenant_id = self.tenant_id;
+
+        // Read-lock the catalog again for scheduler execution.
+        let catalog = self.catalog.read().map_err(|e| {
+            format!("failed to lock catalog for execution: {}", e)
+        })?;
 
         let result = scheduler
             .execute(&dag, &catalog, &executors, session_id, tenant_id)
             .map_err(|e| format!("dag execution failed: {}", e))?;
 
         if result.is_success() {
-            // Serialize the execution result as the step output.
-            // For simplicity, we return the execution ID as bytes.
             Ok(result.execution_id.to_string().into_bytes())
         } else {
             Err(format!(
@@ -141,7 +183,7 @@ mod tests {
     use zenic_graph::SubGraphDescriptor;
     use zenic_proto::{BusinessDomain, LoadPolicy, NodeCategory, NodeCriticality, NodeId, SubGraphId};
 
-    fn setup_catalog_with_subgraph() -> (NodeCatalog, SubGraphId, Vec<NodeId>) {
+    fn setup_catalog_with_subgraph() -> (Arc<RwLock<NodeCatalog>>, SubGraphId, Vec<NodeId>) {
         let mut catalog = NodeCatalog::new();
         let sg_id = SubGraphId::new();
         let sn_id = zenic_proto::SuperNodeId::new();
@@ -203,7 +245,7 @@ mod tests {
             })
             .expect("register subgraph");
 
-        (catalog, sg_id, vec![n1, n2])
+        (Arc::new(RwLock::new(catalog)), sg_id, vec![n1, n2])
     }
 
     #[test]
@@ -227,7 +269,11 @@ mod tests {
         }
 
         let scheduler = DagScheduler::with_memory_limits(25, 50 * 1024 * 1024);
-        let executor = DagStepExecutor::new(catalog, executors, scheduler);
+        let executor = DagStepExecutor::new(
+            catalog,
+            Arc::new(RwLock::new(executors)),
+            Arc::new(RwLock::new(scheduler)),
+        );
 
         let step = WorkflowStep::with_sub_graph("test_step", "Test", sg_id);
         let result = executor.execute_step(&step, None);

@@ -15,7 +15,7 @@ Architecture:
      - Data: crud_create, crud_read, crud_update, crud_delete, transform
      - Integration: email, http, webhook, file
      - Auth: login, register, verify, rbac
-  5. generate_process_method(): Generates real _process() source code
+  5. generate_inline_block_code(): Generates real _process() source code per block
 
 Modules:
   - chain: LogicBlock ABC, LogicChain, _validate_identifier

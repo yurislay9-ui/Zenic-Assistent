@@ -391,47 +391,53 @@ class ReplayQueue:
         Returns:
             RetryResult with outcome details.
         """
+        # BUG FIX: Atomic check-and-update within a single lock scope.
+        # Previously the lock was released between checking and updating,
+        # allowing concurrent retries of the same event to both increment
+        # retry_count, causing it to exceed max_retries.
         with self._lock:
             evt = self._events.get(dlq_id)
 
-        if evt is None:
-            return RetryResult(
-                success=False,
-                dlq_id=dlq_id,
-                event_type="",
-                error=f"No dead-letter event found with id {dlq_id}",
-            )
+            if evt is None:
+                return RetryResult(
+                    success=False,
+                    dlq_id=dlq_id,
+                    event_type="",
+                    error=f"No dead-letter event found with id {dlq_id}",
+                )
 
-        if evt.status == DeadLetterStatus.EXHAUSTED:
-            return RetryResult(
-                success=False,
-                dlq_id=dlq_id,
-                event_type=evt.event_type,
-                retry_count=evt.retry_count,
-                status=evt.status,
-                error="Event is exhausted (max retries reached)",
-            )
+            if evt.status == DeadLetterStatus.EXHAUSTED:
+                return RetryResult(
+                    success=False,
+                    dlq_id=dlq_id,
+                    event_type=evt.event_type,
+                    retry_count=evt.retry_count,
+                    status=evt.status,
+                    error="Event is exhausted (max retries reached)",
+                )
 
-        if evt.status == DeadLetterStatus.SUCCEEDED:
-            return RetryResult(
-                success=False,
-                dlq_id=dlq_id,
-                event_type=evt.event_type,
-                retry_count=evt.retry_count,
-                status=evt.status,
-                error="Event already succeeded",
-            )
+            if evt.status == DeadLetterStatus.SUCCEEDED:
+                return RetryResult(
+                    success=False,
+                    dlq_id=dlq_id,
+                    event_type=evt.event_type,
+                    retry_count=evt.retry_count,
+                    status=evt.status,
+                    error="Event already succeeded",
+                )
 
-        # Update status to retrying
-        with self._lock:
+            # Atomic update: mark as retrying and increment count
             evt.status = DeadLetterStatus.RETRYING
             evt.retry_count += 1
             evt.last_retry_at = time.time()
+            current_retry_count = evt.retry_count
+
+        # Persist the updated state
         self._persist_event(evt)
 
-        # Apply exponential backoff
-        if evt.retry_count > 1:
-            backoff = _BACKOFF_BASE * (2 ** (evt.retry_count - 1))
+        # Apply exponential backoff OUTSIDE the lock to avoid blocking others
+        if current_retry_count > 1:
+            backoff = _BACKOFF_BASE * (2 ** (current_retry_count - 1))
             time.sleep(backoff)
 
         # Attempt dispatch

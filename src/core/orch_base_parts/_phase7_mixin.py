@@ -51,7 +51,14 @@ class Phase7Mixin:
             if self._logic_builder:
                 chain = self._logic_builder.build_from_description(description)
                 blocks = [b.name for b in chain.blocks]
-                code = self._logic_builder.generate_process_method(blocks)
+                # E-20 FIX: Replaced generate_process_method() (removed from LogicBuilder)
+                # with generate_inline_block_code() from builder_registry.
+                from src.core.logic_blocks.builder_registry import generate_inline_block_code, safe_var_name
+                code_lines = []
+                for i, block_name in enumerate(blocks):
+                    var_name = safe_var_name(f"result_{block_name}_{i}")
+                    code_lines.extend(generate_inline_block_code(block_name, var_name))
+                code = "\n".join(code_lines)
                 result["blocks"] = blocks
                 result["block_count"] = len(blocks)
                 result["generated_code"] = code
@@ -61,7 +68,14 @@ class Phase7Mixin:
             return {"error": "LogicBuilder not available"}
         chain = self._logic_builder.build_from_description(description)
         blocks = [b.name for b in chain.blocks]
-        code = self._logic_builder.generate_process_method(blocks)
+        # E-20 FIX: Replaced generate_process_method() (removed from LogicBuilder)
+        # with generate_inline_block_code() from builder_registry.
+        from src.core.logic_blocks.builder_registry import generate_inline_block_code, safe_var_name
+        code_lines = []
+        for i, block_name in enumerate(blocks):
+            var_name = safe_var_name(f"result_{block_name}_{i}")
+            code_lines.extend(generate_inline_block_code(block_name, var_name))
+        code = "\n".join(code_lines)
         return {
             "blocks": blocks,
             "block_count": len(blocks),

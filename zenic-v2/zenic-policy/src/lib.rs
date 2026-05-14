@@ -24,7 +24,7 @@ pub mod rule;
 pub use audit::{AuditEntry, AuditLog, DenialReason, PolicyDecision};
 pub use engine::{PolicyContext, PolicyEngine};
 pub use errors::PolicyError;
-pub use gate::{CriticalityGate, SafetyVeto, SafetyVetoRegistry};
+pub use gate::{CriticalityGate, CriticalityGateBuilder, SafetyVeto, SafetyVetoRegistry};
 pub use permission::{Action, Permission, Resource};
 pub use role::{
     CriticalityClearance, Role, RoleAssignment, RoleId, RolePriority, RoleRegistry,

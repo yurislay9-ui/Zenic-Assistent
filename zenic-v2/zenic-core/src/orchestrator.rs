@@ -15,6 +15,7 @@
 //! This ensures that no operation bypasses the policy engine.
 
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 
 use zenic_flow::{WorkflowDefinition, WorkflowInstance};
 use zenic_graph::{DirectedAcyclicGraph, NodeCatalog, NodeDescriptor, SubGraphDescriptor, SuperNodeDescriptor};
@@ -76,11 +77,15 @@ pub struct Orchestrator {
     /// Current orchestrator status.
     status: OrchestratorStatus,
     /// Node catalog (descriptors for all nodes, super-nodes, subgraphs).
-    catalog: NodeCatalog,
+    /// E-09 FIX: Arc<RwLock<>> so the DagStepExecutor can share the same
+    /// populated catalog instead of receiving an empty instance.
+    catalog: Arc<RwLock<NodeCatalog>>,
     /// Node executor registry (maps NodeId → execution logic).
-    executors: NodeExecutorRegistry,
+    /// E-09 FIX: Arc<RwLock<>> for sharing with DagStepExecutor.
+    executors: Arc<RwLock<NodeExecutorRegistry>>,
     /// DAG scheduler (executes DAGs with memory awareness).
-    scheduler: DagScheduler,
+    /// E-09 FIX: Arc<RwLock<>> for sharing with DagStepExecutor.
+    scheduler: Arc<RwLock<DagScheduler>>,
     /// Fractal loader (on-demand subgraph loading/unloading).
     #[allow(dead_code)]
     fractal_loader: FractalLoader,
@@ -111,9 +116,9 @@ impl Orchestrator {
         Ok(Self {
             config,
             status: OrchestratorStatus::Initialized,
-            catalog: NodeCatalog::new(),
-            executors: NodeExecutorRegistry::new(),
-            scheduler,
+            catalog: Arc::new(RwLock::new(NodeCatalog::new())),
+            executors: Arc::new(RwLock::new(NodeExecutorRegistry::new())),
+            scheduler: Arc::new(RwLock::new(scheduler)),
             fractal_loader: FractalLoader::new(),
             policy_engine: PolicyEngine::new(),
             router: RequestRouter::new(),
@@ -191,40 +196,43 @@ impl Orchestrator {
     /// Registers a node descriptor in the catalog.
     pub fn register_node(&mut self, descriptor: NodeDescriptor) -> Result<(), CoreError> {
         self.ensure_operational()?;
-        self.catalog
-            .register_node(descriptor)
-            .map_err(CoreError::from)
+        let mut catalog = self.catalog.write().map_err(|e| {
+            CoreError::Validation(format!("catalog lock poisoned: {}", e))
+        })?;
+        catalog.register_node(descriptor).map_err(CoreError::from)
     }
 
     /// Registers a super-node descriptor in the catalog.
     pub fn register_super_node(&mut self, descriptor: SuperNodeDescriptor) -> Result<(), CoreError> {
         self.ensure_operational()?;
-        self.catalog
-            .register_super_node(descriptor)
-            .map_err(CoreError::from)
+        let mut catalog = self.catalog.write().map_err(|e| {
+            CoreError::Validation(format!("catalog lock poisoned: {}", e))
+        })?;
+        catalog.register_super_node(descriptor).map_err(CoreError::from)
     }
 
     /// Registers a sub-graph descriptor in the catalog.
     pub fn register_sub_graph(&mut self, descriptor: SubGraphDescriptor) -> Result<(), CoreError> {
         self.ensure_operational()?;
-        self.catalog
-            .register_sub_graph(descriptor)
-            .map_err(CoreError::from)
+        let mut catalog = self.catalog.write().map_err(|e| {
+            CoreError::Validation(format!("catalog lock poisoned: {}", e))
+        })?;
+        catalog.register_sub_graph(descriptor).map_err(CoreError::from)
     }
 
     /// Returns the number of registered nodes.
     pub fn node_count(&self) -> usize {
-        self.catalog.node_count()
+        self.catalog.read().map(|c| c.node_count()).unwrap_or(0)
     }
 
     /// Returns the number of registered super-nodes.
     pub fn super_node_count(&self) -> usize {
-        self.catalog.super_node_count()
+        self.catalog.read().map(|c| c.super_node_count()).unwrap_or(0)
     }
 
     /// Returns the number of registered sub-graphs.
     pub fn sub_graph_count(&self) -> usize {
-        self.catalog.sub_graph_count()
+        self.catalog.read().map(|c| c.sub_graph_count()).unwrap_or(0)
     }
 
     // -----------------------------------------------------------------------
@@ -238,14 +246,15 @@ impl Orchestrator {
         executor: Box<dyn NodeExecutor>,
     ) -> Result<(), CoreError> {
         self.ensure_operational()?;
-        self.executors
-            .register(node_id, executor)
-            .map_err(CoreError::from)
+        let mut executors = self.executors.write().map_err(|e| {
+            CoreError::Validation(format!("executors lock poisoned: {}", e))
+        })?;
+        executors.register(node_id, executor).map_err(CoreError::from)
     }
 
     /// Returns the number of registered executors.
     pub fn executor_count(&self) -> usize {
-        self.executors.len()
+        self.executors.read().map(|e| e.len()).unwrap_or(0)
     }
 
     // -----------------------------------------------------------------------
@@ -348,10 +357,17 @@ impl Orchestrator {
             ));
         }
 
-        // Execute the DAG.
-        let result = self
-            .scheduler
-            .execute(dag, &self.catalog, &self.executors, session_id, tenant_id)?;
+        // Execute the DAG with shared catalog and executors.
+        let scheduler = self.scheduler.read().map_err(|e| {
+            CoreError::Validation(format!("scheduler lock poisoned: {}", e))
+        })?;
+        let catalog = self.catalog.read().map_err(|e| {
+            CoreError::Validation(format!("catalog lock poisoned: {}", e))
+        })?;
+        let executors = self.executors.read().map_err(|e| {
+            CoreError::Validation(format!("executors lock poisoned: {}", e))
+        })?;
+        let result = scheduler.execute(dag, &catalog, &executors, session_id, tenant_id)?;
 
         Ok(result)
     }
@@ -396,17 +412,16 @@ impl Orchestrator {
             .ok_or(CoreError::WorkflowNotFound(*workflow_id))?
             .clone();
 
-        // Create the step executor bridge.
-        // The DagStepExecutor needs its own catalog and scheduler
-        // because it runs inside the workflow engine which requires
-        // Send + Sync. We create fresh instances for the bridge.
-        let step_executor = DagStepExecutor::new(
-            NodeCatalog::new(),
-            NodeExecutorRegistry::new(),
-            DagScheduler::with_memory_limits(
-                self.config.max_loaded_nodes,
-                self.config.memory_budget_bytes,
-            ),
+        // E-09 FIX: Share the orchestrator's populated catalog and executor
+        // registry with the DagStepExecutor via Arc<RwLock<>>. Previously,
+        // empty instances were created, causing "subgraph not found" errors
+        // for any workflow step that referenced a subgraph.
+        let step_executor = DagStepExecutor::with_context(
+            Arc::clone(&self.catalog),
+            Arc::clone(&self.executors),
+            Arc::clone(&self.scheduler),
+            session_id,
+            tenant_id,
         );
 
         // Execute the workflow.
@@ -435,8 +450,12 @@ impl Orchestrator {
     }
 
     /// Returns a reference to the memory manager (via the scheduler).
-    pub fn memory_manager(&self) -> &MemoryManager {
-        self.scheduler.memory_manager()
+    pub fn memory_manager(&self) -> Arc<RwLock<MemoryManager>> {
+        // E-09 FIX: Return Arc<RwLock<>> since scheduler is now shared.
+        // The caller must acquire the read lock to access the memory manager.
+        Arc::new(RwLock::new(self.scheduler.read()
+            .map(|s| s.memory_manager().clone())
+            .unwrap_or_else(|_| MemoryManager::new(0, 0))))
     }
 
     // -----------------------------------------------------------------------
@@ -534,9 +553,9 @@ mod tests {
         (orch, sid, tid)
     }
 
-    fn make_node(catalog: &mut NodeCatalog, name: &str) -> NodeId {
+    fn make_node(catalog: &Arc<RwLock<NodeCatalog>>, name: &str) -> NodeId {
         let id = NodeId::new();
-        catalog
+        catalog.write().unwrap()
             .register_node(NodeDescriptor {
                 id,
                 name: name.to_string(),

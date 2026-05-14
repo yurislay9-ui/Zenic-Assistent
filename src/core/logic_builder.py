@@ -14,7 +14,7 @@ Original architecture:
      - Data: crud_create, crud_read, crud_update, crud_delete, transform
      - Integration: email, http, webhook, file
      - Auth: login, register, verify, rbac
-  5. generate_process_method(): Genera codigo fuente _process() real
+  5. generate_inline_block_code(): Genera codigo fuente _process() real por bloque
 
 Principios:
   - Todos los bloques son independientemente testeable

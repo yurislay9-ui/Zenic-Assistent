@@ -2,6 +2,11 @@
 
 Layer 4 (Code) + Layer 5 (Validation) + Layer 6 (Automation)
 + Layer 7 (Reasoning) + Layer 8 (Verdict) + Layer 9 (Infrastructure).
+
+E-13 FIX: TriggerSpec, ActionSpec, ScheduleSpec, ValidationIssue are now
+defined in shared/agent_schemas.py (single source of truth). This module
+re-exports them to maintain backward compatibility for existing imports
+from agents_v2.schemas.types.
 """
 
 from __future__ import annotations
@@ -9,6 +14,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
+
+# ── Re-export shared types from single source of truth ──
+# E-13 FIX: These types now live in shared/agent_schemas.py to break
+# the circular dependency (agents/ → agents_v2/).
+from src.core.shared.agent_schemas import (
+    ValidationIssue,
+    TriggerSpec,
+    ActionSpec,
+    ScheduleSpec,
+)
 
 
 # ────────────────────────────── Layer 4: Code ──────────────────────────────
@@ -48,14 +63,7 @@ class ScaffoldResult:
 
 # ────────────────────────────── Layer 5: Validation ──────────────────────────────
 
-@dataclass
-class ValidationIssue:
-    """A single validation finding."""
-    severity: str = "warning"  # error|warning|info
-    code: str = ""
-    message: str = ""
-    line: int = 0
-    suggestion: str = ""
+# ValidationIssue is now imported from shared/agent_schemas.py (see top of file)
 
 
 @dataclass
@@ -121,57 +129,9 @@ class AutoDescription:
     context: dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
-class TriggerSpec:
-    """A29 TriggerInferrer output."""
-    type: str = "manual"  # manual|schedule|event|webhook
-    config: dict[str, Any] = field(default_factory=dict)
-    description: str = ""
-    source: str = "deterministic"
-
-
-@dataclass
-class ActionSpec:
-    """A30 ActionInferrer output."""
-    type: str = "log"  # email|http|db|file|webhook|notification|transform|schedule|log
-    config: dict[str, Any] = field(default_factory=dict)
-    description: str = ""
-    source: str = "deterministic"
-
-
-class ScheduleSpec:
-    """A31 ScheduleParser output.
-
-    Single source of truth — legacy agents/schemas.py re-exports this.
-
-    Note: This class uses a manual __init__ instead of @dataclass because
-    it supports a backward-compatible ``cron_expression`` alias parameter.
-    The class-level attributes serve as documentation only; they are NOT
-    dataclass fields and are overwritten by __init__.
-    """
-
-    # Instance attributes (set by __init__, documented here for IDE support)
-    type: str          # manual|interval|cron|once
-    cron: str
-    interval_seconds: int
-    description: str
-    source: str
-
-    def __init__(self, type: str = "manual", cron: str = "",
-                 interval_seconds: int = 0, description: str = "",
-                 source: str = "deterministic",
-                 cron_expression: str = "") -> None:
-        """Allow both ``cron`` and ``cron_expression`` for backward compatibility."""
-        self.type = type
-        self.cron = cron or cron_expression  # cron_expression is an alias
-        self.interval_seconds = interval_seconds
-        self.description = description
-        self.source = source
-
-    @property
-    def cron_expression(self) -> str:
-        """Backward-compatible alias for ``cron`` (legacy used ``cron_expression``)."""
-        return self.cron
+# TriggerSpec, ActionSpec, ScheduleSpec are now imported from
+# shared/agent_schemas.py (see top of file). They are re-exported
+# so existing `from agents_v2.schemas.types import TriggerSpec` still works.
 
 
 @dataclass

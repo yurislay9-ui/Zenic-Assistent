@@ -5,14 +5,18 @@ Esquemas de entrada/salida para cada agente.
 Validación automática de respuestas del LLM.
 
 NOTE: TriggerSpec, ActionSpec, ScheduleSpec, ValidationIssue are now
-re-exported from agents_v2/schemas/types.py (single source of truth).
+re-exported from shared/agent_schemas.py (single source of truth).
+E-13 FIX: Previously imported from agents_v2/schemas/types which created
+a circular dependency (v1 → v2). Now imports from shared/agent_schemas.
 """
 
 from typing import Any, Optional
 from dataclasses import dataclass, field
 
-# ── Re-export unified types from v2 schemas (single source of truth) ──
-from src.core.agents_v2.schemas.types import (  # noqa: F401
+# ── Re-export unified types from shared module (single source of truth) ──
+# E-13 FIX: Import from shared/agent_schemas instead of agents_v2 to break
+# the circular dependency (agents/ → agents_v2/ was wrong).
+from src.core.shared.agent_schemas import (  # noqa: F401
     TriggerSpec, ActionSpec, ScheduleSpec, ValidationIssue,
 )
 

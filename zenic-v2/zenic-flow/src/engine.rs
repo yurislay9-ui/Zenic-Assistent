@@ -211,7 +211,12 @@ impl WorkflowInstance {
         }
         self.status = new_status;
         if new_status.is_terminal() {
-            self.completed_at_ms = Some(self.started_at_ms); // Caller should set actual time.
+            // BUG FIX: Use the engine's monotonic clock for completed_at_ms
+            // instead of started_at_ms. The caller must call transition_to()
+            // after updating the engine clock, or provide the actual timestamp.
+            // For now, we leave completed_at_ms as None and let the engine
+            // set it explicitly via a separate method.
+            self.completed_at_ms = None;
         }
         Ok(())
     }
@@ -219,6 +224,11 @@ impl WorkflowInstance {
     /// Whether this instance is in a terminal state.
     pub fn is_terminal(&self) -> bool {
         self.status.is_terminal()
+    }
+
+    /// Sets the completion timestamp explicitly.
+    pub fn set_completed_at(&mut self, timestamp_ms: u64) {
+        self.completed_at_ms = Some(timestamp_ms);
     }
 
     /// Whether this instance completed successfully.
@@ -233,50 +243,251 @@ impl WorkflowInstance {
 }
 
 // ---------------------------------------------------------------------------
-// CheckpointStore (in-memory)
+// CheckpointStore (with optional disk persistence)
 // ---------------------------------------------------------------------------
 
-/// In-memory store for workflow checkpoints.
+/// Store for workflow checkpoints with optional disk persistence.
 ///
-/// For Phase 3, checkpoints are stored in memory. The `zenic-core`
-/// crate will add disk persistence later. This store maps execution IDs
-/// to their latest checkpoint.
+/// E-11 FIX: Added disk persistence so checkpoints survive process crashes.
+/// Previously, checkpoints were stored in-memory only, meaning any crash
+/// or restart would lose all workflow state. The store now supports:
+///
+/// - **In-memory mode** (`CheckpointStore::new()`): Same as before,
+///   for testing and short-lived workflows.
+/// - **Disk-persistent mode** (`CheckpointStore::with_persistence(dir)`):
+///   Each checkpoint is serialized to `<dir>/<execution_id>.ckpt` using
+///   bincode + zstd (the canonical format from `zenic-proto`). On startup,
+///   existing checkpoint files are loaded back into memory.
+///
+/// Thread safety: Internal state is protected by `RwLock<HashMap>` so
+/// concurrent reads are allowed. The `save()` and `remove()` methods
+/// now take `&self` instead of `&mut self` (no longer need exclusive
+/// access thanks to the internal lock).
 pub struct CheckpointStore {
-    checkpoints: HashMap<ExecutionId, Checkpoint>,
+    /// In-memory index of checkpoints, protected by RwLock for thread safety.
+    checkpoints: std::sync::RwLock<HashMap<ExecutionId, Checkpoint>>,
+    /// Optional directory for disk persistence. If None, checkpoints are
+    /// in-memory only (backward compatible with the original behavior).
+    persist_dir: Option<std::path::PathBuf>,
 }
 
 impl CheckpointStore {
-    /// Creates an empty checkpoint store.
+    /// Creates an empty in-memory checkpoint store (no disk persistence).
+    ///
+    /// This is the original behavior, suitable for testing and short-lived
+    /// workflows where crash recovery is not required.
     pub fn new() -> Self {
         Self {
-            checkpoints: HashMap::new(),
+            checkpoints: std::sync::RwLock::new(HashMap::new()),
+            persist_dir: None,
         }
     }
 
+    /// Creates a checkpoint store with disk persistence.
+    ///
+    /// E-11 FIX: Checkpoints are saved to individual files in the given
+    /// directory, one per execution. The directory is created if it doesn't
+    /// exist. On construction, any existing checkpoint files in the
+    /// directory are loaded into memory.
+    ///
+    /// File format: `<dir>/<execution_id_hex>.ckpt` — bincode + zstd
+    /// serialized `Checkpoint` structs (same as `Checkpoint::to_bytes()`).
+    ///
+    /// # Errors
+    ///
+    /// Returns `FlowError` if the directory cannot be created or if
+    /// existing checkpoint files cannot be read.
+    pub fn with_persistence(dir: impl Into<std::path::PathBuf>) -> Result<Self, FlowError> {
+        let persist_dir = dir.into();
+        std::fs::create_dir_all(&persist_dir).map_err(|e| {
+            FlowError::CheckpointFailed(format!(
+                "failed to create checkpoint directory {:?}: {}",
+                persist_dir, e
+            ))
+        })?;
+
+        let store = Self {
+            checkpoints: std::sync::RwLock::new(HashMap::new()),
+            persist_dir: Some(persist_dir),
+        };
+
+        // Load existing checkpoints from disk.
+        store.load_from_disk()?;
+
+        Ok(store)
+    }
+
     /// Saves a checkpoint, replacing any previous checkpoint for the same execution.
-    pub fn save(&mut self, checkpoint: Checkpoint) -> Result<(), FlowError> {
-        self.checkpoints.insert(checkpoint.execution_id, checkpoint);
+    ///
+    /// If disk persistence is enabled, the checkpoint is also written to disk.
+    /// The in-memory store is always updated first, then the disk write is
+    /// attempted. If the disk write fails, a warning is logged but the
+    /// in-memory store is still updated (graceful degradation).
+    pub fn save(&self, checkpoint: Checkpoint) -> Result<(), FlowError> {
+        let exec_id = checkpoint.execution_id;
+
+        // Update in-memory store.
+        {
+            let mut map = self.checkpoints.write().map_err(|e| {
+                FlowError::CheckpointFailed(format!("lock poisoned: {}", e))
+            })?;
+            map.insert(exec_id, checkpoint.clone());
+        }
+
+        // Persist to disk if enabled.
+        if let Some(ref dir) = self.persist_dir {
+            if let Err(e) = self.persist_checkpoint(&exec_id, &checkpoint) {
+                log::warn!(
+                    "E-11: Failed to persist checkpoint {:?} to disk: {}. \
+                     In-memory checkpoint is still valid.",
+                    exec_id, e
+                );
+            }
+        }
+
         Ok(())
     }
 
     /// Loads the latest checkpoint for an execution ID.
-    pub fn load(&self, execution_id: &ExecutionId) -> Option<&Checkpoint> {
-        self.checkpoints.get(execution_id)
+    ///
+    /// Returns a reference to the checkpoint from the in-memory store.
+    /// For disk-persistent stores, checkpoints are loaded into memory
+    /// on construction, so this always returns from memory.
+    pub fn load(&self, execution_id: &ExecutionId) -> Option<Checkpoint> {
+        let map = self.checkpoints.read().ok()?;
+        map.get(execution_id).cloned()
     }
 
     /// Removes and returns the checkpoint for an execution ID.
-    pub fn remove(&mut self, execution_id: &ExecutionId) -> Option<Checkpoint> {
-        self.checkpoints.remove(execution_id)
+    ///
+    /// If disk persistence is enabled, the checkpoint file is also removed.
+    pub fn remove(&self, execution_id: &ExecutionId) -> Option<Checkpoint> {
+        let cp = {
+            let mut map = self.checkpoints.write().ok()?;
+            map.remove(execution_id)
+        };
+
+        // Remove from disk if enabled.
+        if let Some(ref dir) = self.persist_dir {
+            let path = dir.join(format("{}.ckpt", execution_id));
+            let _ = std::fs::remove_file(path); // Best-effort removal
+        }
+
+        cp
     }
 
     /// Returns the number of stored checkpoints.
     pub fn len(&self) -> usize {
-        self.checkpoints.len()
+        self.checkpoints.read().map(|m| m.len()).unwrap_or(0)
     }
 
     /// Whether the store is empty.
     pub fn is_empty(&self) -> bool {
-        self.checkpoints.is_empty()
+        self.len() == 0
+    }
+
+    /// Whether disk persistence is enabled.
+    pub fn is_persistent(&self) -> bool {
+        self.persist_dir.is_some()
+    }
+
+    // -----------------------------------------------------------------------
+    // Private helpers for disk persistence
+    // -----------------------------------------------------------------------
+
+    /// Persists a single checkpoint to disk.
+    fn persist_checkpoint(
+        &self,
+        execution_id: &ExecutionId,
+        checkpoint: &Checkpoint,
+    ) -> Result<(), FlowError> {
+        let dir = self.persist_dir.as_ref().ok_or_else(|| {
+            FlowError::CheckpointFailed("persistence not enabled".to_string())
+        })?;
+
+        let bytes = checkpoint.to_bytes()?;
+        let path = dir.join(format!("{}.ckpt", execution_id));
+
+        // Write atomically: write to temp file, then rename.
+        let temp_path = dir.join(format!("{}.ckpt.tmp", execution_id));
+        std::fs::write(&temp_path, &bytes).map_err(|e| {
+            FlowError::CheckpointFailed(format!(
+                "failed to write checkpoint to {:?}: {}",
+                temp_path, e
+            ))
+        })?;
+        std::fs::rename(&temp_path, &path).map_err(|e| {
+            FlowError::CheckpointFailed(format!(
+                "failed to rename checkpoint from {:?} to {:?}: {}",
+                temp_path, path, e
+            ))
+        })?;
+
+        Ok(())
+    }
+
+    /// Loads all checkpoint files from the persistence directory.
+    fn load_from_disk(&self) -> Result<(), FlowError> {
+        let dir = self.persist_dir.as_ref().ok_or_else(|| {
+            FlowError::CheckpointFailed("persistence not enabled".to_string())
+        })?;
+
+        let entries = std::fs::read_dir(dir).map_err(|e| {
+            FlowError::CheckpointFailed(format!(
+                "failed to read checkpoint directory {:?}: {}",
+                dir, e
+            ))
+        })?;
+
+        let mut loaded = 0usize;
+        let mut errors = 0usize;
+
+        for entry in entries {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("ckpt") {
+                continue;
+            }
+
+            match std::fs::read(&path) {
+                Ok(bytes) => match Checkpoint::from_bytes(&bytes) {
+                    Ok(checkpoint) => {
+                        let exec_id = checkpoint.execution_id;
+                        if let Ok(mut map) = self.checkpoints.write() {
+                            map.insert(exec_id, checkpoint);
+                        }
+                        loaded += 1;
+                    }
+                    Err(e) => {
+                        log::warn!(
+                            "E-11: Failed to deserialize checkpoint from {:?}: {}. Skipping.",
+                            path, e
+                        );
+                        errors += 1;
+                    }
+                },
+                Err(e) => {
+                    log::warn!(
+                        "E-11: Failed to read checkpoint file {:?}: {}. Skipping.",
+                        path, e
+                    );
+                    errors += 1;
+                }
+            }
+        }
+
+        if loaded > 0 || errors > 0 {
+            log::info!(
+                "E-11: CheckpointStore loaded {} checkpoints from disk ({} errors) in {:?}",
+                loaded, errors, dir
+            );
+        }
+
+        Ok(())
     }
 }
 
@@ -336,7 +547,7 @@ impl WorkflowEngine {
     // -----------------------------------------------------------------------
 
     /// Returns the latest checkpoint for an execution.
-    pub fn get_checkpoint(&self, execution_id: &ExecutionId) -> Option<&Checkpoint> {
+    pub fn get_checkpoint(&self, execution_id: &ExecutionId) -> Option<Checkpoint> {
         self.checkpoint_store.load(execution_id)
     }
 
@@ -395,9 +606,13 @@ impl WorkflowEngine {
             let retry_policy = definition.retry_policy_for_step(step_index);
 
             // Get input from previous step's output.
+            // BUG FIX: Use the LAST successful step's output, not the FIRST.
+            // Previously used .iter().find() which returned the first match,
+            // causing step 4 to receive input from step 1 instead of step 3.
             let input = instance
                 .step_results
                 .iter()
+                .rev()
                 .find(|r| r.is_success())
                 .and_then(|r| r.output_data.as_ref())
                 .map(|d| d.as_slice());
@@ -428,6 +643,7 @@ impl WorkflowEngine {
 
                     // Step failed after all retries. Trigger compensation.
                     instance.transition_to(WorkflowStatus::Failed)?;
+                    instance.set_completed_at(self.next_timestamp());
                     self.save_checkpoint(&instance)?;
 
                     self.run_compensation(&mut instance, definition);
@@ -439,6 +655,7 @@ impl WorkflowEngine {
 
         // All steps completed.
         instance.transition_to(WorkflowStatus::Completed)?;
+        instance.set_completed_at(self.next_timestamp());
         self.save_checkpoint(&instance)?;
 
         Ok(instance)
@@ -576,7 +793,7 @@ impl WorkflowEngine {
             .map(|s| s.compensation_key.clone())
             .collect();
 
-        let _errors = self.compensation_registry.compensate_steps(
+        let errors = self.compensation_registry.compensate_steps(
             &instance.step_results,
             &keys,
         );
@@ -594,18 +811,32 @@ impl WorkflowEngine {
             }
         }
 
+        // BUG FIX: Track compensation errors properly.
+        // If there were compensation failures, transition to Compensated but log errors.
+        // Future: should add CompensatedWithErrors status for proper tracking.
+        if !errors.is_empty() {
+            log::warn!(
+                "SAGA compensation completed with {} errors for workflow instance {:?}",
+                errors.len(),
+                instance.execution_id,
+            );
+            for err in &errors {
+                log::error!("SAGA compensation error: {:?}", err);
+            }
+        }
+
         let _ = instance.transition_to(WorkflowStatus::Compensated);
     }
 
     /// Saves a checkpoint for the current instance state.
-    fn save_checkpoint(&mut self, instance: &WorkflowInstance) -> Result<(), FlowError> {
+    fn save_checkpoint(&self, instance: &WorkflowInstance) -> Result<(), FlowError> {
         let checkpoint = Checkpoint::new(
             instance.definition_id,
             instance.execution_id,
             instance.current_step_index,
             instance.status,
             instance.step_results.clone(),
-            self.next_timestamp(),
+            self.clock_ms, // Use current clock value (already advanced)
         );
         self.checkpoint_store.save(checkpoint)
     }
@@ -843,7 +1074,7 @@ mod tests {
 
     #[test]
     fn checkpoint_store_save_and_load() {
-        let mut store = CheckpointStore::new();
+        let store = CheckpointStore::new();
         let exec_id = ExecutionId::new();
         let cp = Checkpoint::initial(WorkflowId::new(), exec_id, 0);
         store.save(cp).expect("save");
@@ -854,7 +1085,7 @@ mod tests {
 
     #[test]
     fn checkpoint_store_remove() {
-        let mut store = CheckpointStore::new();
+        let store = CheckpointStore::new();
         let exec_id = ExecutionId::new();
         let cp = Checkpoint::initial(WorkflowId::new(), exec_id, 0);
         store.save(cp).expect("save");

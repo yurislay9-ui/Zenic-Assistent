@@ -133,9 +133,15 @@ def constant_time_compare(a: bytes, b: bytes) -> bool:
 
 
 def blake3_hash(data: bytes) -> str:
-    """Pure Python BLAKE3 hash fallback.
+    """Pure Python BLAKE3 hash.
 
-    Tries the ``blake3`` Python package. Falls back to SHA-256.
+    E-04 FIX: BLAKE3 is now MANDATORY — no SHA-256 fallback.
+    The Rust native extension (hash.rs) uses blake3::hash() exclusively
+    for integrity verification. A SHA-256 fallback would produce different
+    hashes, causing cross-language integrity mismatches.
+
+    Requires either the ``_zenic_native`` Rust extension or the ``blake3``
+    Python package. Raises RuntimeError if neither is available.
 
     Parameters
     ----------
@@ -145,7 +151,7 @@ def blake3_hash(data: bytes) -> str:
     Returns
     -------
     str
-        Hex-encoded hash string.
+        64-character hex-encoded BLAKE3 hash string.
     """
     if not data:
         raise ValueError("data must not be empty")
@@ -155,12 +161,14 @@ def blake3_hash(data: bytes) -> str:
 
         return _blake3.blake3(data).hexdigest()
     except ImportError:
-        logger.warning(
-            "blake3 Python package not available; "
-            "falling back to SHA-256. Install 'blake3' or build "
-            "the native extension for proper BLAKE3."
+        raise RuntimeError(
+            "BLAKE3 is mandatory for integrity verification. "
+            "Install the 'blake3' Python package or build the "
+            "native Rust extension (_zenic_native). "
+            "SHA-256 fallback removed (E-04 FIX): it produced "
+            "different hashes than the Rust side, causing "
+            "cross-language integrity mismatches."
         )
-        return hashlib.sha256(data).hexdigest()
 
 
 def xxhash64(data: bytes, seed: int) -> int:
@@ -204,19 +212,25 @@ def xxhash64(data: bytes, seed: int) -> int:
 
 
 def merkle_root(leaves: List[bytes]) -> str:
-    """Pure Python Merkle root computation.
+    """Pure Python Merkle root computation using BLAKE3.
 
-    Uses SHA-256 when BLAKE3 is not available, or BLAKE3 if installed.
+    E-04 FIX: BLAKE3 is now MANDATORY — no SHA-256 fallback.
+    The Rust native extension (hash.rs) uses blake3::hash() and
+    concatenates raw bytes (not hex strings) for Merkle tree pairing.
+    This function matches the Rust behavior exactly.
+
+    Requires either the ``_zenic_native`` Rust extension or the ``blake3``
+    Python package. Raises RuntimeError if neither is available.
 
     Parameters
     ----------
     leaves : list[bytes]
-        List of leaf values.
+        List of leaf values (raw bytes, typically hashes themselves).
 
     Returns
     -------
     str
-        Hex-encoded Merkle root hash.
+        64-character hex-encoded BLAKE3 Merkle root.
     """
     if not leaves:
         raise ValueError("leaves must not be empty")
@@ -224,22 +238,35 @@ def merkle_root(leaves: List[bytes]) -> str:
     def _hash_func(data: bytes) -> bytes:
         try:
             import blake3 as _blake3  # type: ignore[import-untyped]
-
             return _blake3.blake3(data).digest()
         except ImportError:
-            return hashlib.sha256(data).digest()
+            raise RuntimeError(
+                "BLAKE3 is mandatory for Merkle root computation. "
+                "Install the 'blake3' Python package or build the "
+                "native Rust extension. SHA-256 fallback removed (E-04 FIX)."
+            )
 
+    # If only one leaf, its hash is the root (matches Rust hash.rs)
     if len(leaves) == 1:
         return _hash_func(leaves[0]).hex()
 
+    # Build the Merkle tree bottom-up.
+    # Each leaf is hashed with BLAKE3, then adjacent hashes are
+    # concatenated as RAW BYTES (not hex strings) and re-hashed.
+    # This matches the Rust merkle_root() function exactly.
     current_level: List[bytes] = [_hash_func(leaf) for leaf in leaves]
 
     while len(current_level) > 1:
+        # If odd number of nodes, duplicate the last one
         if len(current_level) % 2 != 0:
             current_level.append(current_level[-1])
 
         next_level: List[bytes] = []
         for i in range(0, len(current_level), 2):
+            # E-04 FIX: Concatenate raw bytes, not hex strings.
+            # Rust does: combined = left_bytes + right_bytes; blake3(combined)
+            # Python was doing: combined = (hex_left + hex_right).encode('utf-8')
+            # which produces DIFFERENT hashes than Rust.
             combined = current_level[i] + current_level[i + 1]
             next_level.append(_hash_func(combined))
         current_level = next_level

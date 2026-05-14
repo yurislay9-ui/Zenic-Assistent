@@ -21,6 +21,13 @@ FIX (Phase 2): Added retry with exponential backoff for DB operations.
 SQLite can fail transiently (database locked, busy timeout) especially
 under concurrent write access.
 
+FIX (E-04): Hash canonical changed from SHA-256 to BLAKE3 to match
+the Rust native extension (hash.rs). The Rust side uses blake3::hash()
+exclusively for integrity verification and Merkle tree computation.
+SHA-256 hashes computed before this fix are stored with a "sha256:"
+prefix in the database and are still readable for backward compatibility,
+but all NEW hashes use BLAKE3.
+
 Sin dependencias externas. Compatible con Android.
 """
 
@@ -35,6 +42,45 @@ from src.core.shared.db_initializer import get_data_dir, get_connection
 from src.core.shared.retry import with_retry
 from src.core.shared.db_utils import purge_tenant_rows
 from src.core.shared.tenant_utils import resolve_tenant_id
+
+# ── BLAKE3 hash — canonical hash, matches Rust hash.rs ──────────────
+# BLAKE3 is mandatory for integrity: the Rust native extension uses
+# blake3::hash() exclusively. SHA-256 is kept ONLY as a fallback when
+# the native extension is not compiled (e.g., during development).
+
+try:
+    from src.core.native._zenic_native import blake3_hash as _native_blake3_hash
+    _HAS_NATIVE_BLAKE3 = True
+except ImportError:
+    _HAS_NATIVE_BLAKE3 = False
+
+
+def _blake3_hash(data: bytes) -> str:
+    """Compute BLAKE3 hash of bytes, returning 64-char hex string.
+
+    Uses the native Rust extension when available (zero-copy, parallel).
+    Falls back to pure-Python blake3 package, then to SHA-256 with a
+    ``sha256:`` prefix for transparent identification.
+
+    This function is the SINGLE SOURCE OF TRUTH for all hashing in the
+    Merkle ledger. It MUST produce the same output as Rust ``blake3_hash()``.
+    """
+    if _HAS_NATIVE_BLAKE3:
+        return _native_blake3_hash(data)
+
+    # Fallback: try pure-Python blake3 package
+    try:
+        import blake3 as _blake3_pure
+        return _blake3_pure.blake3(data).hexdigest()
+    except ImportError:
+        pass
+
+    # Last resort: SHA-256 with prefix (NOT BLAKE3-compatible!)
+    # This exists so the system can still function during development
+    # without native extensions. Hashes produced this way are prefixed
+    # with "sha256:" to distinguish them from BLAKE3 hashes.
+    return "sha256:" + hashlib.sha256(data).hexdigest()
+
 
 class MerkleLedgerHelpersMixin:
     """Mixin providing hash computation, Merkle root, and DB helpers."""
@@ -78,23 +124,37 @@ class MerkleLedgerHelpersMixin:
             logger.debug("Ledger tenant migration skipped: %s", e)
 
     def _hash_content(self, content):
-        """Compute SHA-256 hash of string or bytes content.
+        """Compute BLAKE3 hash of string or bytes content.
+
+        All new hashes use BLAKE3 to match the Rust native extension.
+        Legacy SHA-256 hashes in the database are readable but new
+        writes always produce BLAKE3 hashes.
 
         Args:
             content: String or bytes to hash.
 
         Returns:
-            Hex-encoded SHA-256 digest string.
+            Hex-encoded BLAKE3 digest string (64 chars).
+            If native extension is unavailable, returns "sha256:" + hex digest.
         """
         if isinstance(content, bytes):
-            return hashlib.sha256(content).hexdigest()
-        return hashlib.sha256(content.encode('utf-8')).hexdigest()
+            return _blake3_hash(content)
+        return _blake3_hash(content.encode('utf-8'))
 
     def _merkle_root(self, hashes):
         """Compute Merkle root hash from a list of leaf hashes.
 
-        Pairs hashes and computes SHA-256 of concatenated pairs,
-        repeating until a single root hash remains.
+        Pairs hashes and computes BLAKE3 of concatenated pairs,
+        repeating until a single root hash remains. This matches
+        the Rust ``merkle_root()`` function in hash.rs exactly:
+        leaves are hashed with BLAKE3, then paired and re-hashed
+        using RAW BYTE concatenation (not hex string concatenation).
+
+        E-04 FIX: Previously, this method concatenated hex strings
+        encoded as UTF-8 before hashing: ``((left + right).encode('utf-8'))``.
+        The Rust side concatenates raw bytes: ``combined = left_bytes + right_bytes``.
+        These produce DIFFERENT Merkle roots for the same input, which
+        breaks cross-language integrity verification.
 
         Args:
             hashes: List of hex-encoded hash strings.
@@ -103,18 +163,42 @@ class MerkleLedgerHelpersMixin:
             Single root hash string, or hash of b'empty' if no hashes.
         """
         if not hashes:
-            return hashlib.sha256(b'empty').hexdigest()
+            return _blake3_hash(b'empty')
         if len(hashes) == 1:
             return hashes[0]
-        while len(hashes) > 1:
-            new_level = []
-            for i in range(0, len(hashes), 2):
-                left = hashes[i]
-                right = hashes[i + 1] if i + 1 < len(hashes) else left
-                combined = hashlib.sha256((left + right).encode()).hexdigest()
-                new_level.append(combined)
-            hashes = new_level
-        return hashes[0]
+
+        # E-04 FIX: Convert hex strings to raw bytes for Merkle tree computation.
+        # This matches the Rust merkle_root() which operates on raw bytes.
+        # Previously, hex strings were concatenated and re-encoded as UTF-8,
+        # producing different results than Rust.
+        try:
+            current_level: list[bytes] = [
+                bytes.fromhex(h.removeprefix("sha256:")) for h in hashes
+            ]
+        except ValueError:
+            # Fallback: if a hash is not valid hex, hash it first
+            current_level = [_blake3_hash(h.encode('utf-8')).encode() if not h.startswith("sha256:") else bytes.fromhex(h.removeprefix("sha256:"))
+                             for h in hashes]
+
+        # Hash each leaf with BLAKE3 (matches Rust: blake3::hash(leaf))
+        current_level = [bytes.fromhex(_blake3_hash(leaf)) for leaf in current_level]
+
+        while len(current_level) > 1:
+            # If odd number of nodes, duplicate the last one
+            if len(current_level) % 2 != 0:
+                current_level.append(current_level[-1])
+            next_level = []
+            for i in range(0, len(current_level), 2):
+                # E-04 FIX: Concatenate raw bytes (not hex strings).
+                # Rust: combined = left_bytes + right_bytes; blake3(combined)
+                left = current_level[i]
+                right = current_level[i + 1]
+                combined = left + right
+                next_level.append(bytes.fromhex(_blake3_hash(combined)))
+            current_level = next_level
+
+        # Convert final root from bytes back to hex string
+        return current_level[0].hex()
 
     def _get_all_file_hashes(self, db_path=None, tenant_id=None):
         """Obtiene los hashes mas recientes de todos los archivos para un tenant.

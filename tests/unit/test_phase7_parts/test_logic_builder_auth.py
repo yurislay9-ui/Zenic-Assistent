@@ -77,15 +77,18 @@ class TestLogicBuilder:
         )
         assert isinstance(result, dict)
 
-    def test_generate_process_method(self):
-        """generate_process_method should produce valid Python code."""
-        code = self.builder.generate_process_method(["validate_required", "sanitize", "crud_create"])
-        assert "def _process" in code
+    def test_generate_inline_block_code(self):
+        """E-20 FIX: generate_inline_block_code should produce valid Python code per block."""
+        from src.core.logic_blocks.builder_registry import generate_inline_block_code, safe_var_name
+        code_lines = []
+        for i, block_name in enumerate(["validate_required", "sanitize", "crud_create"]):
+            var_name = safe_var_name(f"result_{block_name}_{i}")
+            code_lines.extend(generate_inline_block_code(block_name, var_name))
+        code = "\n".join(code_lines)
         assert "payload" in code
         assert "validate_required" in code
         assert "sanitize" in code
         assert "crud_create" in code
-        assert '"processed": True' not in code
 
     def test_chain_with_condition(self):
         """LogicChain should support conditional branching."""

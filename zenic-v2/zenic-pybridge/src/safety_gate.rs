@@ -26,6 +26,7 @@ use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyTuple};
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
 // ═══════════════════════════════════════════════════════════════
@@ -146,9 +147,18 @@ impl SafetyVerdict {
 /// All fields are **read-only** from Python (private Rust fields
 /// exposed via ``#[getter]``).  This guarantees the DENY invariant
 /// at the type level — no Python code can mutate a verdict.
+///
+/// The ``action_id`` is a unique identifier generated per validation.
+/// It is the ONLY key that confirm_action/approve_action accept
+/// for checking the DENY invariant. This prevents the key-mismatch
+/// bypass where denied actions were stored by rule_name but
+/// confirm/approve checked by a user-provided action_id.
 #[pyclass(name = "SafetyCheckResult")]
 #[derive(Clone, Debug)]
 pub struct SafetyCheckResult {
+    /// Unique action identifier (UUID v4) for this validation result.
+    /// Used as the key in DENIED_ACTIONS, CONFIRMATIONS, and APPROVALS.
+    action_id: String,
     verdict: SafetyVerdict,
     category: ActionCategory,
     reason: String,
@@ -161,6 +171,11 @@ pub struct SafetyCheckResult {
 #[pymethods]
 impl SafetyCheckResult {
     // ── Read-only getters ──────────────────────────────────────
+
+    #[getter]
+    fn action_id(&self) -> &str {
+        &self.action_id
+    }
 
     #[getter]
     fn verdict(&self) -> SafetyVerdict {
@@ -212,9 +227,10 @@ impl SafetyCheckResult {
 
     fn __repr__(&self) -> String {
         format!(
-            "SafetyCheckResult(verdict={}, category={}, reason={:?}, \
+            "SafetyCheckResult(action_id={}, verdict={}, category={}, reason={:?}, \
              rule_name={:?}, requires_confirmation={}, requires_approval={}, \
              risk_score={})",
+            self.action_id,
             self.verdict.as_str(),
             self.category.as_str(),
             self.reason,
@@ -387,6 +403,22 @@ fn current_time() -> f64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs_f64()
+}
+
+/// Monotonic counter for generating unique action IDs.
+static ACTION_ID_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Generate a unique action ID for each safety validation.
+/// Format: "act_{timestamp_ms}_{counter}" — deterministic within a process
+/// but unique across calls. This is the ONLY key used in DENIED_ACTIONS,
+/// CONFIRMATIONS, and APPROVALS to prevent the key-mismatch bypass.
+fn generate_action_id() -> String {
+    let ts_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let counter = ACTION_ID_COUNTER.fetch_add(1, Ordering::Relaxed);
+    format!("act_{}_{}", ts_ms, counter)
 }
 
 /// Extract a string value from a Python dict, defaulting to empty string.
@@ -599,6 +631,7 @@ fn check_rules(
     for rule in SAFETY_RULES.iter() {
         if rule.pattern.is_match(&searchable) {
             return Ok(Some(SafetyCheckResult {
+                action_id: String::new(), // Will be assigned by safety_validate()
                 verdict: rule.verdict.clone(),
                 category: rule.category.clone(),
                 reason: rule.message.to_string(),
@@ -665,16 +698,24 @@ pub fn safety_validate(
     action_type: &str,
     config: &Bound<'_, PyDict>,
 ) -> PyResult<SafetyCheckResult> {
+    // Generate a unique action_id for this validation.
+    // This is the ONLY key used in DENIED_ACTIONS, CONFIRMATIONS, APPROVALS.
+    let action_id = generate_action_id();
+
     // Step 1 — classify the action
     let category = classify_action_inner(action_type, config);
 
     // Step 2 — check deterministic safety rules
-    if let Some(result) = check_rules(action_type, config)? {
+    if let Some(mut result) = check_rules(action_type, config)? {
+        // Assign the unique action_id to this result.
+        result.action_id = action_id;
+
         // ── DENY invariant ─────────────────────────────────────
-        // Record the denied action so confirm/approve will refuse it.
+        // Record the denied action by action_id (NOT rule_name!)
+        // so confirm/approve can check the SAME key.
         if result.verdict == SafetyVerdict::Deny {
             if let Ok(mut denied) = DENIED_ACTIONS.lock() {
-                denied.insert(result.rule_name.clone(), current_time());
+                denied.insert(result.action_id.clone(), current_time());
             }
         }
         return Ok(result);
@@ -683,6 +724,7 @@ pub fn safety_validate(
     // Step 3 — check rate limits
     if let Some(rate_reason) = rate_limit_check(action_type, &category) {
         return Ok(SafetyCheckResult {
+            action_id,
             verdict: SafetyVerdict::RateLimited,
             category,
             reason: rate_reason,
@@ -702,6 +744,7 @@ pub fn safety_validate(
     let req_approve = verdict == SafetyVerdict::Approve;
 
     Ok(SafetyCheckResult {
+        action_id,
         verdict,
         category,
         reason: format!("Action classified as {}", category_str),
@@ -838,12 +881,13 @@ pub fn is_approved(action_id: &str) -> bool {
     }
 }
 
-/// Reset the safety gate state (for testing).
+/// Reset the safety gate state (for testing ONLY).
 ///
-/// Clears all rate-limit counters, confirmations, approvals,
-/// and denied-action records.
-#[pyfunction]
-pub fn reset_safety_gate() {
+/// ⚠️ SECURITY: This function is NOT exposed to Python via PyO3.
+/// It exists solely for Rust unit tests. Clearing DENIED_ACTIONS
+/// from Python would violate the DENY invariant.
+#[cfg(test)]
+fn reset_safety_gate() {
     if let Ok(mut limiter) = RATE_LIMITER.lock() {
         limiter.timestamps.clear();
         limiter.category_timestamps.clear();
@@ -952,6 +996,7 @@ mod tests {
     #[test]
     fn test_can_proceed_deny_is_false() {
         let result = SafetyCheckResult {
+            action_id: "act_test_1".to_string(),
             verdict: SafetyVerdict::Deny,
             category: ActionCategory::Destructive,
             reason: "test".into(),
@@ -966,6 +1011,7 @@ mod tests {
     #[test]
     fn test_can_proceed_allow_is_true() {
         let result = SafetyCheckResult {
+            action_id: "act_test_2".to_string(),
             verdict: SafetyVerdict::Allow,
             category: ActionCategory::Safe,
             reason: "test".into(),
@@ -979,19 +1025,23 @@ mod tests {
 
     #[test]
     fn test_deny_invariant_confirm_refused() {
-        // Record an action as denied
+        // Record an action as denied using action_id (NOT rule_name)
+        let deny_action_id = "act_deny_test_123";
         {
             if let Ok(mut denied) = DENIED_ACTIONS.lock() {
-                denied.insert("deny_test_action".to_string(), current_time());
+                denied.insert(deny_action_id.to_string(), current_time());
             }
         }
-        assert!(!confirm_action("deny_test_action"));
-        assert!(!approve_action("deny_test_action", "admin"));
+        // confirm_action and approve_action MUST refuse this action_id
+        assert!(!confirm_action(deny_action_id));
+        assert!(!approve_action(deny_action_id, "admin"));
+
+        // But a DIFFERENT action_id should still work
+        assert!(confirm_action("act_other_456"));
+        assert!(approve_action("act_other_789", "admin"));
 
         // Clean up
-        if let Ok(mut denied) = DENIED_ACTIONS.lock() {
-            denied.remove("deny_test_action");
-        }
+        reset_safety_gate();
     }
 
     #[test]

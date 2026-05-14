@@ -31,10 +31,16 @@ use crate::role::{CriticalityClearance, Role};
 /// The gate uses the highest clearance level among all assigned
 /// roles for a session. A session with at least one role that
 /// has `Critical` clearance can access any node.
+///
+/// **IMMUTABILITY INVARIANT**: Thresholds are set at construction time
+/// and cannot be modified at runtime. This mirrors the same immutability
+/// principle as [`SafetyVeto`] — security boundaries must never be
+/// weakened after initialization. Use [`CriticalityGateBuilder`] to
+/// configure custom thresholds before building.
 pub struct CriticalityGate {
     /// Minimum clearance required for each criticality level.
-    /// By default, each criticality level requires an equal or
-    /// higher clearance level.
+    /// Immutable after construction — enforced by the absence of
+    /// any public mutation method.
     thresholds: IndexMap<NodeCriticality, CriticalityClearance>,
 }
 
@@ -102,9 +108,69 @@ impl CriticalityGate {
         }
     }
 
-    /// Overrides the threshold for a specific criticality level.
-    pub fn set_threshold(&mut self, criticality: NodeCriticality, clearance: CriticalityClearance) {
+    /// Returns the clearance required for a given criticality level.
+    ///
+    /// Useful for diagnostics and audit logging.
+    pub fn required_clearance(&self, criticality: NodeCriticality) -> CriticalityClearance {
+        self.thresholds
+            .get(&criticality)
+            .copied()
+            .unwrap_or(CriticalityClearance::Critical)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CriticalityGateBuilder
+// ---------------------------------------------------------------------------
+
+/// Builder for constructing a [`CriticalityGate`] with custom thresholds.
+///
+/// Security boundaries (clearance thresholds) must be configured *before*
+/// the gate is built. Once built, the gate is immutable. This prevents
+/// runtime weakening of security boundaries — the same principle as
+/// [`SafetyVeto`].
+///
+/// # Example
+///
+/// ```ignore
+/// let gate = CriticalityGateBuilder::new()
+///     .threshold(NodeCriticality::Low, CriticalityClearance::Critical)
+///     .build();
+/// ```
+pub struct CriticalityGateBuilder {
+    thresholds: IndexMap<NodeCriticality, CriticalityClearance>,
+}
+
+impl CriticalityGateBuilder {
+    /// Creates a builder pre-populated with the default thresholds.
+    pub fn new() -> Self {
+        let mut thresholds = IndexMap::new();
+        thresholds.insert(NodeCriticality::Low, CriticalityClearance::Low);
+        thresholds.insert(NodeCriticality::Medium, CriticalityClearance::Medium);
+        thresholds.insert(NodeCriticality::High, CriticalityClearance::High);
+        thresholds.insert(NodeCriticality::Critical, CriticalityClearance::Critical);
+        Self { thresholds }
+    }
+
+    /// Sets the clearance threshold for a specific criticality level.
+    ///
+    /// Can be called multiple times — last call wins for a given level.
+    pub fn threshold(mut self, criticality: NodeCriticality, clearance: CriticalityClearance) -> Self {
         self.thresholds.insert(criticality, clearance);
+        self
+    }
+
+    /// Builds the immutable [`CriticalityGate`].
+    pub fn build(self) -> CriticalityGate {
+        CriticalityGate {
+            thresholds: self.thresholds,
+        }
+    }
+}
+
+impl Default for CriticalityGateBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -316,9 +382,11 @@ mod tests {
 
     #[test]
     fn criticality_gate_custom_threshold() {
-        let mut gate = CriticalityGate::new();
+        // Use the builder to configure custom thresholds at construction time.
         // Require Critical clearance even for Low criticality.
-        gate.set_threshold(NodeCriticality::Low, CriticalityClearance::Critical);
+        let gate = CriticalityGateBuilder::new()
+            .threshold(NodeCriticality::Low, CriticalityClearance::Critical)
+            .build();
         let medium_role = Role::new("operator", "Operator").with_clearance(CriticalityClearance::Medium);
         let roles = vec![&medium_role];
         let result = gate.check(

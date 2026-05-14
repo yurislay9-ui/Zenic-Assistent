@@ -17,7 +17,7 @@ use zenic_proto::{BusinessDomain, NodeCriticality, NodeId, SessionId, TenantId};
 
 use crate::audit::{AuditLog, DenialReason, PolicyDecision};
 use crate::errors::PolicyError;
-use crate::gate::{CriticalityGate, SafetyVeto, SafetyVetoRegistry};
+use crate::gate::{CriticalityGate, CriticalityGateBuilder, SafetyVeto, SafetyVetoRegistry};
 use crate::permission::Permission;
 use crate::role::{Role, RoleAssignment, RoleId, RoleRegistry};
 use crate::rule::{RuleEffect, RuleSet};
@@ -191,13 +191,30 @@ impl PolicyEngine {
     // Criticality gate management
     // -----------------------------------------------------------------------
 
-    /// Overrides the criticality threshold for a level.
-    pub fn set_criticality_threshold(
-        &mut self,
-        criticality: NodeCriticality,
-        clearance: crate::role::CriticalityClearance,
-    ) {
-        self.criticality_gate.set_threshold(criticality, clearance);
+    /// Replaces the criticality gate with a new one built from the provided
+    /// thresholds.
+    ///
+    /// E-12 FIX: The gate is now **immutable** after construction. To change
+    /// thresholds, call this method with a fully-configured gate. This replaces
+    /// the old `set_criticality_threshold()` which called a non-existent
+    /// `CriticalityGate::set_threshold()` method — a compile error.
+    ///
+    /// The typical pattern is:
+    /// ```ignore
+    /// let gate = CriticalityGateBuilder::new()
+    ///     .threshold(NodeCriticality::Low, CriticalityClearance::Critical)
+    ///     .build();
+    /// engine.replace_criticality_gate(gate);
+    /// ```
+    pub fn replace_criticality_gate(&mut self, gate: CriticalityGate) {
+        self.criticality_gate = gate;
+    }
+
+    /// Returns the clearance required for a given criticality level.
+    ///
+    /// Useful for diagnostics and audit logging.
+    pub fn required_clearance(&self, criticality: NodeCriticality) -> crate::role::CriticalityClearance {
+        self.criticality_gate.required_clearance(criticality)
     }
 
     // -----------------------------------------------------------------------
@@ -813,5 +830,46 @@ mod tests {
         assert_eq!(engine.rule_count(), 0);
         assert_eq!(engine.veto_count(), 0);
         assert_eq!(engine.audit_count(), 0);
+    }
+
+    // -----------------------------------------------------------------------
+    // E-12 FIX: replace_criticality_gate test
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn engine_replace_criticality_gate_with_builder() {
+        let mut engine = PolicyEngine::new();
+
+        // Default gate: Low clearance can access Low criticality.
+        assert_eq!(engine.required_clearance(NodeCriticality::Low), CriticalityClearance::Low);
+
+        // Replace with a stricter gate: require Critical clearance even for Low criticality.
+        let strict_gate = CriticalityGateBuilder::new()
+            .threshold(NodeCriticality::Low, CriticalityClearance::Critical)
+            .threshold(NodeCriticality::Medium, CriticalityClearance::Critical)
+            .threshold(NodeCriticality::High, CriticalityClearance::Critical)
+            .threshold(NodeCriticality::Critical, CriticalityClearance::Critical)
+            .build();
+
+        engine.replace_criticality_gate(strict_gate);
+
+        // Now Low criticality requires Critical clearance.
+        assert_eq!(engine.required_clearance(NodeCriticality::Low), CriticalityClearance::Critical);
+
+        // Verify that a Low-clearance role is now denied for Low-criticality nodes.
+        let role = make_viewer_role(); // Low clearance
+        let role_id = role.id;
+        engine.register_role(role).expect("register");
+        let sid = SessionId::new();
+        let tid = TenantId::new();
+        engine.assign_role(role_id, sid, tid).expect("assign");
+        engine.add_rule(PolicyRule::allow("allow_exec", "Allow", Permission::new(Action::Execute, Resource::AllNodes))).expect("add rule");
+
+        let node_id = NodeId::new();
+        let ctx = PolicyContext::new(sid, tid, Permission::new(Action::Execute, Resource::Node(node_id)))
+            .with_criticality(NodeCriticality::Low, node_id);
+
+        // Should be denied because even Low criticality now requires Critical clearance.
+        assert!(engine.evaluate(&ctx).is_err());
     }
 }
