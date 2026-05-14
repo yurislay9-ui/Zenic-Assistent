@@ -923,7 +923,7 @@ mod tests {
         let state = E2EPipelineState::new(
             "e2e-test-001".to_string(),
             "fintech".to_string(),
-            "FinTech".to_string(),
+            "Tecnología Financiera".to_string(),
             "fintech".to_string(),
             "high".to_string(),
             45,

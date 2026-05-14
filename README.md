@@ -167,15 +167,15 @@ Los nichos son plantillas industriales compiladas estaticamente en Rust que defi
 
 ### 7 Categorias
 
-| Categoria | Subnichos | Compliance |
-|-----------|-----------|------------|
-| **AI & Data** | ai_automation, data_analytics, ml_operations, nlp_services | GDPR, SOC2 |
-| **FinTech** | defi_protocols, neo_banking, insurtech, regtech | PCI-DSS, AML, KYC, SOX, Basel III |
-| **HealthTech** | telemedicine, mental_health_ai, genomics, wearables_health | HIPAA, GDPR, FDA, GINA |
-| **GreenTech** | carbon_tracking, smart_grid, circular_economy | GHG Protocol, NERC, IEC 61850 |
-| **EdTech** | adaptive_learning, vr_education, micro_credentials | FERPA, COPPA |
-| **PropTech** | smart_buildings, digital_twins, fractional_ownership | BREEAM, LEED, SEC, ISO 23247 |
-| **LegalTech** | smart_contracts, legal_ai, compliance_automation | SOX, eIDAS, ABA, ISO 27001 |
+| Categoria | Nichos | Compliance |
+|-----------|--------|------------|
+| **IA y Datos** | Automatización IA, Análisis de Datos, Operaciones ML, Servicios PLN | GDPR, SOC2 |
+| **Tecnología Financiera** | Protocolos DeFi, Banca Digital, Tecnología Aseguradora, Tecnología Regulatoria | PCI-DSS, AML, KYC, SOX, Basel III |
+| **Tecnología de la Salud** | Telemedicina, IA de Salud Mental, Genómica, Salud con Wearables | HIPAA, GDPR, FDA, GINA |
+| **Tecnología Verde** | Seguimiento de Carbono, Red Eléctrica Inteligente, Economía Circular | GHG Protocol, NERC, IEC 61850 |
+| **Tecnología Educativa** | Aprendizaje Adaptativo, Educación en RV, Microcredenciales | FERPA, COPPA |
+| **Tecnología Inmobiliaria** | Edificios Inteligentes, Gemelos Digitales, Propiedad Fraccional | BREEAM, LEED, SEC, ISO 23247 |
+| **Tecnología Jurídica** | Contratos Inteligentes, IA Jurídica, Automatización de Cumplimiento | SOX, eIDAS, ABA, ISO 27001 |
 
 ### 4 Niveles de Sensibilidad
 
@@ -205,12 +205,12 @@ Los nichos son plantillas industriales compiladas estaticamente en Rust que defi
 
 | Regla | Dominio | Accion Bloqueada |
 |-------|---------|-----------------|
-| `fintech_unauthorized_transfer` | FinTech | Transferencias no autorizadas |
-| `fintech_compliance_bypass` | FinTech | Bypass de compliance/KYC/AML |
-| `healthtech_prescription_mod` | HealthTech | Modificar recetas medicas |
-| `edtech_grade_modify` | EdTech | Modificar calificaciones |
-| `edtech_content_filter` | EdTech | Filtrar contenido educativo |
-| `legaltech_document_delete` | LegalTech | Borrar documentos legales |
+| `fintech_unauthorized_transfer` | Tecnología Financiera | Transferencias no autorizadas |
+| `fintech_compliance_bypass` | Tecnología Financiera | Bypass de compliance/KYC/AML |
+| `healthtech_prescription_mod` | Tecnología de la Salud | Modificar recetas medicas |
+| `edtech_grade_modify` | Tecnología Educativa | Modificar calificaciones |
+| `edtech_content_filter` | Tecnología Educativa | Filtrar contenido educativo |
+| `legaltech_document_delete` | Tecnología Jurídica | Borrar documentos legales |
 
 ---
 

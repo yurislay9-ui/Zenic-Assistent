@@ -47,13 +47,13 @@ use std::sync::RwLock;
 /// ======== ============ ===================================
 /// Variant  Python value Description
 /// ======== ============ ===================================
-/// AiData   ``"ai_data"`` AI, ML, NLP, Data Analytics
-/// FinTech  ``"fintech"`` DeFi, Neo-banking, InsurTech, RegTech
-/// HealthTech ``"healthtech"`` Telemedicine, Genomics, Wearables
-/// GreenTech ``"greentech"`` Carbon, Smart Grid, Circular Economy
-/// EdTech   ``"edtech"`` Adaptive Learning, VR, Micro-credentials
-/// PropTech ``"proptech"`` Smart Buildings, Digital Twins
-/// LegalTech ``"legaltech"`` Smart Contracts, Legal AI, Compliance
+/// AiData   ``"ai_data"`` IA, ML, PLN, Analítica de Datos
+/// FinTech  ``"fintech"`` DeFi, Banca Digital, Tecnología Aseguradora, Tecnología Regulatoria
+/// HealthTech ``"healthtech"`` Telemedicina, Genómica, Wearables
+/// GreenTech ``"greentech"`` Seguimiento de Carbono, Red Eléctrica Inteligente, Economía Circular
+/// EdTech   ``"edtech"`` Aprendizaje Adaptativo, RV, Microcredenciales
+/// PropTech ``"proptech"`` Edificios Inteligentes, Gemelos Digitales
+/// LegalTech ``"legaltech"`` Contratos Inteligentes, IA Jurídica, Cumplimiento
 /// ======== ============ ===================================
 #[pyclass(name = "NicheCategory", eq, eq_int, frozen, hash)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Copy, Serialize, Deserialize)]
@@ -81,16 +81,16 @@ impl NicheCategory {
         }
     }
 
-    /// Human-readable display name.
+    /// Human-readable display name (Spanish).
     pub fn display_name(&self) -> &'static str {
         match self {
-            NicheCategory::AiData => "AI & Data",
-            NicheCategory::FinTech => "FinTech",
-            NicheCategory::HealthTech => "HealthTech",
-            NicheCategory::GreenTech => "GreenTech",
-            NicheCategory::EdTech => "EdTech",
-            NicheCategory::PropTech => "PropTech",
-            NicheCategory::LegalTech => "LegalTech",
+            NicheCategory::AiData => "IA y Datos",
+            NicheCategory::FinTech => "Tecnología Financiera",
+            NicheCategory::HealthTech => "Tecnología de la Salud",
+            NicheCategory::GreenTech => "Tecnología Verde",
+            NicheCategory::EdTech => "Tecnología Educativa",
+            NicheCategory::PropTech => "Tecnología Inmobiliaria",
+            NicheCategory::LegalTech => "Tecnología Jurídica",
         }
     }
 
@@ -849,13 +849,13 @@ mod tests {
 
     #[test]
     fn test_niche_category_display_names() {
-        assert_eq!(NicheCategory::AiData.display_name(), "AI & Data");
-        assert_eq!(NicheCategory::FinTech.display_name(), "FinTech");
-        assert_eq!(NicheCategory::HealthTech.display_name(), "HealthTech");
-        assert_eq!(NicheCategory::GreenTech.display_name(), "GreenTech");
-        assert_eq!(NicheCategory::EdTech.display_name(), "EdTech");
-        assert_eq!(NicheCategory::PropTech.display_name(), "PropTech");
-        assert_eq!(NicheCategory::LegalTech.display_name(), "LegalTech");
+        assert_eq!(NicheCategory::AiData.display_name(), "IA y Datos");
+        assert_eq!(NicheCategory::FinTech.display_name(), "Tecnología Financiera");
+        assert_eq!(NicheCategory::HealthTech.display_name(), "Tecnología de la Salud");
+        assert_eq!(NicheCategory::GreenTech.display_name(), "Tecnología Verde");
+        assert_eq!(NicheCategory::EdTech.display_name(), "Tecnología Educativa");
+        assert_eq!(NicheCategory::PropTech.display_name(), "Tecnología Inmobiliaria");
+        assert_eq!(NicheCategory::LegalTech.display_name(), "Tecnología Jurídica");
     }
 
     #[test]
@@ -953,7 +953,7 @@ mod tests {
     fn test_niche_definition_with_sections() {
         let mut niche = NicheDefinition::new(
             "ai_automation".to_string(),
-            "AI Automation".to_string(),
+            "Automatización IA".to_string(),
             NicheCategory::AiData,
             "AI automation platform".to_string(),
             "ai".to_string(),

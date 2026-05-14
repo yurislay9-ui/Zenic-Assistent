@@ -11,13 +11,13 @@
 //!
 //! | Category   | Count | Niches                                      |
 //! |------------|-------|---------------------------------------------|
-//! | AiData     | 4     | ai_automation, data_analytics, ml_operations, nlp_services |
-//! | FinTech    | 4     | defi_protocols, neo_banking, insurtech, regtech |
-//! | HealthTech | 4     | telemedicine, mental_health_ai, genomics, wearables_health |
-//! | GreenTech  | 3     | carbon_tracking, smart_grid, circular_economy |
-//! | EdTech     | 3     | adaptive_learning, vr_education, micro_credentials |
-//! | PropTech   | 3     | smart_buildings, digital_twins, fractional_ownership |
-//! | LegalTech  | 3     | smart_contracts, legal_ai, compliance_automation |
+//! | IA y Datos | 4     | ai_automation, data_analytics, ml_operations, nlp_services |
+//! | Tecnología Financiera | 4     | defi_protocols, neo_banking, insurtech, regtech |
+//! | Tecnología de la Salud | 4     | telemedicine, mental_health_ai, genomics, wearables_health |
+//! | Tecnología Verde | 3     | carbon_tracking, smart_grid, circular_economy |
+//! | Tecnología Educativa | 3     | adaptive_learning, vr_education, micro_credentials |
+//! | Tecnología Inmobiliaria | 3     | smart_buildings, digital_twins, fractional_ownership |
+//! | Tecnología Jurídica | 3     | smart_contracts, legal_ai, compliance_automation |
 //!
 //! # PyO3 Functions
 //!
@@ -43,34 +43,34 @@ use crate::niche::{
 
 static CATALOG: Lazy<Vec<NicheDefinition>> = Lazy::new(|| {
     vec![
-        // ── AI & Data (4) ──────────────────────────────────────
+        // ── IA y Datos (4) ──────────────────────────────────────
         build_ai_automation(),
         build_data_analytics(),
         build_ml_operations(),
         build_nlp_services(),
-        // ── FinTech (4) ────────────────────────────────────────
+        // ── Tecnología Financiera (4) ────────────────────────────────────────
         build_defi_protocols(),
         build_neo_banking(),
         build_insurtech(),
         build_regtech(),
-        // ── HealthTech (4) ─────────────────────────────────────
+        // ── Tecnología de la Salud (4) ─────────────────────────────────────
         build_telemedicine(),
         build_mental_health_ai(),
         build_genomics(),
         build_wearables_health(),
-        // ── GreenTech (3) ──────────────────────────────────────
+        // ── Tecnología Verde (3) ──────────────────────────────────────
         build_carbon_tracking(),
         build_smart_grid(),
         build_circular_economy(),
-        // ── EdTech (3) ─────────────────────────────────────────
+        // ── Tecnología Educativa (3) ─────────────────────────────────────────
         build_adaptive_learning(),
         build_vr_education(),
         build_micro_credentials(),
-        // ── PropTech (3) ───────────────────────────────────────
+        // ── Tecnología Inmobiliaria (3) ───────────────────────────────────────
         build_smart_buildings(),
         build_digital_twins(),
         build_fractional_ownership(),
-        // ── LegalTech (3) ──────────────────────────────────────
+        // ── Tecnología Jurídica (3) ──────────────────────────────────────
         build_smart_contracts(),
         build_legal_ai(),
         build_compliance_automation(),
@@ -156,9 +156,12 @@ pub fn catalog_search(query: &str) -> Vec<NicheDefinition> {
     CATALOG
         .iter()
         .filter(|n| {
-            n.name().to_lowercase().contains(&query_lower)
+            // Buscar por niche_id, nombre, dominio, subdominio, categoría y tags
+            n.niche_id().to_lowercase().contains(&query_lower)
+                || n.name().to_lowercase().contains(&query_lower)
                 || n.domain().to_lowercase().contains(&query_lower)
                 || n.subdomain().to_lowercase().contains(&query_lower)
+                || n.category().as_str().to_lowercase().contains(&query_lower)
                 || n.tags().iter().any(|t| t.to_lowercase().contains(&query_lower))
         })
         .cloned()
@@ -181,12 +184,12 @@ pub fn catalog_ids() -> Vec<String> {
 //  Niche Builders — one function per niche
 // ═══════════════════════════════════════════════════════════════
 
-// ── AI & Data ────────────────────────────────────────────────
+// ── IA y Datos ────────────────────────────────────────────────
 
 fn build_ai_automation() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "ai_automation".into(),
-        "AI Automation".into(),
+        "Automatización IA".into(),
         NicheCategory::AiData,
         "Plataforma de automatizacion inteligente con agentes AI para flujos de trabajo empresariales.".into(),
         "ai".into(),
@@ -207,7 +210,7 @@ fn build_ai_automation() -> NicheDefinition {
 fn build_data_analytics() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "data_analytics".into(),
-        "Data Analytics".into(),
+        "Análisis de Datos".into(),
         NicheCategory::AiData,
         "Plataforma de analisis de datos con dashboards interactivos, ETL automatizado y reportes predictivos.".into(),
         "data".into(),
@@ -228,7 +231,7 @@ fn build_data_analytics() -> NicheDefinition {
 fn build_ml_operations() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "ml_operations".into(),
-        "ML Operations".into(),
+        "Operaciones ML".into(),
         NicheCategory::AiData,
         "Plataforma MLOps para gestion del ciclo de vida de modelos ML: entrenamiento, despliegue, monitoreo y reentrenamiento.".into(),
         "ml".into(),
@@ -249,7 +252,7 @@ fn build_ml_operations() -> NicheDefinition {
 fn build_nlp_services() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "nlp_services".into(),
-        "NLP Services".into(),
+        "Servicios PLN".into(),
         NicheCategory::AiData,
         "Plataforma de procesamiento de lenguaje natural: chatbots, analisis de sentimiento, extraccion de entidades y traduccion.".into(),
         "nlp".into(),
@@ -266,12 +269,12 @@ fn build_nlp_services() -> NicheDefinition {
     n
 }
 
-// ── FinTech ──────────────────────────────────────────────────
+// ── Tecnología Financiera ──────────────────────────────────────────
 
 fn build_defi_protocols() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "defi_protocols".into(),
-        "DeFi Protocols".into(),
+        "Protocolos DeFi".into(),
         NicheCategory::FinTech,
         "Plataforma DeFi para protocolos de finanzas descentralizadas: staking, lending, yield farming y gobernanza DAO.".into(),
         "defi".into(),
@@ -292,7 +295,7 @@ fn build_defi_protocols() -> NicheDefinition {
 fn build_neo_banking() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "neo_banking".into(),
-        "Neo Banking".into(),
+        "Banca Digital".into(),
         NicheCategory::FinTech,
         "Plataforma de banca digital con cuentas, transferencias, tarjetas virtuales y gestion de ahorros.".into(),
         "banking".into(),
@@ -313,7 +316,7 @@ fn build_neo_banking() -> NicheDefinition {
 fn build_insurtech() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "insurtech".into(),
-        "InsurTech".into(),
+        "Tecnología Aseguradora".into(),
         NicheCategory::FinTech,
         "Plataforma de seguros digitales con suscripcion automatizada, evaluacion de riesgos AI y gestion de reclamos.".into(),
         "insurance".into(),
@@ -334,7 +337,7 @@ fn build_insurtech() -> NicheDefinition {
 fn build_regtech() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "regtech".into(),
-        "RegTech".into(),
+        "Tecnología Regulatoria".into(),
         NicheCategory::FinTech,
         "Plataforma de tecnologia regulatoria con monitoreo de cumplimiento automatizado, reportes regulatorios y gestion de riesgos.".into(),
         "regulatory".into(),
@@ -351,12 +354,12 @@ fn build_regtech() -> NicheDefinition {
     n
 }
 
-// ── HealthTech ───────────────────────────────────────────────
+// ── Tecnología de la Salud ───────────────────────────────────────
 
 fn build_telemedicine() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "telemedicine".into(),
-        "Telemedicine".into(),
+        "Telemedicina".into(),
         NicheCategory::HealthTech,
         "Plataforma de telemedicina para consultas virtuales con gestion de sesiones de video, notas medicas y cumplimiento HIPAA.".into(),
         "health".into(),
@@ -377,7 +380,7 @@ fn build_telemedicine() -> NicheDefinition {
 fn build_mental_health_ai() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "mental_health_ai".into(),
-        "Mental Health AI".into(),
+        "IA de Salud Mental".into(),
         NicheCategory::HealthTech,
         "Plataforma de salud mental con AI para triaje, seguimiento de pacientes, sesiones de terapia asistidas y analisis de bienestar.".into(),
         "health".into(),
@@ -398,7 +401,7 @@ fn build_mental_health_ai() -> NicheDefinition {
 fn build_genomics() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "genomics".into(),
-        "Genomics".into(),
+        "Genómica".into(),
         NicheCategory::HealthTech,
         "Plataforma de genómica con analisis de secuencias, variantes geneticas, farmacogenomica y reportes clinicos.".into(),
         "health".into(),
@@ -418,7 +421,7 @@ fn build_genomics() -> NicheDefinition {
 fn build_wearables_health() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "wearables_health".into(),
-        "Wearables Health".into(),
+        "Salud con Wearables".into(),
         NicheCategory::HealthTech,
         "Plataforma de salud con wearables para monitoreo de signos vitales, alertas preventivas y seguimiento de actividad fisica.".into(),
         "health".into(),
@@ -435,12 +438,12 @@ fn build_wearables_health() -> NicheDefinition {
     n
 }
 
-// ── GreenTech ────────────────────────────────────────────────
+// ── Tecnología Verde ────────────────────────────────────────
 
 fn build_carbon_tracking() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "carbon_tracking".into(),
-        "Carbon Tracking".into(),
+        "Seguimiento de Carbono".into(),
         NicheCategory::GreenTech,
         "Plataforma de seguimiento de huella de carbono con medicion, reportes ESG y compensacion de emisiones.".into(),
         "environment".into(),
@@ -460,7 +463,7 @@ fn build_carbon_tracking() -> NicheDefinition {
 fn build_smart_grid() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "smart_grid".into(),
-        "Smart Grid".into(),
+        "Red Eléctrica Inteligente".into(),
         NicheCategory::GreenTech,
         "Plataforma de red electrica inteligente con monitoreo en tiempo real, distribucion automatizada y balance de carga.".into(),
         "energy".into(),
@@ -480,7 +483,7 @@ fn build_smart_grid() -> NicheDefinition {
 fn build_circular_economy() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "circular_economy".into(),
-        "Circular Economy".into(),
+        "Economía Circular".into(),
         NicheCategory::GreenTech,
         "Plataforma de economia circular con trazabilidad de materiales, reciclaje inteligente y cadenas de reutilizacion.".into(),
         "environment".into(),
@@ -497,12 +500,12 @@ fn build_circular_economy() -> NicheDefinition {
     n
 }
 
-// ── EdTech ───────────────────────────────────────────────────
+// ── Tecnología Educativa ───────────────────────────────────────
 
 fn build_adaptive_learning() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "adaptive_learning".into(),
-        "Adaptive Learning".into(),
+        "Aprendizaje Adaptativo".into(),
         NicheCategory::EdTech,
         "Plataforma de aprendizaje adaptativo con rutas personalizadas, evaluacion inteligente y recomendaciones basadas en AI.".into(),
         "education".into(),
@@ -522,7 +525,7 @@ fn build_adaptive_learning() -> NicheDefinition {
 fn build_vr_education() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "vr_education".into(),
-        "VR Education".into(),
+        "Educación en RV".into(),
         NicheCategory::EdTech,
         "Plataforma educativa en realidad virtual con laboratorios inmersivos, simulaciones interactivas y sesiones colaborativas.".into(),
         "education".into(),
@@ -542,7 +545,7 @@ fn build_vr_education() -> NicheDefinition {
 fn build_micro_credentials() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "micro_credentials".into(),
-        "Micro Credentials".into(),
+        "Microcredenciales".into(),
         NicheCategory::EdTech,
         "Plataforma de micro-credenciales con certificaciones digitales verificables, badges blockchain y rutas de habilidades.".into(),
         "education".into(),
@@ -559,12 +562,12 @@ fn build_micro_credentials() -> NicheDefinition {
     n
 }
 
-// ── PropTech ─────────────────────────────────────────────────
+// ── Tecnología Inmobiliaria ─────────────────────────────────────────
 
 fn build_smart_buildings() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "smart_buildings".into(),
-        "Smart Buildings".into(),
+        "Edificios Inteligentes".into(),
         NicheCategory::PropTech,
         "Plataforma de edificios inteligentes con IoT, gestion energetica automatizada, control de acceso y mantenimiento predictivo.".into(),
         "realestate".into(),
@@ -584,7 +587,7 @@ fn build_smart_buildings() -> NicheDefinition {
 fn build_digital_twins() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "digital_twins".into(),
-        "Digital Twins".into(),
+        "Gemelos Digitales".into(),
         NicheCategory::PropTech,
         "Plataforma de gemelos digitales para simulacion de propiedades, analisis de rendimiento y planificacion de mantenimiento.".into(),
         "realestate".into(),
@@ -604,7 +607,7 @@ fn build_digital_twins() -> NicheDefinition {
 fn build_fractional_ownership() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "fractional_ownership".into(),
-        "Fractional Ownership".into(),
+        "Propiedad Fraccional".into(),
         NicheCategory::PropTech,
         "Plataforma de propiedad fraccional con tokenizacion de activos, gestion de copropiedad y distribucion de rendimientos.".into(),
         "realestate".into(),
@@ -621,12 +624,12 @@ fn build_fractional_ownership() -> NicheDefinition {
     n
 }
 
-// ── LegalTech ────────────────────────────────────────────────
+// ── Tecnología Jurídica ────────────────────────────────────────
 
 fn build_smart_contracts() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "smart_contracts".into(),
-        "Smart Contracts".into(),
+        "Contratos Inteligentes".into(),
         NicheCategory::LegalTech,
         "Plataforma de contratos inteligentes con generacion automatizada, auditoria de codigo, despliegue en blockchain y monitoreo.".into(),
         "legal".into(),
@@ -646,7 +649,7 @@ fn build_smart_contracts() -> NicheDefinition {
 fn build_legal_ai() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "legal_ai".into(),
-        "Legal AI".into(),
+        "IA Jurídica".into(),
         NicheCategory::LegalTech,
         "Plataforma de AI legal con analisis de documentos, revision de contratos, investigacion juridica y predicion de resultados.".into(),
         "legal".into(),
@@ -666,7 +669,7 @@ fn build_legal_ai() -> NicheDefinition {
 fn build_compliance_automation() -> NicheDefinition {
     let mut n = NicheDefinition::new(
         "compliance_automation".into(),
-        "Compliance Automation".into(),
+        "Automatización de Cumplimiento".into(),
         NicheCategory::LegalTech,
         "Plataforma de automatizacion de cumplimiento con monitoreo continuo, evaluacion de riesgos, reportes automaticos y auditoria.".into(),
         "legal".into(),
@@ -1201,7 +1204,7 @@ mod tests {
     #[test]
     fn test_catalog_get_by_id() {
         let niche = catalog_get_by_id("telemedicine").expect("telemedicine should exist");
-        assert_eq!(niche.name(), "Telemedicine");
+        assert_eq!(niche.name(), "Telemedicina");
         assert_eq!(niche.category(), NicheCategory::HealthTech);
         assert_eq!(niche.data_sensitivity(), DataSensitivity::Critical);
     }

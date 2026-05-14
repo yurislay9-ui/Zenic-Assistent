@@ -14,7 +14,7 @@
 //! template:
 //!   metadata:
 //!     niche_id: "telemedicine"
-//!     niche_name: "Telemedicine"
+//!     niche_name: "Telemedicina"
 //!     version: "1.0.0"
 //!     generated_at: "2025-01-15T10:30:00Z"
 //!     status: "incomplete"

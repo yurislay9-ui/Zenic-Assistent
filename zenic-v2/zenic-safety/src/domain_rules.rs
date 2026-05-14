@@ -159,7 +159,7 @@ impl DomainRuleSet {
         rules
     }
 
-    /// AI & Data Analytics rules (5).
+    /// Reglas de IA y Datos (5).
     fn ai_data_rules() -> Vec<DomainRule> {
         vec![
             DomainRule::new(
@@ -215,7 +215,7 @@ impl DomainRuleSet {
         ]
     }
 
-    /// FinTech rules (5).
+    /// Reglas de Tecnología Financiera (5).
     fn fintech_rules() -> Vec<DomainRule> {
         vec![
             DomainRule::new(
@@ -271,7 +271,7 @@ impl DomainRuleSet {
         ]
     }
 
-    /// HealthTech rules (5).
+    /// Reglas de Tecnología de la Salud (5).
     fn healthtech_rules() -> Vec<DomainRule> {
         vec![
             DomainRule::new(
@@ -327,7 +327,7 @@ impl DomainRuleSet {
         ]
     }
 
-    /// GreenTech rules (5).
+    /// Reglas de Tecnología Verde (5).
     fn greentech_rules() -> Vec<DomainRule> {
         vec![
             DomainRule::new(
@@ -383,7 +383,7 @@ impl DomainRuleSet {
         ]
     }
 
-    /// EdTech rules (5).
+    /// Reglas de Tecnología Educativa (5).
     fn edtech_rules() -> Vec<DomainRule> {
         vec![
             DomainRule::new(
@@ -439,7 +439,7 @@ impl DomainRuleSet {
         ]
     }
 
-    /// PropTech rules (5).
+    /// Reglas de Tecnología Inmobiliaria (5).
     fn proptech_rules() -> Vec<DomainRule> {
         vec![
             DomainRule::new(
@@ -495,7 +495,7 @@ impl DomainRuleSet {
         ]
     }
 
-    /// LegalTech rules (5).
+    /// Reglas de Tecnología Jurídica (5).
     fn legaltech_rules() -> Vec<DomainRule> {
         vec![
             DomainRule::new(

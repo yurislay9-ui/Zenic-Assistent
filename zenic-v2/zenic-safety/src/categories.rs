@@ -15,19 +15,19 @@ use std::fmt;
 /// standards that must be validated.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum NicheCategory {
-    /// AI & Data Analytics (ml_ops, data_pipeline, nlp_analytics, predictive_maintenance, ai_consulting)
+    /// IA y Datos (ml_ops, data_pipeline, nlp_analytics, predictive_maintenance, ai_consulting)
     AiData,
-    /// Financial Technology (neo_banking, defi_analytics, payment_gateway, insurance_tech, regtech)
+    /// Tecnología Financiera (neo_banking, defi_analytics, payment_gateway, insurance_tech, regtech)
     FinTech,
-    /// Health Technology (telemedicine, mental_health, clinical_trials, health_wearable, pharma_trace)
+    /// Tecnología de la Salud (telemedicine, mental_health, clinical_trials, health_wearable, pharma_trace)
     HealthTech,
-    /// Green Technology (carbon_credits, smart_grid, ev_fleet, waste_management, green_bond)
+    /// Tecnología Verde (carbon_credits, smart_grid, ev_fleet, waste_management, green_bond)
     GreenTech,
-    /// Education Technology (adaptive_learning, skill_assessment, virtual_classroom, ed_corporate, ed_neurodiverse)
+    /// Tecnología Educativa (adaptive_learning, skill_assessment, virtual_classroom, ed_corporate, ed_neurodiverse)
     EdTech,
-    /// Property Technology (smart_buildings, property_marketplace, str_analytics, cowork_manager, prop_token)
+    /// Tecnología Inmobiliaria (smart_buildings, property_marketplace, str_analytics, cowork_manager, prop_token)
     PropTech,
-    /// Legal Technology (contract_review, legal_research, compliance_monitor, ip_manager, dispute_resolution)
+    /// Tecnología Jurídica (contract_review, legal_research, compliance_monitor, ip_manager, dispute_resolution)
     LegalTech,
 }
 
@@ -59,16 +59,16 @@ impl NicheCategory {
         }
     }
 
-    /// Returns the human-readable display name.
+    /// Returns the human-readable display name (Spanish).
     pub fn display_name(&self) -> &'static str {
         match self {
-            Self::AiData => "AI & Data Analytics",
-            Self::FinTech => "Financial Technology",
-            Self::HealthTech => "Health Technology",
-            Self::GreenTech => "Green Technology",
-            Self::EdTech => "Education Technology",
-            Self::PropTech => "Property Technology",
-            Self::LegalTech => "Legal Technology",
+            Self::AiData => "IA y Datos",
+            Self::FinTech => "Tecnología Financiera",
+            Self::HealthTech => "Tecnología de la Salud",
+            Self::GreenTech => "Tecnología Verde",
+            Self::EdTech => "Tecnología Educativa",
+            Self::PropTech => "Tecnología Inmobiliaria",
+            Self::LegalTech => "Tecnología Jurídica",
         }
     }
 
@@ -137,7 +137,7 @@ mod tests {
 
     #[test]
     fn category_display_name() {
-        assert_eq!(NicheCategory::HealthTech.display_name(), "Health Technology");
+        assert_eq!(NicheCategory::HealthTech.display_name(), "Tecnología de la Salud");
     }
 
     #[test]

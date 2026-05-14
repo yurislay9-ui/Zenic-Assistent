@@ -1811,7 +1811,7 @@ mod tests {
         let session = CompletionSession::new(
             "test-session-001".to_string(),
             "telemedicine".to_string(),
-            "Telemedicine".to_string(),
+            "Telemedicina".to_string(),
             "healthtech".to_string(),
             "critical".to_string(),
             45,
@@ -1831,7 +1831,7 @@ mod tests {
         let mut session = CompletionSession::new(
             "test-session-002".to_string(),
             "ai_automation".to_string(),
-            "AI Automation".to_string(),
+            "Automatización IA".to_string(),
             "ai_data".to_string(),
             "high".to_string(),
             30,
