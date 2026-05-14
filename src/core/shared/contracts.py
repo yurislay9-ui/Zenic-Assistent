@@ -28,7 +28,10 @@ from .mcts import MCTSNode, MCTSPlanner
 from .constraint_solver import Constraint, ConstraintSolver
 from .z3_solver import Z3Solver, HAS_Z3
 from .timeout import TimeoutEnforcer
-from .code_constraints import CodeConstraintBuilder
+try:
+    from .code_constraints import CodeConstraintBuilder
+except ImportError:
+    CodeConstraintBuilder = None  # type: ignore[misc,assignment]
 from .symbolic_executor import SymbolicValue, SymbolicPath, SymbolicExecutor
 from .kpath_analyzer import KPathAnalyzer
 

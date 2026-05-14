@@ -13,6 +13,7 @@ Agentes:
   - CodeAgent: Generación + transformación (reemplaza templates/f-strings)
   - AutomationAgent: Automatización inteligente (reemplaza keyword inference)
   - ValidationAgent: Validación inteligente (reemplaza regex patterns)
+  - YamilAgent: Agente creador de plantillas (nichos → Blueprints certificados)
 
 Principios:
   - INFRAESTRUCTURA PERMANECE, LÓGICA DE NEGOCIO → AGENTES IA
@@ -63,6 +64,7 @@ from src.core.agents.business_logic_agent import BusinessLogicAgent
 from src.core.agents.automation_agent import AutomationAgent
 from src.core.agents.validation_agent import ValidationAgent
 from src.core.agents.criticality_agent import CriticalityAgent
+from src.core.agents.yamil import YamilAgent
 
 __all__ = [
     "BaseAgent", "AgentResult",
@@ -86,4 +88,5 @@ __all__ = [
     "AutomationAgent",
     "ValidationAgent",
     "CriticalityAgent",
+    "YamilAgent",
 ]

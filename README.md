@@ -379,6 +379,72 @@ Sistema de plantillas YAML → Blueprints certificados con firma ECDSA:
 - **BlueprintSDK**: API para partners + revenue share
 - **PartnerRegistry**: Registro de partners
 
+## Yamil — Agente Creador de Plantillas
+
+**Yamil** es el agente unificado de creacion de plantillas que orquesta el flujo completo desde la seleccion de nicho hasta la certificacion del Blueprint. Integra y simplifica los componentes que antes estaban fragmentados (NicheBridge, NicheOnboardingPipeline, NicheConverter, OnboardingEngine, BlueprintCertifier).
+
+### Flujo de Yamil
+
+```
+1. Seleccionar nicho         → list_niches() / search_niches()
+2. Crear plantilla            → create_template("telemedicine")
+3. Llenar campos              → fill_field() / fill_fields_batch()
+4. Validar completitud        → validate()
+5. Safety check (inbypassable)→ safety_check()
+6. Certificar ECDSA           → certify()
+7. Exportar YAML              → export_yaml()
+```
+
+### API Principal
+
+```python
+from src.core.agents.yamil import YamilAgent
+
+yamil = YamilAgent()
+
+# Explorar nichos
+niches = yamil.list_niches()          # 24 nichos
+categories = yamil.list_categories()   # 7 categorias
+results = yamil.search_niches("health") # Busqueda por texto
+
+# Crear plantilla
+result = yamil.create_template("telemedicine")
+session_id = result.session_id
+
+# Llenar campos
+yamil.fill_field(session_id, "business_identity", "business_name", "Mi Clinica")
+yamil.fill_fields_batch(session_id, {
+    "business_type": "Healthcare",
+    "tax_id": "123456789",
+    "country": "CU",
+    "admin_email": "admin@clinic.com",
+})
+
+# Completar pipeline
+yamil.validate(session_id)
+yamil.safety_check(session_id)
+yamil.certify(session_id, private_key="...")
+yaml_output = yamil.export_yaml(session_id)
+
+# O ejecutar todo de una vez
+result = yamil.run_full(
+    niche_id="telemedicine",
+    answers={"business_name": "Mi Clinica", ...},
+    private_key="...",
+)
+```
+
+### Caracteristicas
+
+| Caracteristica | Detalle |
+|---------------|---------|
+| **Hereda de BaseAgent** | Implementa build_prompt, parse_response, fallback |
+| **Fallback deterministico** | Funciona sin Rust extension (24 nichos hardcodeados) |
+| **Sesiones resumables** | Cada paso puede reintentarse independientemente |
+| **Audit log** | Toda accion queda registrada con timestamp |
+| **Safety Gate inbypassable** | Si DENY, el pipeline se detiene |
+| **57 tests** | Cobertura completa de catalogo, template, validacion, safety, certificacion |
+
 ---
 
 ## Servidor y API
