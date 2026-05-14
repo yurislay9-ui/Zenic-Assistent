@@ -6,6 +6,7 @@ members = [
     "zenic-runtime",
     "zenic-flow",
     "zenic-policy",
+    "zenic-safety",
     "zenic-core",
     "zenic-ffi",
     "zenic-bench",

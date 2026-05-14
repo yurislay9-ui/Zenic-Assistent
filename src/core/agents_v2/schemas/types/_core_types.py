@@ -224,3 +224,61 @@ class RoutedOperation:
     target_agent: str = ""
     transformed_input: dict[str, Any] = field(default_factory=dict)
     source: str = "deterministic"
+
+
+# ────────────────────────────── Layer 3: Business (Phase D) ──────────────────────────────
+
+@dataclass
+class InteractiveCollectionResult:
+    """A51 InteractiveDataCollector output.
+
+    Result of an interactive data collection operation for
+    completing missing template fields through Q&A dialogue.
+    """
+    session_id: str = ""
+    niche_id: str = ""
+    questions: list[dict[str, Any]] = field(default_factory=list)
+    answers_applied: int = 0
+    answers_rejected: int = 0
+    still_missing: int = 0
+    completion_pct: float = 0.0
+    is_complete: bool = False
+    round_number: int = 0
+    source: str = "deterministic"
+
+
+@dataclass
+class DomainSafetyResult:
+    """Domain-specific safety check result (Phase D).
+
+    Result of the 4-layer extended safety validation including
+    domain rules, compliance, and sensitivity escalation.
+    """
+    base_verdict: str = "ALLOW"
+    domain_verdict: str = "ALLOW"
+    final_verdict: str = "ALLOW"
+    niche_category: str = ""
+    data_sensitivity: str = "low"
+    domain_rules_matched: list[str] = field(default_factory=list)
+    compliance_violations: list[str] = field(default_factory=list)
+    escalation_applied: bool = False
+    reason: str = ""
+    can_proceed: bool = True
+    source: str = "deterministic"
+
+
+@dataclass
+class PipelineStepResult:
+    """E2E Pipeline step result (Phase D).
+
+    Tracks the result of a single step in the niche onboarding
+    pipeline, including state updates and step-specific data.
+    """
+    step: str = ""
+    success: bool = False
+    progress_pct: float = 0.0
+    pipeline_id: str = ""
+    niche_id: str = ""
+    data: dict[str, Any] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list)
+    source: str = "deterministic"

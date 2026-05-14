@@ -102,7 +102,10 @@ from ._extra_mixin import PipelineOrchestratorExtraMixin
 
 logger = logging.getLogger("zenic_agents.agents_v2.pipeline_orchestrator")
 
-__all__ = ["PipelineOrchestrator"]
+__all__ = ["PipelineOrchestrator", "NicheOnboardingPipeline"]
+
+# Phase D: Niche Onboarding Pipeline
+from .niche_onboarding_pipeline import NicheOnboardingPipeline
 
 
 class PipelineOrchestrator(PipelineOrchestratorCoreMixin, PipelineOrchestratorExtraMixin):

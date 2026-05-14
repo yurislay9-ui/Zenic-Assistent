@@ -87,9 +87,14 @@ class BlueprintRegistry:
         return len(bps)
 
     def load_from_niches(self, niches_root: str = "") -> int:
-        """Convert and load Niche YAML templates as Blueprints."""
+        """Convert and load niches from the compiled Rust catalog as Blueprints.
+
+        Phase 6: Niches are now compiled into Rust, not loaded from YAML files.
+        The niches_root parameter is kept for API compatibility but is no longer used.
+        All niche definitions come from the _zenic_native Rust catalog.
+        """
         converter = NicheConverter()
-        bps = converter.convert_all_niches(niches_root)
+        bps = converter.convert_all_from_catalog()
         with self._lock:
             for bp in bps:
                 self._blueprints[bp.metadata.name] = bp

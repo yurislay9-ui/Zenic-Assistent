@@ -17,18 +17,36 @@
 //! - `risk`: Blast radius calculation, risk propagation, critical path (F3)
 //! - `bus`: Shared memory bus, shared state, ring buffer (inter-agent communication)
 //! - `license`: Licensing, anti-tampering, hardware binding, kill switch (Phase 6.3)
+//! - `niche`: Core niche types — NicheDefinition, NicheCategory, TemplateFieldSchema (Phase 6.A)
+//! - `catalog`: Static compiled catalog of 24 cutting-edge niches (Phase 6.A)
+//! - `template`: YAML template generation, validation, missing fields (Phase 6.A)
+//! - `ingest`: Document ingestion — format detection, text extraction, key-value parsing (Phase 6.B)
+//! - `extractor`: Field extraction — pattern matching, confidence scoring, template auto-fill (Phase 6.B)
+//! - `completer`: Template Completion Agent — interactive Q&A, validation, finalization (Phase 6.C)
+//! - `certifier`: Blueprint Certification — template → CertifiedBlueprint, ECDSA signing, Phase 5 bridge (Phase 6.D)
+//! - `safety_gate_extended`: Domain-specific safety rules + compliance per NicheCategory (Phase D)
+//! - `e2e_pipeline`: Complete E2E niche onboarding pipeline (Phase D)
 
 mod bus;
+mod catalog;
+mod certifier;
+mod completer;
 mod crypto;
 mod db;
+mod e2e_pipeline;
 mod eventbus;
+mod extractor;
 mod forensic;
 mod hash;
+mod ingest;
 mod license;
+mod niche;
 mod risk;
 mod rollback;
 mod safety_gate;
+mod safety_gate_extended;
 mod simulation;
+mod template;
 
 use pyo3::prelude::*;
 
@@ -118,8 +136,118 @@ fn _zenic_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(license::verify_signature, m)?)?;
     m.add_function(wrap_pyfunction!(license::check_kill_switch, m)?)?;
 
+    // Niche Core Types (Phase 6.A) — Rust-compiled niche definitions
+    m.add_class::<niche::NicheCategory>()?;
+    m.add_class::<niche::DataSensitivity>()?;
+    m.add_class::<niche::FieldRequirement>()?;
+    m.add_class::<niche::TemplateFieldType>()?;
+    m.add_class::<niche::TemplateFieldSchema>()?;
+    m.add_class::<niche::TemplateSection>()?;
+    m.add_class::<niche::NicheDefinition>()?;
+    m.add_function(wrap_pyfunction!(niche::get_niche_categories, m)?)?;
+    m.add_function(wrap_pyfunction!(niche::get_niche_category_display_names, m)?)?;
+
+    // Niche Catalog (Phase 6.A) — Static compiled catalog of 24 niches
+    m.add_function(wrap_pyfunction!(catalog::catalog_get_all, m)?)?;
+    m.add_function(wrap_pyfunction!(catalog::catalog_get_by_id, m)?)?;
+    m.add_function(wrap_pyfunction!(catalog::catalog_get_by_category, m)?)?;
+    m.add_function(wrap_pyfunction!(catalog::catalog_search, m)?)?;
+    m.add_function(wrap_pyfunction!(catalog::catalog_count, m)?)?;
+    m.add_function(wrap_pyfunction!(catalog::catalog_ids, m)?)?;
+
+    // YAML Template System (Phase 6.A) — Generation, validation, fill
+    m.add_function(wrap_pyfunction!(template::template_generate, m)?)?;
+    m.add_function(wrap_pyfunction!(template::template_generate_from_niche, m)?)?;
+    m.add_function(wrap_pyfunction!(template::template_validate, m)?)?;
+    m.add_function(wrap_pyfunction!(template::template_missing_fields, m)?)?;
+    m.add_function(wrap_pyfunction!(template::template_set_field, m)?)?;
+    m.add_function(wrap_pyfunction!(template::template_to_yaml, m)?)?;
+
+    // Document Ingestion (Phase 6.B) — Format detection, text extraction
+    m.add_class::<ingest::DocumentFormat>()?;
+    m.add_class::<ingest::ExtractedText>()?;
+    m.add_class::<ingest::BatchExtractionResult>()?;
+    m.add_function(wrap_pyfunction!(ingest::ingest_detect_format, m)?)?;
+    m.add_function(wrap_pyfunction!(ingest::ingest_extract_text_simple, m)?)?;
+    m.add_function(wrap_pyfunction!(ingest::ingest_process_extracted_text, m)?)?;
+    m.add_function(wrap_pyfunction!(ingest::ingest_extract_text_batch, m)?)?;
+    m.add_function(wrap_pyfunction!(ingest::ingest_supported_formats, m)?)?;
+    m.add_function(wrap_pyfunction!(ingest::ingest_validate_size, m)?)?;
+    m.add_function(wrap_pyfunction!(ingest::ingest_combine_texts, m)?)?;
+    m.add_function(wrap_pyfunction!(ingest::ingest_extract_key_value_pairs, m)?)?;
+
+    // Field Extraction (Phase 6.B) — Pattern matching, confidence, auto-fill
+    m.add_class::<extractor::FieldMatch>()?;
+    m.add_class::<extractor::ExtractionResult>()?;
+    m.add_function(wrap_pyfunction!(extractor::extractor_match_fields, m)?)?;
+    m.add_function(wrap_pyfunction!(extractor::extractor_apply_matches, m)?)?;
+    m.add_function(wrap_pyfunction!(extractor::extractor_confidence_score, m)?)?;
+    m.add_function(wrap_pyfunction!(extractor::extractor_find_candidates, m)?)?;
+    m.add_function(wrap_pyfunction!(extractor::extractor_stats, m)?)?;
+
+    // Template Completion Agent (Phase 6.C) — Interactive Q&A, validation, finalization
+    m.add_class::<completer::CompletionSession>()?;
+    m.add_class::<completer::CompletionQuestion>()?;
+    m.add_class::<completer::CompletionRound>()?;
+    m.add_class::<completer::CompletionResult>()?;
+    m.add_function(wrap_pyfunction!(completer::completer_start_session, m)?)?;
+    m.add_function(wrap_pyfunction!(completer::completer_ingest_documents, m)?)?;
+    m.add_function(wrap_pyfunction!(completer::completer_get_questions, m)?)?;
+    m.add_function(wrap_pyfunction!(completer::completer_submit_answer, m)?)?;
+    m.add_function(wrap_pyfunction!(completer::completer_submit_answers, m)?)?;
+    m.add_function(wrap_pyfunction!(completer::completer_validate_answer, m)?)?;
+    m.add_function(wrap_pyfunction!(completer::completer_get_progress, m)?)?;
+    m.add_function(wrap_pyfunction!(completer::completer_is_complete, m)?)?;
+    m.add_function(wrap_pyfunction!(completer::completer_finalize, m)?)?;
+    m.add_function(wrap_pyfunction!(completer::completer_get_field_suggestions, m)?)?;
+
+    // Blueprint Certification (Phase 6.D) — Template → CertifiedBlueprint, ECDSA signing
+    m.add_class::<certifier::CertificationStatus>()?;
+    m.add_class::<certifier::BlueprintConfig>()?;
+    m.add_class::<certifier::DbTableDef>()?;
+    m.add_class::<certifier::ColumnDef>()?;
+    m.add_class::<certifier::MonitorDef>()?;
+    m.add_class::<certifier::ActionDef>()?;
+    m.add_class::<certifier::CertifiedBlueprint>()?;
+    m.add_class::<certifier::CertificationResult>()?;
+    m.add_function(wrap_pyfunction!(certifier::certifier_from_template, m)?)?;
+    m.add_function(wrap_pyfunction!(certifier::certifier_sign, m)?)?;
+    m.add_function(wrap_pyfunction!(certifier::certifier_verify, m)?)?;
+    m.add_function(wrap_pyfunction!(certifier::certifier_compute_hash, m)?)?;
+    m.add_function(wrap_pyfunction!(certifier::certifier_validate_config, m)?)?;
+    m.add_function(wrap_pyfunction!(certifier::certifier_to_blueprint_dict, m)?)?;
+    m.add_function(wrap_pyfunction!(certifier::certifier_export_yaml, m)?)?;
+
+    // Safety Gate Extended (Phase D) — Domain-specific safety rules + compliance
+    m.add_class::<safety_gate_extended::ComplianceStandard>()?;
+    m.add_class::<safety_gate_extended::DomainSafetyRule>()?;
+    m.add_class::<safety_gate_extended::ComplianceCheckResult>()?;
+    m.add_class::<safety_gate_extended::DomainSafetyCheckResult>()?;
+    m.add_function(wrap_pyfunction!(safety_gate_extended::safety_validate_extended, m)?)?;
+    m.add_function(wrap_pyfunction!(safety_gate_extended::safety_validate_domain, m)?)?;
+    m.add_function(wrap_pyfunction!(safety_gate_extended::safety_check_compliance, m)?)?;
+    m.add_function(wrap_pyfunction!(safety_gate_extended::safety_check_compliance_batch, m)?)?;
+    m.add_function(wrap_pyfunction!(safety_gate_extended::safety_get_domain_rules, m)?)?;
+    m.add_function(wrap_pyfunction!(safety_gate_extended::safety_escalate_verdict, m)?)?;
+    m.add_function(wrap_pyfunction!(safety_gate_extended::safety_get_compliance_for_category, m)?)?;
+
+    // E2E Pipeline (Phase D) — Complete niche onboarding pipeline
+    m.add_class::<e2e_pipeline::E2EPipelineStep>()?;
+    m.add_class::<e2e_pipeline::E2EPipelineState>()?;
+    m.add_class::<e2e_pipeline::E2EPipelineResult>()?;
+    m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_start, m)?)?;
+    m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_upload_documents, m)?)?;
+    m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_get_questions, m)?)?;
+    m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_submit_answer, m)?)?;
+    m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_submit_answers, m)?)?;
+    m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_validate, m)?)?;
+    m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_safety_check, m)?)?;
+    m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_certify, m)?)?;
+    m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_export, m)?)?;
+    m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_get_progress, m)?)?;
+
     // Module metadata
-    m.add("__version__", "2.0.0")?;
+    m.add("__version__", "2.5.0")?;
 
     Ok(())
 }

@@ -1,20 +1,21 @@
 <div align="center">
 
-# ZENIC-AGENTS v1.0.0
+# ZENIC-AGENTS v2.5.0
 
-### Plataforma de Asistencia Empresarial Inteligente — DAG Core + SNA + Blueprints + Defense in Depth
+### Plataforma de Asistencia Empresarial Inteligente
 
 **Motor de agentes con DAG de 59 nodos, 9 Executors, Sistema Nervioso Autonomo,
-Blueprints Certificados, Multi-Rol Colaborativo y Capa Conversacional.**
+Blueprints Certificados Dinamicos, Multi-Rol Colaborativo y Capa Conversacional.**
+
 Funciona en **Android/Termux** sin GPU. IA solo como arbitro binario YES/NO.
+Core critico compilado en **Rust** con bindings **PyO3**.
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
+[![Rust 1.85+](https://img.shields.io/badge/Rust-1.85%2B-orange.svg)](https://www.rust-lang.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Agents](https://img.shields.io/badge/Agents-48%20%7C%209%20Layers-orange.svg)](src/core/agents_v2/)
-[![DAG Nodes](https://img.shields.io/badge/DAG_Nodes-59%20%7C%203_Parallel_Groups-critical.svg)](src/core/dag_parts/unified_definition.py)
-[![Executors](https://img.shields.io/badge/Executors-9%20Types-blueviolet.svg)](src/core/executors/)
-[![SNA](https://img.shields.io/badge/SNA-Monitors%20%7C%20Scheduler-yellow.svg)](src/core/sna/)
-[![Tests](https://img.shields.io/badge/Tests-381%20passed-brightgreen.svg)](tests/)
+[![Niches](https://img.shields.io/badge/Niches-24%20Compiled%20Rust-critical.svg)](native/src/catalog.rs)
+[![PyO3](https://img.shields.io/badge/PyO3-23%20Rust%20Modules-blueviolet.svg)](native/src/lib.rs)
 
 </div>
 
@@ -24,7 +25,9 @@ Funciona en **Android/Termux** sin GPU. IA solo como arbitro binario YES/NO.
 
 > **Un agente = una funcion. Sin excepciones.**
 
-Zenic-Agents es la evolucion unificada de Zenic-Agents y Zenic-Asistente en una sola plataforma cohesiva. El sistema sigue el Principio de Responsabilidad Unica (SRP) con **48 agentes atomicos**, cada uno con exactamente una responsabilidad, un fallback determinista, y proteccion con circuit breaker, retry y auditoria. El orquestador unificado (Unified DAG) maneja **59 nodos** con ejecucion paralela via `asyncio.gather()`, comunicacion inter-agente por **SharedMemoryBus** con respaldo SQLite WAL, y cache de ruteo LRU con TTL.
+Zenic-Agents es una plataforma de asistencia empresarial que opera bajo el Principio de Responsabilidad Unica (SRP). Cada uno de sus **48 agentes atomicos** tiene exactamente una responsabilidad, un fallback determinista, y proteccion con circuit breaker, retry y auditoria completa. El orquestador unificado (Unified DAG) maneja **59 nodos** con ejecucion paralela via `asyncio.gather()`, comunicacion inter-agente por **SharedMemoryBus** con respaldo SQLite WAL, y cache de ruteo LRU con TTL.
+
+El core de alto rendimiento esta implementado en **Rust** y expuesto a Python via **PyO3**, cubriendo criptografia, hashing, base de datos cifrada, auditoria forense, rollback atomico, event bus, simulacion DAG, prediccion de riesgo, licenciamiento, nichos, ingesta de documentos, extraccion de campos, completado de plantillas, certificacion de blueprints y pipeline E2E completo.
 
 ### 6 Invariantes Arquitectonicos
 
@@ -39,48 +42,36 @@ Zenic-Agents es la evolucion unificada de Zenic-Agents y Zenic-Asistente en una 
 
 ---
 
-## Estado del Proyecto — 8 Fases (7 Completadas)
+## Estado del Proyecto
 
 | Fase | Nombre | Estado | Descripcion |
 |------|--------|--------|-------------|
-| **0** | Fundacion Rust + PyO3 | Pendiente | Core en Rust con FFI a Python |
-| **1** | Core Rust: Safety Gate + DAG | Parcial | DAG Core 59 nodos en Python, Rust pendiente |
-| **2** | Capa Conversacional | Completo | Session manager, LLM translator, adapters Telegram/Discord |
+| **1** | Core Rust + PyO3 | Completo | 23 modulos Rust via PyO3: crypto, hash, db, forensic, rollback, eventbus, simulation, risk, bus, safety_gate, license, niche, catalog, template, ingest, extractor, completer, certifier, safety_gate_extended, e2e_pipeline |
+| **2** | Capa Conversacional | Completo | Session manager, LLM translator, adapters Telegram/Discord, memory, routing, tools |
 | **3** | 9 Executors Directos | Completo | email, http, db, file, notification, schedule, transform, webhook, base |
 | **4** | Sistema Nervioso Autonomo | Completo | Scheduler, monitores LIVIANOS/MEDIANOS/PESADOS, umbrales |
 | **5** | Blueprints Certificados | Completo | Schema, Loader, Composer, Onboarding, SDK, ECDSA signing |
-| **6** | Multi-Rol + Seguridad | Completo | Roles granulares, cadenas aprobacion, Defense in Depth 6 capas |
+| **6** | Nichos Dinamicos + Seguridad | Completo | 24 nichos compilados en Rust, generacion dinamica de YAML desde documentos del usuario, Q&A interactivo, certificacion, safety extendido |
 | **7** | Frontend Web + Billing | Completo | HTMX+Alpine.js, Stripe billing, CI/CD GitHub Actions |
 
-### Componentes Implementados
+### zenic-v2 Workspace (Rust puro)
 
-| Componente | Ubicacion | Estado |
-|---|---|---|
-| DAG Core 59 nodos | `src/core/dag_parts/` | Completo |
-| VerdictEngine (AI binario) | `src/core/agents_v2/verdict/` | Completo |
-| Safety Gate | `src/core/agents_v2/validation/` | Completo |
-| 9 Executors | `src/core/executors/` | Completo |
-| Capa Conversacional | `src/core/conversational/` | Completo |
-| SNA (Sistema Nervioso) | `src/core/sna/` | Completo |
-| Blueprints Certificados | `src/core/blueprints/` | Completo |
-| Multi-Rol + Aprobacion | `src/core/approval/` + `src/core/auth_parts/` | Completo |
-| Defense in Depth (6 capas) | `src/core/defense/` | Completo |
-| Licenciamiento ECDSA | `src/core/license/` | Completo |
-| Modo Degradado | `src/core/degraded_mode/` | Completo |
-| Billing (Stripe) | `src/core/billing/` | Completo |
-| Frontend HTMX+Alpine.js | `src/server/templates/` + `src/server/static/` | Completo |
-| CI/CD GitHub Actions | `.github/workflows/build.yml` | Completo |
-| SharedMemoryBus | `src/core/shared/shared_memory_bus.py` | Completo |
-| FastConnectionPool | `src/core/shared/fast_connection_pool.py` | Completo |
-| Observabilidad | `src/core/observability/` | Completo |
-| Distribucion (SAGA) | `src/core/distributed/saga_coordinator.py` | Completo |
-| Patrones de Resiliencia | `src/core/patterns/` (18 modulos) | Completo |
-| API OpenAI-compatible | `src/server/fastapi_app.py` | Completo |
-| Docker/Deploy | `Dockerfile` + `docker-compose.yml` | Completo |
+| Crate | Estado | Descripcion |
+|-------|--------|-------------|
+| `zenic-proto` | Completo | Tipos base, IDs, dominio, node_types, serializacion binaria |
+| `zenic-graph` | Completo | Grafo DAG, subgrafos, supernodos, catalogo, descriptores |
+| `zenic-runtime` | Completo | Ejecutor, scheduler, contexto, memoria, loader |
+| `zenic-flow` | Completo | Motor de flujo, steps, checkpoints, retry, compensacion |
+| `zenic-policy` | Completo | Motor de politicas, roles, permisos, reglas, auditoria |
+| `zenic-safety` | Completo | Veredictos, compliance, sensitividad, reglas de dominio |
+| `zenic-core` | Completo | Orquestador, router, sesiones, configuracion |
+| `zenic-ffi` | Stub | FFI bindings para integracion externa |
+| `zenic-bench` | Stub | Benchmarks de rendimiento |
+| `zenic-tests` | Stub | Tests de integracion del workspace |
 
 ---
 
-## Arquitectura del Unified DAG Orchestrator
+## Arquitectura General
 
 ```
 USER INPUT
@@ -134,7 +125,7 @@ USER INPUT
 |  PHASE 5: VERDICT (IA Solo Si Necesario)                          |
 |  EVIDENCE_COLLECT -> CONSENSUS_RESOLVE -> VERDICT                 |
 |  Consenso >= HIGH -> Decision (Sin IA)                            |
-|  Consenso < HIGH  -> A43 VerdictEngine (Qwen: YES/NO)            |
+|  Consenso < HIGH  -> VerdictEngine (Qwen: YES/NO)                |
 +------------------------------------------------------------------+
     |
     v
@@ -146,7 +137,7 @@ USER INPUT
 
 ---
 
-## Arquitectura de 9 Capas — 48 Agentes SRP
+## Arquitectura de 9 Capas - 48 Agentes SRP
 
 ```
  CAPA 1: UNDERSTANDING          CAPA 2: MEMORY & CONTEXT
@@ -190,9 +181,84 @@ USER INPUT
 
 ---
 
-## Capa Conversacional (Fase 2)
+## Fase 6: Nichos Dinamicos
 
-La capa conversacional unificada en `src/core/conversational/` proporciona interaccion multi-turno:
+La Fase 6 implementa un sistema de nichos de vanguardia donde las plantillas YAML se generan **dinamicamente** a partir de los documentos del usuario, eliminando la necesidad de plantillas preconstruidas.
+
+### Flujo del Pipeline de Nichos
+
+```
+1. Usuario selecciona nicho (de los 24 compilados en Rust)
+2. Usuario sube documentos (PDF, docs, textos, etc.)
+3. Agente especializado genera plantilla YAML desde los documentos
+4. Agente identifica campos faltantes y pregunta al usuario
+5. Blueprint certificado con firma ECDSA
+```
+
+### 24 Nichos Compilados en Rust
+
+| Categoria | Nichos |
+|-----------|--------|
+| **AI & Machine Learning** | ai_automation, ai_consulting, ai_content_studio |
+| **SaaS & Software** | saas_micro, saas_platform, dev_tools |
+| **Digital Commerce** | ecommerce_d2c, marketplace_vertical, digital_products |
+| **Content & Media** | creator_economy, podcast_monetization, newsletter_media |
+| **Finance & Crypto** | defi_analytics, crypto_infrastructure, fintech_embedded |
+| **Health & Bio** | healthtech, biotech_data, wellness_digital |
+| **Education** | edtech_platform, corporate_training, skill_marketplace |
+| **Sustainability** | climate_tech, green_energy, circular_economy |
+| **Professional Services** | legal_tech, consulting_platform, hr_tech |
+
+### Modulos Rust de la Fase 6
+
+| Modulo | Descripcion |
+|--------|-------------|
+| `niche.rs` | Tipos core: NicheDefinition, NicheCategory, TemplateFieldSchema |
+| `catalog.rs` | Catalogo estatico compilado de 24 nichos |
+| `template.rs` | Generacion, validacion y fill de plantillas YAML |
+| `ingest.rs` | Ingesta de documentos: deteccion de formato, extraccion de texto |
+| `extractor.rs` | Extraccion de campos: pattern matching, scoring de confianza |
+| `completer.rs` | Agente de completado: Q&A interactivo, validacion, finalizacion |
+| `certifier.rs` | Certificacion de Blueprints: firma ECDSA, bridge a Fase 5 |
+| `safety_gate_extended.rs` | Reglas de seguridad por dominio + compliance |
+| `e2e_pipeline.rs` | Pipeline completo E2E de onboarding de nicho |
+
+---
+
+## Core Rust (PyO3 Native Extension)
+
+El modulo `_zenic_native` expone **23 modulos Rust** de alto rendimiento a Python:
+
+| Modulo | Funcionalidad | Funciones/Clases |
+|--------|--------------|-----------------|
+| `crypto` | PBKDF2, Argon2id, comparacion tiempo constante | 3 funciones |
+| `hash` | BLAKE3, xxHash64, Merkle root | 3 funciones |
+| `db` | SQLCipher via rusqlite | 1 clase |
+| `forensic` | Cadena Merkle, verificacion de integridad | 5 funciones |
+| `rollback` | Rollback atomico cross-resource, snapshots | 5 funciones + 2 clases |
+| `eventbus` | Dispatch de alta velocidad, wildcard matching, dedup | 5 funciones + 1 clase |
+| `simulation` | Sort topologico DAG, dry-run, impacto | 4 funciones |
+| `risk` | Radio de explosion, propagacion, camino critico | 5 funciones |
+| `bus` | SharedMemoryBus, SharedState, RingBuffer | 3 clases |
+| `safety_gate` | Validacion de seguridad determinista | 8 funciones + 3 clases |
+| `license` | Licencias ECDSA, anti-tampering, hardware binding | 8 funciones + 3 clases |
+| `niche` | Tipos de nicho compilados | 2 funciones + 7 clases |
+| `catalog` | Catalogo de 24 nichos | 5 funciones |
+| `template` | Generacion/validacion YAML | 6 funciones |
+| `ingest` | Ingesta de documentos | 8 funciones + 3 clases |
+| `extractor` | Extraccion de campos | 5 funciones + 2 clases |
+| `completer` | Q&A interactivo de completado | 10 funciones + 4 clases |
+| `certifier` | Certificacion de blueprints | 7 funciones + 7 clases |
+| `safety_gate_extended` | Seguridad por dominio + compliance | 7 funciones + 3 clases |
+| `e2e_pipeline` | Pipeline E2E de onboarding | 10 funciones + 3 clases |
+
+**Total: 408+ tests | 100+ funciones PyO3 | 40+ clases PyO3**
+
+---
+
+## Capa Conversacional
+
+Interaccion multi-turno unificada en `src/core/conversational/`:
 
 | Modulo | Descripcion |
 |--------|-------------|
@@ -201,7 +267,7 @@ La capa conversacional unificada en `src/core/conversational/` proporciona inter
 | `events/` | Event Bus + Event Types |
 | `input/` | Parser, Enricher, Sanitizer |
 | `knowledge/` | Knowledge Base |
-| `memory/` | Long-term, Short-term, Working Memory, Manager, Scorer |
+| `memory/` + `memory_v2/` | Long-term, Short-term, Working Memory, Manager, Scorer |
 | `routing/` | Router, Pipeline Selector, Fallback Chain, Intent Engine |
 | `tools/` | Registry, Manager, Permissions, Executor |
 | `config/` | Environment + Constants |
@@ -209,10 +275,11 @@ La capa conversacional unificada en `src/core/conversational/` proporciona inter
 | `zenic_bridge.py` | Bridge al motor DAG Core |
 | `session_manager.py` | Gestion de sesiones con estado estructurado |
 | `personality_manager.py` | Personalidad y tono del asistente |
+| `adapters/` | Telegram, Discord |
 
 ---
 
-## Sistema Nervioso Autonomo (Fase 4)
+## Sistema Nervioso Autonomo (SNA)
 
 Monitoreo proactivo sin solicitud del usuario:
 
@@ -226,20 +293,7 @@ Flujo: SNA detecta anomalia -> POST al DAG -> DAG valida -> notifica via Executo
 
 ---
 
-## Blueprints Certificados (Fase 5)
-
-De templates YAML fijos a Blueprints modulares componibles:
-
-- **Schema**: Metadata + schema DB + reglas negocio + monitores + acciones
-- **Loader**: Carga Blueprints firmados (YAML/JSON)
-- **Composer**: Composicion automatica (merge de schemas, reglas, monitores)
-- **Onboarding**: Seleccion de Blueprints durante setup + auto-configuracion
-- **SDK**: API para partners creen Blueprints custom
-- **ECDSA**: Firma criptografica de Blueprints certificados
-
----
-
-## Defense in Depth (6 Capas - Fase 6)
+## Defense in Depth (6 Capas)
 
 | Capa | Mecanismo |
 |------|-----------|
@@ -256,10 +310,9 @@ De templates YAML fijos a Blueprints modulares componibles:
 
 | Parametro | Valor |
 |-----------|-------|
-| Dispositivo objetivo | Xiaomi Redmi 12R Pro |
-| Procesador | MediaTek Dimensity 6100+ |
-| RAM | 12GB + 8GB virtual (swap) |
-| GPU | No requerida (CPU-only) |
+| Dispositivo objetivo | Android/Termux (CPU-only) |
+| RAM | 4GB minimo (8GB+ recomendado) |
+| GPU | No requerida |
 | Modelo IA | Qwen3-0.6B Q4_K_M (378MB) |
 | Motor de inferencia | llama-cpp-python |
 | Tiempo por inferencia | ~2-5s (CPU) |
@@ -272,6 +325,7 @@ De templates YAML fijos a Blueprints modulares componibles:
 ### Requisitos
 
 - **Python**: 3.10+
+- **Rust**: 1.85+ (para compilar la extension nativa)
 - **RAM**: Minimo 4GB (8GB+ recomendado)
 - **Disco**: ~500MB para modelo + dependencias
 - **Opcional**: Z3 Solver, fastembed, Textual (TUI)
@@ -280,11 +334,15 @@ De templates YAML fijos a Blueprints modulares componibles:
 
 ```bash
 # Clonar el repositorio
-git clone https://github.com/yurislay9-ui/Zenic-Agents.git
+git clone git@github.com:yurislay9-ui/Zenic-Agents.git
 cd Zenic-Agents
 
 # Instalar dependencias core
 pip install -r requirements.txt
+
+# Compilar extension Rust nativa (requiere Rust 1.85+)
+pip install maturin
+cd native && maturin develop --release && cd ..
 
 # Opcional: Z3 para verificacion formal
 pip install z3-solver
@@ -298,6 +356,14 @@ pip install textual
 # Descargar modelo IA
 mkdir -p models
 # Colocar qwen3-0.6b-q4_k_m.gguf en models/
+```
+
+### Compilar Workspace zenic-v2 (Rust puro)
+
+```bash
+cd zenic-v2
+cargo build --release
+cargo test --workspace
 ```
 
 ### Instalacion en Android/Termux
@@ -391,7 +457,7 @@ Content-Type: application/json
 
 **Planes**: Free (10 RPM) / Pro (60 RPM) / Enterprise (200 RPM)
 
-### Generacion & Razonamiento
+### Generacion, Razonamiento y Nichos
 
 | Metodo | Endpoint | Descripcion |
 |--------|----------|-------------|
@@ -401,6 +467,11 @@ Content-Type: application/json
 | POST | `/v1/reason` | Razonamiento avanzado |
 | POST | `/v1/chain/validate` | Validar cadena logica |
 | POST | `/v1/design/schema` | Disenar esquema de BD |
+| GET | `/v1/niches` | Listar nichos disponibles |
+| POST | `/v1/niches/{id}/onboard` | Iniciar onboarding de nicho |
+| POST | `/v1/niches/{id}/upload` | Subir documentos al nicho |
+| GET | `/v1/niches/{id}/questions` | Obtener preguntas faltantes |
+| POST | `/v1/niches/{id}/certify` | Certificar blueprint del nicho |
 
 ### SNA & Blueprints
 
@@ -429,42 +500,73 @@ Zenic-Agents/
 ├── main.py                          # Interfaz Textual (TUI)
 ├── main_headless.py                 # Servidor CLI
 ├── main_conversational.py           # Modo conversacional
-├── pyproject.toml                   # Configuracion del proyecto
+├── pyproject.toml                   # Configuracion del proyecto + maturin
 ├── requirements.txt                 # Dependencias
+├── Dockerfile                       # Docker build
+├── docker-compose.yml               # Docker compose
 ├── docs/                            # Documentacion y whitepaper
+│
+├── native/                          # Extension Rust (PyO3) - 23 modulos
+│   ├── Cargo.toml                   # zenic-agents-native v1.0.0
+│   ├── build.rs                     # Build script
+│   └── src/
+│       ├── lib.rs                   # Entry point _zenic_native (100+ funciones)
+│       ├── crypto.rs                # PBKDF2, Argon2id
+│       ├── hash.rs                  # BLAKE3, xxHash64, Merkle
+│       ├── db.rs                    # SQLCipher
+│       ├── forensic.rs              # Cadena Merkle, integridad
+│       ├── rollback.rs              # Rollback atomico
+│       ├── eventbus.rs              # Event bus de alta velocidad
+│       ├── simulation.rs            # Simulacion DAG
+│       ├── risk.rs                  # Prediccion de riesgo
+│       ├── bus.rs                   # SharedMemoryBus, RingBuffer
+│       ├── safety_gate.rs           # Safety Gate determinista
+│       ├── license.rs               # Licencias ECDSA, anti-tampering
+│       ├── niche.rs                 # Tipos de nicho (Phase 6.A)
+│       ├── catalog.rs               # Catalogo 24 nichos (Phase 6.A)
+│       ├── template.rs              # YAML dinamico (Phase 6.A)
+│       ├── ingest.rs                # Ingesta documentos (Phase 6.B)
+│       ├── extractor.rs             # Extraccion campos (Phase 6.B)
+│       ├── completer.rs             # Q&A interactivo (Phase 6.C)
+│       ├── certifier.rs             # Certificacion (Phase 6.D)
+│       ├── safety_gate_extended.rs  # Safety por dominio (Phase D)
+│       └── e2e_pipeline.rs          # Pipeline E2E (Phase D)
+│
+├── zenic-v2/                        # Workspace Rust puro (10 crates)
+│   ├── Cargo.toml                   # Workspace config
+│   ├── zenic-proto/                 # Tipos base, IDs, dominio
+│   ├── zenic-graph/                 # Grafo DAG, subgrafos, supernodos
+│   ├── zenic-runtime/               # Ejecutor, scheduler, contexto
+│   ├── zenic-flow/                  # Motor de flujo, steps, retry
+│   ├── zenic-policy/                # Roles, permisos, reglas
+│   ├── zenic-safety/                # Veredictos, compliance
+│   ├── zenic-core/                  # Orquestador, router, sesiones
+│   ├── zenic-ffi/                   # FFI bindings (stub)
+│   ├── zenic-bench/                 # Benchmarks (stub)
+│   └── zenic-tests/                 # Tests integracion (stub)
 │
 ├── src/
 │   ├── config/                      # Configuracion (YAML + loader)
 │   ├── core/
 │   │   ├── agents_v2/               # 48 Agentes SRP (9 capas)
-│   │   ├── dag_parts/               # Unified DAG Orchestrator (59 nodos)
-│   │   ├── conversational/          # Capa conversacional multi-turno
-│   │   │   ├── conversation/        # Manager, State, Summarizer
-│   │   │   ├── engine_parts/        # Response Generator, Intent Classifier
-│   │   │   ├── events/              # Event Bus + Types
-│   │   │   ├── input/               # Parser, Enricher, Sanitizer
-│   │   │   ├── knowledge/           # Knowledge Base
-│   │   │   ├── memory/              # Long/Short/Working Memory
-│   │   │   ├── routing/             # Router, Pipeline, Fallback
-│   │   │   ├── tools/               # Registry, Permissions, Executor
-│   │   │   ├── types/               # Tipos compartidos
-│   │   │   ├── config/              # Config del asistente
-│   │   │   ├── utils/               # Logger, Helpers, Validators
-│   │   │   ├── zenic_bridge.py      # Bridge al motor DAG
-│   │   │   └── session_manager.py   # Gestion de sesiones
+│   │   │   ├── understanding/       # Capa 1: Intent, Entity, Target, Criticality
+│   │   │   ├── memory/              # Capa 2: Memory, Relevance, Context
+│   │   │   ├── business/            # Capa 3: Invoice, CRM, Inventory, Reports
+│   │   │   ├── code_ops/            # Capa 4: Generator, Refactorer, Fixer
+│   │   │   ├── validation/          # Capa 5: Security, Syntax, Chain, Risk
+│   │   │   ├── automation/          # Capa 6: Trigger, Action, Schedule
+│   │   │   ├── reasoning/           # Capa 7: Problem, Step, Confidence
+│   │   │   ├── verdict/             # Capa 8: Evidence, Consensus, VerdictEngine
+│   │   │   ├── infrastructure/      # Capa 9: Runner, Health, Audit, CircuitBreaker
+│   │   │   ├── resilience/          # Circuit breaker, retry, bulkhead
+│   │   │   ├── schemas/             # Tipos compartidos
+│   │   │   └── pipeline_orchestrator/ # Orquestador + niche onboarding
 │   │   │
+│   │   ├── conversational/          # Capa conversacional multi-turno
+│   │   ├── dag_parts/               # Unified DAG Orchestrator (59 nodos)
 │   │   ├── executors/               # 9 Executors (email, http, db, etc.)
 │   │   ├── sna/                     # Sistema Nervioso Autonomo
-│   │   │   ├── scheduler.py         # Scheduler de monitores
-│   │   │   ├── monitores/           # LIVIANOS, MEDIANOS, PESADOS
-│   │   │   └── thresholds.py        # Umbrales configurables
-│   │   │
 │   │   ├── blueprints/              # Blueprints Certificados
-│   │   │   ├── schema.py            # Blueprint Schema
-│   │   │   ├── loader.py            # Loader & Composer
-│   │   │   ├── onboarding.py        # Sistema de Onboarding
-│   │   │   └── sdk.py              # SDK para partners
-│   │   │
 │   │   ├── approval/                # Cadenas de aprobacion
 │   │   ├── auth_parts/              # JWT + RBAC + Multi-Rol
 │   │   ├── billing/                 # Stripe + Trial + Webhooks
@@ -476,25 +578,35 @@ Zenic-Agents/
 │   │   ├── observability/           # Tracing + Metrics + Health
 │   │   ├── patterns/                # Design patterns (18 modulos)
 │   │   ├── tenant/                  # Multi-tenancy
+│   │   ├── roi/                     # ROI tracking
+│   │   ├── chaos/                   # Chaos engineering
+│   │   ├── mini_ai_parts/           # Mini AI engine (verdict + tasks)
+│   │   ├── level3_graph_ast/        # AST analysis
+│   │   ├── level6_reflexion_sandbox/# Sandbox de ejecucion
+│   │   ├── level7_merkle_ledger/    # Ledger Merkle
+│   │   ├── level8_theorem_cache/    # Cache de teoremas
+│   │   ├── logic_blocks/            # Bloques de logica de negocio
+│   │   ├── events/                  # Eventos + schema registry
 │   │   └── ...                      # 40+ sub-modulos mas
 │   │
 │   ├── server/                      # FastAPI HTTP server
 │   │   ├── fastapi_app.py           # App principal
+│   │   ├── fastapi_parts/           # Rutas modulares
 │   │   ├── templates/               # Jinja2 (HTMX)
 │   │   ├── static/                  # CSS + JS (Alpine.js, Chart.js)
-│   │   ├── htmx_routes/             # Rutas HTMX modulares
+│   │   ├── security_middleware/     # Middleware de seguridad
 │   │   └── ...
 │   │
-│   └── templates/                   # YAML niche templates
+│   └── templates/                   # Jinja2 + DNA templates
 │
-├── tests/                           # 381+ tests
-│   ├── unit/
-│   └── integration/
+├── tests/                           # 408+ tests
+│   ├── unit/                        # Tests unitarios
+│   ├── integration/                 # Tests de integracion
+│   └── e2e/                         # Tests end-to-end
 │
-├── .github/workflows/               # CI/CD (Rust+PyO3+Nuitka)
-├── deploy/                          # Docker, nginx, systemd
-├── rust/                            # Rust core (Phase 0 - pendiente)
-└── scripts/                         # Install + deploy scripts
+├── deploy/                          # Docker, nginx, systemd, scripts
+├── scripts/                         # Install + deploy scripts
+└── .github/workflows/               # CI/CD (Rust+PyO3+Nuitka)
 ```
 
 ---
@@ -514,28 +626,57 @@ Zenic-Agents/
 ## Testing
 
 ```bash
-# Ejecutar tests de agentes V18 (capas 5-9)
-pytest tests/unit/test_layer5_validation.py tests/unit/test_layer6_automation.py \
-       tests/unit/test_layer7_reasoning.py tests/unit/test_layer8_verdict.py \
-       tests/unit/test_layer9_infrastructure.py -v
+# Ejecutar tests unitarios
+pytest tests/unit/ -v
+
+# Ejecutar tests de agentes por capas
+pytest tests/unit/test_layer5_validation/ tests/unit/test_layer6_automation/ \
+       tests/unit/test_layer7_reasoning/ tests/unit/test_layer8_verdict/ \
+       tests/unit/test_layer9_infrastructure/ -v
+
+# Ejecutar tests de integracion
+pytest tests/integration/ -v
+
+# Ejecutar tests E2E
+pytest tests/e2e/ -v
 
 # Ejecutar todos los tests
 pytest tests/ -v
 
 # Con cobertura
 pytest tests/ --cov=src --cov-report=term-missing
+
+# Tests Rust (workspace zenic-v2)
+cd zenic-v2 && cargo test --workspace
 ```
+
+---
+
+## Tecnologias
+
+| Componente | Tecnologia |
+|-----------|-----------|
+| Backend Python | Python 3.10+, FastAPI, Pydantic, asyncio |
+| Core de rendimiento | Rust 1.85+, PyO3 0.22 |
+| Base de datos | SQLCipher (Rust), SQLite WAL, PostgreSQL |
+| Criptografia | BLAKE3, Argon2id, PBKDF2, ECDSA (Rust) |
+| IA / LLM | Qwen3-0.6B, llama-cpp-python |
+| Frontend | HTMX, Alpine.js, Chart.js, Jinja2 |
+| Build Rust | maturin, Cargo |
+| CI/CD | GitHub Actions, Nuitka |
+| Deploy | Docker, nginx, systemd |
+| Testing | pytest, pytest-asyncio, cargo test |
 
 ---
 
 ## Licencia
 
-MIT License — ver [LICENSE](LICENSE) para detalles.
+MIT License - ver [LICENSE](LICENSE) para detalles.
 
 ---
 
 <div align="center">
 
-**ZENIC-AGENTS** — 48 Agentes SRP | DAG 59 Nodos | 9 Executors | SNA | Blueprints | Defense in Depth | Conversacional
+**ZENIC-AGENTS** — 48 Agentes SRP | DAG 59 Nodos | 9 Executors | 24 Nichos Rust | SNA | Blueprints | Defense in Depth | Conversacional | PyO3
 
 </div>
