@@ -275,8 +275,9 @@ class DefenseManager:
                 candidate = os.path.dirname(candidate)
 
         if base:
+            # auth_parts removed — watch safety_gate.py only
+            # (auth_parts/_imports.py no longer exists)
             critical = [
-                os.path.join(base, "src", "core", "auth_parts", "_imports.py"),
                 os.path.join(base, "src", "core", "executors", "safety_gate.py"),
             ]
             for fpath in critical:
@@ -287,11 +288,8 @@ class DefenseManager:
         """Get the list of components to watch for integrity monitoring."""
         import os
         base = os.environ.get("ZENIC_ROOT", "")
+        # auth_parts removed — no auth_parts file to watch
         watch: List[str] = []
-        if base:
-            auth_path = os.path.join(base, "src", "core", "auth_parts", "_imports.py")
-            if os.path.exists(auth_path):
-                watch.append(f"file:{auth_path}")
         return watch
 
 

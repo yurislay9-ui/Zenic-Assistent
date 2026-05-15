@@ -2,37 +2,41 @@
 ZENIC-AGENTS - ActionExecutor System (Phase 3)
 
 Sistema de ejecutores de acciones reales para el AutomationEngine.
-Fase 3: Integración Safety Gate + Audit + Blueprint + 9 executors.
+Fase 3: Integracion Safety Gate + Audit + Blueprint + remaining executors.
 
-Nueve ejecutores:
-  1. EmailExecutor      - Envío real de emails vía SMTP (enhanced: templates + rate limiting)
-  2. HttpExecutor       - Peticiones HTTP reales (aiohttp/urllib)
-  3. DatabaseExecutor   - Operaciones SQLite/SQLCipher (enhanced: CRUD validation + transactions)
-  4. FileExecutor       - Operaciones de archivos con protección path-traversal
-  5. NotificationExecutor - Despacho multi-canal de notificaciones (enhanced: channel routing + rate limiting)
-  6. WebhookExecutor    - Envío y verificación de webhooks (HMAC-SHA256)
-  7. TransformExecutor  - Transformación y mapeo de datos
-  8. ScheduleExecutor   - Programación de jobs (APScheduler/fallback)
-  9. DiscordExecutor    - Mensajes Discord via Webhook (NEW Phase 3)
+Executors (remaining):
+  1. DatabaseExecutor   - Operaciones SQLite/SQLCipher (enhanced: CRUD validation + transactions)
+  2. FileExecutor       - Operaciones de archivos con proteccion path-traversal
+  3. TransformExecutor  - Transformacion y mapeo de datos
+  4. ScheduleExecutor   - Programacion de jobs (APScheduler/fallback)
 
-Infraestructura nueva (Phase 3):
+Removed executors (external API connections deleted):
+  - EmailExecutor      - Was SMTP via aiosmtplib
+  - HttpExecutor       - Was outbound HTTP via aiohttp/urllib
+  - NotificationExecutor - Was multi-channel notification dispatch
+  - WebhookExecutor    - Was outbound webhook + HMAC verification
+  - DiscordExecutor    - Was Discord webhook messages
+
+Infraestructura (remaining):
   - SafetyGate          - Pre-execution validation (destructive/financial/system)
   - ExecutorAuditLogger - Audit logging with Merkle chain integrity
   - BlueprintSchema     - Blueprint parameterization for executors
-  - ActionDispatcher    - DAG → Executor pipeline integration
+  - ActionDispatcher    - DAG -> Executor pipeline integration
   - SQLCipherAdapter    - Encrypted database connections (AES-256)
   - CRUDValidator       - CRUD operation validation with Blueprint schema
   - TransactionManager  - Transaction management with rollback support
-  - ChannelRouter       - Multi-channel notification routing with priority
-  - EmailTemplateEngine - Email template rendering (invoice, reminder, alert)
+
+Removed infrastructure (external connections deleted):
+  - ChannelRouter       - Was multi-channel notification routing
+  - EmailTemplateEngine - Was email template rendering
 
 Todos los ejecutores:
   - Manejan errores gracefulmente (nunca raise, siempre devuelven ActionResult)
   - Tienen modo dry-run/fallback cuando faltan dependencias
   - Son testeable sin servicios externos
   - Usan logging extensivo
-  - Pasan por Safety Gate antes de ejecutar (si está habilitado)
-  - Son auditados después de ejecutar (si está habilitado)
+  - Pasan por Safety Gate antes de ejecutar (si esta habilitado)
+  - Son auditados despues de ejecutar (si esta habilitado)
 """
 
 # ── Base ──
@@ -51,16 +55,16 @@ from .base import (
     reset_default_registry,
 )
 
-# ── Executors ──
-from .email_executor import EmailExecutor
-from .http_executor import HttpExecutor
+# ── Executors (remaining) ──
 from .database_executor import DatabaseExecutor
 from .file_executor import FileExecutor
-from .notification_executor import NotificationExecutor
-from .webhook_executor import WebhookExecutor
 from .transform_executor import TransformExecutor
 from .schedule_executor import ScheduleExecutor
-from .discord_executor import DiscordExecutor
+
+# ── Executors (Phase 2 — channel integration) ──
+from .email_executor import EmailExecutor
+from .jira_executor import JiraExecutor
+from .servicenow_executor import ServiceNowExecutor
 
 # ── Safety Gate ──
 from .safety_gate import (
@@ -107,14 +111,19 @@ from .dispatch_action import (
     reset_dispatcher,
 )
 
-# ── Email Parts ──
-from .email_parts import EmailTemplateEngine, EmailTemplate, EmailRateLimiter
+# ── Email Parts (Phase 2) ──
+from .email_parts import (
+    EmailTemplateEngine,
+    EmailTemplate,
+    EmailRateLimiter,
+    OAuth2TokenManager,
+    OAuth2Config,
+    OAuth2Token,
+    GraphAPIEmailProvider,
+)
 
 # ── Database Parts ──
 from .db_parts import SQLCipherAdapter, CRUDValidator, TransactionManager, Transaction
-
-# ── Notification Parts ──
-from .notification_parts import ChannelRouter, ChannelConfig, ChannelPriority, NotificationRateLimiter
 
 # Phase A: Impact Preview + Policy Engine
 from .impact_preview import (
@@ -195,16 +204,23 @@ __all__ = [
     "_HAS_APSCHEDULER",
     "get_default_registry",
     "reset_default_registry",
-    # Executors (9)
-    "EmailExecutor",
-    "HttpExecutor",
+    # Executors (7)
     "DatabaseExecutor",
     "FileExecutor",
-    "NotificationExecutor",
-    "WebhookExecutor",
     "TransformExecutor",
     "ScheduleExecutor",
-    "DiscordExecutor",
+    # Executors (Phase 2)
+    "EmailExecutor",
+    "ServiceNowExecutor",
+    "JiraExecutor",
+    # Email Parts (Phase 2)
+    "EmailTemplateEngine",
+    "EmailTemplate",
+    "EmailRateLimiter",
+    "OAuth2TokenManager",
+    "OAuth2Config",
+    "OAuth2Token",
+    "GraphAPIEmailProvider",
     # Safety Gate
     "SafetyGate",
     "SafetyVerdict",
@@ -238,20 +254,11 @@ __all__ = [
     "exec_dispatch_action",
     "get_default_dispatcher",
     "reset_dispatcher",
-    # Email Parts
-    "EmailTemplateEngine",
-    "EmailTemplate",
-    "EmailRateLimiter",
     # Database Parts
     "SQLCipherAdapter",
     "CRUDValidator",
     "TransactionManager",
     "Transaction",
-    # Notification Parts
-    "ChannelRouter",
-    "ChannelConfig",
-    "ChannelPriority",
-    "NotificationRateLimiter",
     # Phase A: Impact Preview
     "ImpactPreviewEngine",
     "ImpactPreview",

@@ -1,18 +1,20 @@
-"""Shared fixtures for Response Builder tests."""
+"""Shared fixtures for Response Builder tests.
 
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-
-from src.server.response_builder import (
-    build_normal_response,
-    build_partial_reasoning_response,
-    build_error_response,
-    build_overloaded_response,
-)
+NOTE: src.server.response_builder has been removed (server module deleted).
+These tests are disabled.
+"""
 
 import pytest
+
+# Server module removed — response builder no longer available
+# from src.server.response_builder import (
+#     build_normal_response,
+#     build_partial_reasoning_response,
+#     build_error_response,
+#     build_overloaded_response,
+# )
+
+pytestmark = pytest.mark.skip(reason="src.server.response_builder removed — server module deleted")
 
 
 @pytest.fixture

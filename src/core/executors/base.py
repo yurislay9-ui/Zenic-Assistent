@@ -180,39 +180,46 @@ class ExecutorRegistry:
         self._register_defaults()
 
     def _register_defaults(self) -> None:
-        """Registra los ejecutores por defecto (9 executors)."""
+        """Registra los ejecutores por defecto (7 executors).
+
+        Phase 3: Database, File, Transform, Schedule
+        Phase 2: Email, ServiceNow, Jira
+        """
         # Lazy imports to avoid circular dependencies
-        from .email_executor import EmailExecutor
-        from .http_executor import HttpExecutor
         from .database_executor import DatabaseExecutor
         from .file_executor import FileExecutor
-        from .webhook_executor import WebhookExecutor
         from .transform_executor import TransformExecutor
-        from .notification_executor import NotificationExecutor
         from .schedule_executor import ScheduleExecutor
-        from .discord_executor import DiscordExecutor
+        from .email_executor import EmailExecutor
+        from .servicenow_executor import ServiceNowExecutor
+        from .jira_executor import JiraExecutor
 
-        email_exec = EmailExecutor()
-        http_exec = HttpExecutor()
         db_exec = DatabaseExecutor()
         file_exec = FileExecutor()
-        webhook_exec = WebhookExecutor(http_executor=http_exec)
         transform_exec = TransformExecutor()
-        notification_exec = NotificationExecutor(email_executor=email_exec, webhook_executor=webhook_exec, http_executor=http_exec)
         schedule_exec = ScheduleExecutor()
-        discord_exec = DiscordExecutor()
+        email_exec = EmailExecutor()
+        servicenow_exec = ServiceNowExecutor()
+        jira_exec = JiraExecutor()
 
-        # Mapeo de tipos de acción a ejecutores (alias incluidos)
+        # Mapeo de tipos de accion a ejecutores (alias incluidos)
         for key, executor in [
-            ("send_email", email_exec), ("email", email_exec),
-            ("http_request", http_exec), ("http", http_exec),
             ("database_operation", db_exec), ("database", db_exec), ("db", db_exec),
             ("file_operation", file_exec), ("file", file_exec),
-            ("send_notification", notification_exec), ("notification", notification_exec),
-            ("webhook", webhook_exec),
             ("data_transform", transform_exec), ("transform", transform_exec),
             ("schedule", schedule_exec),
-            ("discord", discord_exec), ("send_discord", discord_exec),
+            # Phase 2 — Email
+            ("send_email", email_exec), ("email", email_exec),
+            # Phase 2 — ServiceNow
+            ("servicenow", servicenow_exec), ("create_incident", servicenow_exec),
+            ("update_incident", servicenow_exec), ("close_incident", servicenow_exec),
+            ("get_incident", servicenow_exec), ("search_incidents", servicenow_exec),
+            ("add_comment", servicenow_exec), ("create_change_request", servicenow_exec),
+            # Phase 2 — Jira
+            ("jira", jira_exec), ("create_issue", jira_exec),
+            ("update_issue", jira_exec), ("transition_issue", jira_exec),
+            ("get_issue", jira_exec), ("search_issues", jira_exec),
+            ("add_jira_comment", jira_exec), ("link_issues", jira_exec),
         ]:
             self.register_executor(key, executor)
 

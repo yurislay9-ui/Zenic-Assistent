@@ -38,15 +38,9 @@ NICHE_TYPE_MAP: Dict[str, FieldType] = {
 }
 
 # Block → Executor type mapping
+# External executor types (email, notification, webhook, http) removed — standalone agent.
 BLOCK_EXECUTOR_MAP: Dict[str, str] = {
-    "email_smtp": "email",
-    "whatsapp_api": "notification",
-    "telegram_bot": "notification",
-    "stripe_payments": "http",
-    "google_sheets": "http",
     "pdf_generator": "file",
-    "webhook_server": "webhook",
-    "notification_manager": "notification",
     "inventory_tracker": "database",
     "report_generator": "file",
     "data_analyzer": "database",
@@ -132,8 +126,9 @@ def determine_monitor_weight(trigger_id: str) -> str:
 
 
 def determine_notification_channel(description: str) -> str:
-    """Determine notification channel from trigger description."""
-    desc_lower = description.lower()
-    if any(kw in desc_lower for kw in ("crítico", "critical", "urgente")):
-        return "telegram"
-    return "notification"
+    """Determine notification channel from trigger description.
+
+    External channels (telegram, etc.) removed — standalone agent uses logging.
+    """
+    # Always use internal logging for standalone agent
+    return "log"

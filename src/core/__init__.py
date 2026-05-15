@@ -192,11 +192,7 @@ try:
         TriggerCondition,
         ConditionOperator as EventConditionOperator,
         get_trigger_map,
-        WebhookIngestionEngine,
-        WebhookEndpoint,
-        InboundWebhookResult,
-        InboundEvent,
-        get_webhook_ingestion_engine,
+        # WebhookIngestionEngine removed — external API connection deleted
         EventSchemaRegistry,
         EventSchema,
         ValidationResult as EventValidationResult,
@@ -217,11 +213,7 @@ except ImportError as exc:
     TriggerCondition = None  # type: ignore[misc,assignment]
     EventConditionOperator = None  # type: ignore[misc,assignment]
     get_trigger_map = None  # type: ignore[misc,assignment]
-    WebhookIngestionEngine = None  # type: ignore[misc,assignment]
-    WebhookEndpoint = None  # type: ignore[misc,assignment]
-    InboundWebhookResult = None  # type: ignore[misc,assignment]
-    InboundEvent = None  # type: ignore[misc,assignment]
-    get_webhook_ingestion_engine = None  # type: ignore[misc,assignment]
+    # WebhookIngestionEngine removed — external API connection deleted
     EventSchemaRegistry = None  # type: ignore[misc,assignment]
     EventSchema = None  # type: ignore[misc,assignment]
     EventValidationResult = None  # type: ignore[misc,assignment]
@@ -664,9 +656,7 @@ __all__ = [
     # Phase B: Events
     "TriggerMap", "TriggerMapping", "TriggerCondition",
     "EventConditionOperator", "get_trigger_map",
-    "WebhookIngestionEngine", "WebhookEndpoint",
-    "InboundWebhookResult", "InboundEvent",
-    "get_webhook_ingestion_engine",
+    # WebhookIngestionEngine removed — external API connection deleted
     "EventSchemaRegistry", "EventSchema",
     "EventValidationResult", "ValidationIssue", "IssueType",
     "get_schema_registry",

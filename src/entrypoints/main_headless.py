@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 """
-ZENIC-AGENTS - Headless Server for Termux/proot-distro
+ZENIC-AGENTS - Headless CLI for Termux/proot-distro
 
-Servidor OpenAI-Compatible SIN interfaz grafica. Disenado para correr en
+CLI local SIN servidor HTTP. Disenado para correr en
 Termux + proot-distro (Debian) en tu Redmi 12R Pro.
+
+NOTA: El servidor HTTP (src/server/) ha sido eliminado.
+Este entry point ahora solo ejecuta el motor localmente
+via CLI interactivo, sin servidor HTTP.
 
 Uso:
   python3 main_headless.py                    # Modo interactivo
-  python3 main_headless.py --port 5000        # Puerto custom
   python3 main_headless.py --ram-limit 4096   # Limite RAM en MB
-  python3 main_headless.py --daemon           # Modo daemon (background)
 """
 
 import sys
@@ -54,11 +56,8 @@ except ImportError:
     _ORCHESTRATOR_CLASS = ZenicOrchestrator
     _ORCHESTRATOR_NAME = f"ZenicOrchestrator ({ZENIC_VERSION_STR})"
 
-from src.server import (
-    ZenicHTTPHandler, ThreadedHTTPServer,
-    get_local_ip, configure_handler, RateLimiter,
-)
-from src.server.headless_cli import print_banner, run_interactive_loop
+# Server module removed — no more HTTP server imports
+# from src.server import (ZenicHTTPHandler, ThreadedHTTPServer, ...)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -72,15 +71,10 @@ START_TIME = time.time()
 
 def main():
     parser = argparse.ArgumentParser(
-        description=f"ZENIC-AGENTS {ZENIC_VERSION_STR} - Headless Server"
+        description=f"ZENIC-AGENTS {ZENIC_VERSION_STR} - Local Engine CLI"
     )
-    parser.add_argument('--port', type=int, default=5000, help='Puerto (default: 5000)')
-    parser.add_argument('--host', type=str, default='0.0.0.0', help='Host (default: 0.0.0.0)')
     parser.add_argument('--ram-limit', type=int, default=4096, help='Limite RAM MB (default: 4096)')
-    parser.add_argument('--daemon', action='store_true', help='Modo daemon')
     parser.add_argument('--debug', action='store_true', help='Modo debug')
-    parser.add_argument('--server', type=str, default='stdlib', choices=['stdlib', 'fastapi'])
-    parser.add_argument('--auth', action='store_true', help='Habilitar autenticacion')
     parser.add_argument('--sna', action='store_true', default=False, help='Habilitar SNA')
     args = parser.parse_args()
 
@@ -92,7 +86,8 @@ def main():
     initialize_databases()
 
     solver_name = "Z3" if HAS_Z3 else "AC-3"
-    logger.info(f"{ZENIC_FULL_NAME} - Headless Server | Solver: {solver_name}")
+    logger.info(f"{ZENIC_FULL_NAME} - Local Engine CLI | Solver: {solver_name}")
+    logger.info("NOTE: HTTP server removed — local engine only")
 
     # Crear orchestrator
     orchestrator = _ORCHESTRATOR_CLASS()
@@ -107,9 +102,6 @@ def main():
 
     # Preload models
     _preload_models(orchestrator)
-
-    # Init AuthService
-    auth_service = _init_auth(args)
 
     # ── Init SNA ──
     sna_engine = _init_sna(args)
@@ -135,75 +127,73 @@ def main():
         except Exception as e:
             logger.warning("Phase 6 init failed: %s", e)
 
-    # Rate limiter
-    rate_limiter = _create_rate_limiter(args, auth_service)
+    # ── Interactive CLI Loop ──
+    print(f"\n{'=' * 60}")
+    print(f"  ZENIC-AGENTS {ZENIC_VERSION_STR} — Local Engine CLI")
+    print(f"  Solver: {solver_name} | Orchestrator: {_ORCHESTRATOR_NAME}")
+    print(f"  NOTE: HTTP server removed — local engine only")
+    print(f"{'=' * 60}")
+    print(f"  Type queries to test the engine. Type 'quit' to exit.")
+    print(f"{'=' * 60}\n")
 
-    # Configure handler
-    configure_handler(orchestrator, governor=governor,
-                      start_time=START_TIME, platform_tag="termux-proot",
-                      rate_limiter=rate_limiter)
+    _run_interactive_loop(orchestrator, governor, sna_engine, blueprint_registry)
 
-    ip = get_local_ip()
-
-    # ── FastAPI Server Mode ──
-    if args.server == 'fastapi':
-        try:
-            from src.server.fastapi_app import run_fastapi_server
-        except ImportError:
-            logger.error("FastAPI no instalado. Usa --server stdlib")
-            sys.exit(1)
-
-        print_banner(ip, args.port, solver_name, governor, server_type="FastAPI (SaaS)")
-        try:
-            run_fastapi_server(
-                orchestrator=orchestrator, host=args.host, port=args.port,
-                auth_service=auth_service, rate_limiter=rate_limiter,
-                governor=governor, platform_tag="termux-proot",
-            )
-        except KeyboardInterrupt:
-            _shutdown(governor, sna_engine)
-        return
-
-    # ── Stdlib Server Mode ──
-    print_banner(ip, args.port, solver_name, governor)
-
-    try:
-        server = ThreadedHTTPServer((args.host, args.port), ZenicHTTPHandler)
-    except OSError as e:
-        logger.error(f"No se pudo iniciar el servidor: {e}")
-        sys.exit(1)
-
-    def shutdown_handler(signum, frame):
-        _shutdown(governor, sna_engine)
-        server.shutdown()
-        from src.server.http_handler import _shutdown_loop
-        _shutdown_loop()
-        sys.exit(0)
-
-    signal.signal(signal.SIGINT, shutdown_handler)
-    signal.signal(signal.SIGTERM, shutdown_handler)
-
-    if args.daemon:
-        logger.info("Running as daemon on port %d", args.port)
-        server.serve_forever()
-    else:
-        server_thread = threading.Thread(target=server.serve_forever, daemon=True)
-        server_thread.start()
-        logger.info(f"Server listening on http://{ip}:{args.port}")
-
-        run_interactive_loop(
-            orchestrator=orchestrator, governor=governor,
-            sna_engine=sna_engine, blueprint_registry=blueprint_registry,
-        )
-
-        _shutdown(governor, sna_engine)
-        server.shutdown()
-        from src.server.http_handler import _shutdown_loop
-        _shutdown_loop()
-        logger.info("Server stopped.")
+    _shutdown(governor, sna_engine)
+    logger.info("Engine stopped.")
 
 
 # ── Helper Functions ──────────────────────────────────────────
+
+def _run_interactive_loop(orchestrator, governor, sna_engine=None, blueprint_registry=None):
+    """Simple interactive loop for local engine testing."""
+    import asyncio
+    while True:
+        try:
+            user_input = input("zenic> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            break
+
+        if not user_input:
+            continue
+        if user_input.lower() in ("quit", "exit", "q"):
+            break
+
+        if user_input == "status":
+            _print_status(orchestrator, governor, sna_engine)
+            continue
+
+        # Execute query through the engine
+        try:
+            loop = asyncio.new_event_loop()
+            result = loop.run_until_complete(orchestrator.execute(user_input))
+            loop.close()
+
+            status = result.get('status', 'N/A')
+            route = result.get('route', 'N/A')
+            crit = result.get('criticality', 'N/A')
+            time_ms = result.get('processing_time_ms', 0)
+            print(f"  Status: {status} | Route: {route} | Crit: {crit} | Time: {time_ms}ms")
+
+            if result.get('error'):
+                print(f"  Error: {result['error']}")
+            if result.get('explanations'):
+                for exp in result['explanations']:
+                    print(f"  {exp}")
+        except Exception as e:
+            print(f"  Error: {e}")
+
+
+def _print_status(orchestrator, governor, sna_engine=None):
+    """Print current engine status."""
+    print(f"  Orchestrator: {type(orchestrator).__name__}")
+    if hasattr(orchestrator, '_model_mgr'):
+        mgr = orchestrator._model_mgr
+        print(f"  AI Loaded: {mgr.ai_loaded}")
+        print(f"  Semantic Loaded: {mgr.semantic_loaded}")
+    print(f"  Governor RAM limit: {governor._ram_limit_mb}MB")
+    if sna_engine:
+        print(f"  SNA: active")
+
 
 def _reset_circuit_breakers(orchestrator: object) -> None:
     """Reset circuit breakers on startup."""
@@ -236,21 +226,6 @@ def _preload_models(orchestrator: object) -> None:
         logger.warning(f"Model preload failed: {e}")
 
 
-def _init_auth(args: argparse.Namespace) -> object:
-    """Initialize AuthService if needed."""
-    if not (args.auth or args.server == 'fastapi'):
-        return None
-    try:
-        from src.core.auth_service import AuthService
-        auth_service = AuthService()
-        auth_service.ensure_admin()
-        logger.info("AuthService: initialized")
-        return auth_service
-    except Exception as e:
-        logger.warning(f"AuthService init failed: {e}")
-        return None
-
-
 def _init_sna(args: argparse.Namespace) -> object:
     """Initialize SNA Engine if enabled."""
     if not (_ZENIC_USE_SNA or args.sna):
@@ -273,34 +248,11 @@ def _init_sna(args: argparse.Namespace) -> object:
             else:
                 loop.run_until_complete(sna_engine.start())
         except RuntimeError:
-            logger.info("SNA: Will start with server event loop")
+            logger.info("SNA: Will start with event loop")
         return sna_engine
     except Exception as e:
         logger.warning("SNA init failed: %s", e)
         return None
-
-
-def _create_rate_limiter(args: argparse.Namespace, auth_service: object) -> object:
-    """Create the appropriate rate limiter."""
-    _rl_rpm = int(os.environ.get("ZENIC_RATE_LIMIT_RPM", str(max(1, args.ram_limit // 64))))
-    _rl_burst = int(os.environ.get("ZENIC_RATE_LIMIT_BURST", "20"))
-    _rl_concurrent = int(os.environ.get("ZENIC_RATE_LIMIT_CONCURRENT", "60"))
-
-    if auth_service is not None:
-        try:
-            from src.server.tenant_rate_limiter import TenantRateLimiter
-            return TenantRateLimiter(
-                max_requests_per_minute=_rl_rpm, burst_size=_rl_burst,
-                global_max_concurrent=_rl_concurrent,
-                default_user_rpm=_rl_rpm, default_user_burst=_rl_burst,
-            )
-        except ImportError:
-            pass
-
-    return RateLimiter(
-        max_requests_per_minute=_rl_rpm, burst_size=_rl_burst,
-        global_max_concurrent=_rl_concurrent,
-    )
 
 
 def _shutdown(governor: object, sna_engine: object = None) -> None:

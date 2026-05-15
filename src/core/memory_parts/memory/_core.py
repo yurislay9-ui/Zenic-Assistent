@@ -17,7 +17,31 @@ from ..longterm import LongTermMixin
 from ..episodes import EpisodesMixin
 from ._tenant_mixin import TenantMixin
 from ._session_mixin import SessionMixin
-from src.core.tenant._context import get_current_tenant, set_current_tenant, TenantContext
+# Tenant module removed — use fallback anonymous context
+# from src.core.tenant._context import get_current_tenant, set_current_tenant, TenantContext
+from src.core.shared.tenant_utils import ANONYMOUS_TENANT
+
+class _FallbackTenantContext:
+    """Minimal fallback for removed TenantContext."""
+    def __init__(self):
+        self.tenant_id = ANONYMOUS_TENANT
+        self.effective_tenant_id = ANONYMOUS_TENANT
+        self.user_id = 0
+        self.username = ""
+        self.role = "viewer"
+        self.plan = "free"
+        self.quotas = {}
+        self.features = []
+        self.permissions = []
+        self.auth_method = ""
+        self.is_authenticated = False
+        self.extra = {}
+
+def get_current_tenant():
+    return _FallbackTenantContext()
+
+def set_current_tenant(ctx):
+    pass
 
 class SmartMemory(DatabaseMixin, CacheMixin, LongTermMixin, EpisodesMixin, TenantMixin, SessionMixin):
     """

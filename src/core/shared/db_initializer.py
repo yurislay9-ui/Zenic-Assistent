@@ -297,8 +297,10 @@ def initialize_databases():
     conn.commit()
     # Migrate: add tenant_id column if it doesn't exist (for existing databases)
     try:
-        from src.core.tenant._isolation import TenantIsolation
-        TenantIsolation.migrate_add_tenant_id(conn, "ast_nodes", "__anonymous__")
+        # Tenant module removed — skip tenant isolation migration
+        # from src.core.tenant._isolation import TenantIsolation
+        # TenantIsolation.migrate_add_tenant_id(conn, "ast_nodes", "__anonymous__")
+        pass
     except Exception as e:
         logger.debug("ast_nodes tenant migration skipped: %s", e)
 
@@ -322,8 +324,10 @@ def initialize_databases():
     conn.commit()
     # Migrate: add tenant_id column if it doesn't exist (for existing databases)
     try:
-        from src.core.tenant._isolation import TenantIsolation
-        TenantIsolation.migrate_add_tenant_id(conn, "theorems", "__anonymous__")
+        # Tenant module removed — skip tenant isolation migration
+        # from src.core.tenant._isolation import TenantIsolation
+        # TenantIsolation.migrate_add_tenant_id(conn, "theorems", "__anonymous__")
+        pass
     except Exception as e:
         logger.debug("Theorems tenant migration skipped: %s", e)
 
@@ -342,8 +346,10 @@ def initialize_databases():
     conn.commit()
     # Migrate: add tenant_id column if it doesn't exist (for existing databases)
     try:
-        from src.core.tenant._isolation import TenantIsolation
-        TenantIsolation.migrate_add_tenant_id(conn, "ledger", "__anonymous__")
+        # Tenant module removed — skip tenant isolation migration
+        # from src.core.tenant._isolation import TenantIsolation
+        # TenantIsolation.migrate_add_tenant_id(conn, "ledger", "__anonymous__")
+        pass
     except Exception as e:
         logger.debug("Ledger tenant migration skipped: %s", e)
 
@@ -369,8 +375,10 @@ def initialize_databases():
     conn.commit()
     # Migrate: add tenant_id column if it doesn't exist (for existing databases)
     try:
-        from src.core.tenant._isolation import TenantIsolation
-        TenantIsolation.migrate_add_tenant_id(conn, "requests", "__anonymous__")
+        # Tenant module removed — skip tenant isolation migration
+        # from src.core.tenant._isolation import TenantIsolation
+        # TenantIsolation.migrate_add_tenant_id(conn, "requests", "__anonymous__")
+        pass
     except Exception as e:
         logger.debug("Requests tenant migration skipped: %s", e)
 

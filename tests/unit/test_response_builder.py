@@ -1,29 +1,26 @@
 """
 Unit tests for Response Builder
 
-Tests the OpenAI-compatible response builder functions:
-- build_normal_response
-- build_partial_reasoning_response
-- build_error_response
-- build_overloaded_response
+NOTE: src.server.response_builder has been removed (server module deleted).
+These tests are disabled. The response builder was part of the OpenAI-compatible
+API server which is no longer available.
 """
 
-import os
-import sys
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+# Server module removed — response builder no longer available
+# from src.server.response_builder import (
+#     build_normal_response,
+#     build_partial_reasoning_response,
+#     build_error_response,
+#     build_overloaded_response,
+# )
 
-from src.server.response_builder import (
-    build_normal_response,
-    build_partial_reasoning_response,
-    build_error_response,
-    build_overloaded_response,
-)
+pytestmark = pytest.mark.skip(reason="src.server.response_builder removed — server module deleted")
 
 
 # ============================================================
-#  Fixtures (shared with sub-modules)
+#  Fixtures (kept for sub-module compatibility)
 # ============================================================
 
 @pytest.fixture
@@ -61,5 +58,5 @@ def sample_user_msg():
     """Sample user message."""
     return "Generate a hello world function"
 
-
-from .test_resp_build_parts import *  # noqa: F401,F403
+# Sub-module imports disabled — response builder removed
+# from .test_resp_build_parts import *  # noqa: F401,F403

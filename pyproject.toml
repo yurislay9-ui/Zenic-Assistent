@@ -1,20 +1,11 @@
 [project]
 name = "zenic-agents"
 version = "3.0.0"
-description = "Zenic-Agents - Plataforma de Asistencia Empresarial Inteligente con DAG Core, SNA, Blueprints Certificados y Defensa en Profundidad"
+description = "Zenic-Agents - Agente Asistente Autónomo con Motor de IA Quirúrgico, SNA, Blueprints Certificados y Defensa en Profundidad"
 requires-python = ">=3.10"
 dependencies = [
-    # Core Web Framework
-    "fastapi>=0.100.0",
-    "uvicorn>=0.23.0",
-    "jinja2>=3.1.0",
-    "python-multipart>=0.0.6",
-    "pydantic>=2.0.0",
-
     # Database
     "aiosqlite>=0.19.0",
-    "asyncpg>=0.29.0",
-    "psycopg2-binary>=2.9.9",
 
     # AI/ML
     "numpy>=1.24.0",
@@ -22,38 +13,19 @@ dependencies = [
     # Configuration
     "pyyaml>=6.0",
 
-    # Scheduling & Async
+    # Scheduling
     "apscheduler>=3.10.0",
-    "aiohttp>=3.8.0",
-    "aiosmtplib>=3.0.0",
-
-    # Auth & Security
-    "python-jose[cryptography]>=3.3.0",
-    "passlib[bcrypt]>=1.7.4",
-    "bcrypt>=4.0.0,<4.1.0",  # passlib 1.7.4 requires bcrypt <4.1 for __about__
-
-    # Async file I/O (used by executors)
-    # "aiofiles>=23.0.0",  # REMOVED: zero imports in src/
 ]
 
 [project.optional-dependencies]
 z3 = ["z3-solver>=4.12.0"]
 tui = ["textual>=2.0.0"]
 embeddings = ["fastembed>=0.2.0"]
-stripe = ["stripe>=7.0.0"]
 llm = ["llama-cpp-python>=0.3.0"]
-observability = [
-    "redis[hiredis]>=5.0.0",
-    "opentelemetry-api>=1.20.0",
-    "opentelemetry-sdk>=1.20.0",
-    "opentelemetry-exporter-otlp-proto-grpc>=1.20.0",
-    "prometheus-client>=0.19.0",
-]
 dev = ["pytest>=7.4.0", "pytest-asyncio>=0.21.0", "pytest-cov>=4.0.0", "pytest-timeout>=2.1.0"]
 all = [
     "z3-solver>=4.12.0",
     "fastembed>=0.2.0",
-    "stripe>=7.0.0",
     "llama-cpp-python>=0.3.0",
 ]
 
@@ -83,8 +55,6 @@ exclude_lines = [
 
 [tool.maturin]
 # Configuration for building the native Rust extension with maturin.
-# To build: cd zenic-v2/zenic-pybridge && maturin develop --release
-# Or from project root: maturin develop --manifest-path zenic-v2/zenic-pybridge/Cargo.toml --release
 manifest-path = "zenic-v2/zenic-pybridge/Cargo.toml"
 module-name = "_zenic_native"
 python-source = "src"

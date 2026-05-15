@@ -240,7 +240,8 @@ class DelegationManager:
 
         Returns the delegate user_id, or None if no suitable delegate exists.
         """
-        from src.core.auth_parts._imports import ROLE_HIERARCHY
+        # auth_parts removed — use fallback ROLE_HIERARCHY from auth_service stub
+        from src.core.auth_service import ROLE_HIERARCHY
 
         with self._lock:
             rules = self._list_active_rules_for(user_id, role)

@@ -31,7 +31,9 @@ class TestSQLInjectionPrevention:
 
     def test_sql_injection_in_billing_queries(self, e2e_billing_db):
         """SQL injection in tenant_id should not corrupt the billing database."""
-        from src.core.billing.trial_manager import TrialManager
+        # Billing module removed — skip billing-related SQL injection test
+        # from src.core.billing.trial_manager import TrialManager
+        pytest.skip(reason="src.core.billing removed — billing module no longer available")
         tm = TrialManager(db_path=e2e_billing_db)
         tm.start_trial("normal-tenant")
         malicious_id = "evil'; DROP TABLE billing_records; --"

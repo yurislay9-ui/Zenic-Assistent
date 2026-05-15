@@ -2,17 +2,16 @@
 Tests for build_partial_reasoning_response, build_error_response, and build_overloaded_response.
 """
 
-import os
-import sys
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+# Server module removed — response builder no longer available
+# from src.server.response_builder import (
+#     build_partial_reasoning_response,
+#     build_error_response,
+#     build_overloaded_response,
+# )
 
-from src.server.response_builder import (
-    build_partial_reasoning_response,
-    build_error_response,
-    build_overloaded_response,
-)
+pytestmark = pytest.mark.skip(reason="src.server.response_builder removed — server module deleted")
 
 
 # ============================================================

@@ -1,6 +1,6 @@
 """
 ZENIC-AGENTS - Motor de IA Quirurgico Local
-Servidor OpenAI-Compatible para Cline, Aide, OpenCode y mas.
+TUI Entry Point — uses core engine only (server module removed).
 
 Usa modulos src/core/ con Z3 SMT Solver (con fallback AC-3),
 MCTS real, Ejecucion Simbolica real, Timeout enforcement real,
@@ -10,10 +10,9 @@ y Razonamiento Parcial con tool_calls.
 Interfaz TUI (Terminal UI) con Textual — funciona en Termux,
 proot-distro, VPS y cualquier terminal sin dependencias graficas.
 
-Modo de uso:
-  1. Pulsa INICIAR MOTOR
-  2. Conecta Cline/Aide a: http://TU_IP:5000/v1
-  3. El motor procesa tus peticiones con 8 niveles de razonamiento
+NOTA: El servidor OpenAI-compatible (src/server/) ha sido eliminado.
+Este entry point ahora solo ejecuta el motor localmente via TUI,
+sin servidor HTTP. Para pruebas locales, usa el campo de texto.
 """
 
 import os
@@ -43,10 +42,8 @@ else:
     except ImportError:
         from src.core.orchestrator import ZenicOrchestrator as _Orchestrator
 
-from src.server import (
-    ZenicHTTPHandler, ThreadedHTTPServer,
-    get_local_ip, configure_handler, RateLimiter,
-)
+# Server module removed — no more HTTP server imports
+# from src.server import (ZenicHTTPHandler, ThreadedHTTPServer, ...)
 
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, VerticalScroll
@@ -65,7 +62,11 @@ IS_ANDROID = 'ANDROID_ARGUMENT' in os.environ
 # ============================================================
 
 class ZenicTUIApp(App):
-    """ZENIC-AGENTS con servidor OpenAI-compatible — Interfaz TUI."""
+    """ZENIC-AGENTS Motor de IA Quirurgico Local — Interfaz TUI.
+
+    NOTE: The OpenAI-compatible HTTP server has been removed.
+    This TUI now runs the engine locally only — no server startup.
+    """
 
     CSS = """
     Screen {
@@ -133,15 +134,13 @@ class ZenicTUIApp(App):
 
     BINDINGS = [
         ("q", "quit", "Salir"),
-        ("i", "toggle_engine", "Iniciar/Detener"),
         ("t", "focus_input", "Probar"),
     ]
 
-    server_running: reactive[bool] = reactive(False)
+    engine_running: reactive[bool] = reactive(False)
 
     def compose(self) -> ComposeResult:
         self.engine = _Orchestrator()
-        self.server = None
         self._log_lines: list[str] = []
 
         solver_name = "Z3" if HAS_Z3 else "AC-3"
@@ -153,18 +152,15 @@ class ZenicTUIApp(App):
             id="title-label",
         )
 
-        # IP Info
+        # Info
         yield Label(
-            "Conecta Cline/Aide/OpenCode a:\nhttp://0.0.0.0:5000/v1",
+            "Modo local (sin servidor HTTP)\n"
+            "Usa el campo de texto para probar el motor",
             id="ip-label",
         )
 
         # Status
-        yield Label("Motor Apagado", id="status-label")
-
-        # Start/Stop Button
-        btn = Button(f"INICIAR MOTOR ZENIC {ZENIC_VERSION_STR}", id="start-btn", variant="primary")
-        yield btn
+        yield Label("Motor Listo", id="status-label")
 
         # Test Input
         yield Input(
@@ -181,7 +177,7 @@ class ZenicTUIApp(App):
 
     def _initial_log_text(self, solver_name: str) -> str:
         return (
-            f"Motor {ZENIC_VERSION_STR} listo. Pulsa INICIAR MOTOR para activar el servidor.\n\n"
+            f"Motor {ZENIC_VERSION_STR} listo. Escribe una consulta y pulsa PROBAR.\n\n"
             f"NOVEDADES {ZENIC_VERSION_STR}:\n"
             f"- {solver_name} SMT Solver (Z3 si disponible, AC-3 fallback)\n"
             f"- MCTS real (UCB1, 100 simulaciones, depth 5)\n"
@@ -189,114 +185,25 @@ class ZenicTUIApp(App):
             f"- Timeout enforcement real (15s quirurgico, 5s moderado)\n"
             f"- K-Paths basado en grafo de dependencias\n"
             f"- Protocolo Abortivo (auto-subdivision en timeout)\n"
-            f"- Razonamiento Parcial con tool_calls\n"
             f"- Cache de Teoremas con Skeleton Hash\n"
             f"- Configuracion YAML conectada\n"
-            f"- MacroRouter con firmas topologicas del AST\n"
-            f"- Generacion de codigo contextual\n\n"
-            f"COMO CONECTAR CLINE:\n"
-            f"1. Inicia el motor en esta app\n"
-            f"2. En VS Code, configura Cline:\n"
-            f"   - API Provider: OpenAI Compatible\n"
-            f"   - Base URL: http://TU_IP:5000/v1\n"
-            f"   - Model: zenic-agents\n"
-            f"3. Cline enviara peticiones a tu telefono\n\n"
+            f"- MacroRouter con firmas topologicas del AST\n\n"
+            f"NOTA: El servidor HTTP ha sido eliminado.\n"
+            f"Este TUI ahora ejecuta solo el motor localmente.\n\n"
             f"ATAJOS DE TECLADO:\n"
-            f"  [i] Iniciar/Detener motor  [t] Probar  [q] Salir"
+            f"  [t] Probar  [q] Salir"
         )
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "start-btn":
-            self.toggle_engine()
-        elif event.button.id == "test-btn":
+        if event.button.id == "test-btn":
             self._test_local()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         if event.input.id == "test-input":
             self._test_local()
 
-    def action_toggle_engine(self) -> None:
-        self.toggle_engine()
-
     def action_focus_input(self) -> None:
         self.query_one("#test-input", Input).focus()
-
-    def toggle_engine(self) -> None:
-        if self.server_running:
-            self._stop_engine()
-        else:
-            self._start_engine()
-
-    def _start_engine(self) -> None:
-        ip = get_local_ip()
-        self._update_status(f"Iniciando motor {ZENIC_VERSION_STR}...", "warning")
-        start_btn = self.query_one("#start-btn", Button)
-        start_btn.disabled = True
-
-        # Configurar handler compartido con rate limiter basico para TUI
-        rate_limiter = RateLimiter(
-            max_requests_per_minute=30,
-            burst_size=5,
-            global_max_concurrent=10,
-        )
-        configure_handler(self.engine, governor=None, platform_tag="tui",
-                          rate_limiter=rate_limiter)
-
-        def run_server():
-            try:
-                self.server = ThreadedHTTPServer(('0.0.0.0', 5000), ZenicHTTPHandler)
-                self.server_running = True
-                self.call_from_thread(self._update_status_running, ip)
-                self.server.serve_forever()
-            except OSError as e:
-                self.call_from_thread(self._update_status_error, str(e))
-            except Exception as e:
-                self.call_from_thread(self._update_status_error, str(e))
-
-        threading.Thread(target=run_server, daemon=True).start()
-
-    def _stop_engine(self) -> None:
-        if self.server:
-            self.server.shutdown()
-            self.server = None
-        self.server_running = False
-        self._update_status("Motor Apagado", "error")
-        start_btn = self.query_one("#start-btn", Button)
-        start_btn.label = f"INICIAR MOTOR ZENIC {ZENIC_VERSION_STR}"
-        start_btn.variant = "primary"
-        start_btn.disabled = False
-        self._add_log("Motor detenido.")
-
-    def _update_status(self, text: str, style: str = "error") -> None:
-        status_label = self.query_one("#status-label", Label)
-        status_label.update(text)
-        # Update color based on status
-        if style == "success":
-            status_label.styles.color = "green"
-        elif style == "warning":
-            status_label.styles.color = "yellow"
-        else:
-            status_label.styles.color = "red"
-
-    def _update_status_running(self, ip: str) -> None:
-        solver_name = "Z3" if HAS_Z3 else "AC-3"
-        self._update_status(
-            f"Motor {ZENIC_VERSION_STR} ACTIVO ({solver_name}) - {ip}:5000",
-            "success",
-        )
-        start_btn = self.query_one("#start-btn", Button)
-        start_btn.label = "DETENER MOTOR"
-        start_btn.variant = "error"
-        start_btn.disabled = False
-        self._add_log(f"Motor {ZENIC_VERSION_STR} activo. {solver_name} + MCTS + SymbolicExec reales.")
-
-    def _update_status_error(self, error: str) -> None:
-        self._update_status(f"Error: {error}", "error")
-        start_btn = self.query_one("#start-btn", Button)
-        start_btn.label = "REINTENTAR"
-        start_btn.variant = "primary"
-        start_btn.disabled = False
-        self._add_log(f"Error: {error}")
 
     def _test_local(self) -> None:
         test_input = self.query_one("#test-input", Input)
@@ -362,19 +269,9 @@ _zenic_app: ZenicTUIApp | None = None
 
 
 def _cleanup():
-    """Graceful shutdown: stop server, close DB connections."""
+    """Graceful shutdown: close DB connections."""
     global _zenic_app
-    try:
-        if _zenic_app is not None:
-            if _zenic_app.server:
-                _zenic_app.server.shutdown()
-    except Exception:
-        pass
-    try:
-        from src.server.http_handler import _shutdown_loop
-        _shutdown_loop()
-    except Exception:
-        pass
+    # Server module removed — no more HTTP server cleanup needed
 
 atexit.register(_cleanup)
 
@@ -383,7 +280,7 @@ if __name__ == '__main__':
     solver_name = "Z3" if HAS_Z3 else "AC-3"
     logger.info(f"{ZENIC_FULL_NAME} - Local Surgical AI Engine (TUI)")
     logger.info(f"Solver: {solver_name} | MCTS Real | Symbolic Exec Real | Timeout Real | Skeleton Hash")
-    logger.info("OpenAI-compatible server for Cline, Aide, OpenCode")
+    logger.info("NOTE: HTTP server removed — local engine only")
 
     _zenic_app = ZenicTUIApp()
     _zenic_app.run()

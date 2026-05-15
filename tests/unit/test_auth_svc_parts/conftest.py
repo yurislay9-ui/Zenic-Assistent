@@ -4,6 +4,7 @@ Shared fixtures for test_auth_svc_parts sub-modules.
 
 import pytest
 
+# auth_parts removed — AuthService is now a stub
 from src.core.auth_service import AuthService, ROLE_HIERARCHY, ROLE_PERMISSIONS
 
 

@@ -143,12 +143,16 @@ def main_api_client(mock_orchestrator):
     from fastapi.testclient import TestClient
 
     try:
+        # Server module removed — FastAPI app factory no longer available
         from src.server.fastapi_parts._app_factory import create_app
         from src.server.rate_limiter import RateLimiter
         rl = RateLimiter(max_requests_per_minute=100, burst_size=30, global_max_concurrent=50)
         app = create_app(orchestrator=mock_orchestrator, auth_service=None,
                          rate_limiter=rl, governor=None, platform_tag="e2e-test")
         return TestClient(app)
+    except ImportError:
+        # Server module deleted — use fallback
+        return TestClient(_build_main_app_fallback())
     except Exception:
         return TestClient(_build_main_app_fallback())
 
@@ -301,36 +305,14 @@ def safety_gate():
 
 @pytest.fixture()
 def billing_service(e2e_billing_db):
-    from src.core.billing.service import BillingService, reset_billing_service
-    reset_billing_service()
-    svc = BillingService(db_path=e2e_billing_db)
-    yield svc
-    reset_billing_service()
+    # Billing module removed — fixture disabled
+    pytest.skip(reason="src.core.billing removed — billing service no longer available")
 
 
 @pytest.fixture()
 def mock_stripe():
-    with patch("src.core.billing.stripe_integration._ensure_stripe") as mock_ensure:
-        mock_ensure.return_value = True
-        mod = MagicMock()
-        cust = MagicMock(id="cus_e2e_mock_123")
-        mod.Customer.create.return_value = cust
-        sub = MagicMock(id="sub_e2e_mock_456")
-        mod.Subscription.create.return_value = sub
-        mod.Subscription.delete.return_value = True
-        mod.Subscription.retrieve.return_value = {"items": {"data": [{"id": "si_mock"}]}}
-        mod.Subscription.modify.return_value = True
-        portal = MagicMock(url="https://billing.stripe.com/mock")
-        mod.billing_portal.Session.create.return_value = portal
-        mod.Invoice.list.return_value = MagicMock(auto_paging_iter=lambda: [])
-        mod.error = MagicMock(SignatureVerificationError=Exception)
-        mod.Webhook.construct_event.return_value = {
-            "type": "checkout.session.completed",
-            "data": {"object": {
-                "metadata": {"tenant_id": "test-tenant", "plan_type": "business"},
-                "customer": "cus_e2e_mock_123", "subscription": "sub_e2e_mock_456"}}}
-        with patch("src.core.billing.stripe_integration._stripe", mod):
-            yield {"module": mod, "customer": cust, "subscription": sub}
+    # Billing module removed — fixture disabled
+    pytest.skip(reason="src.core.billing removed — Stripe mocking no longer needed")
 
 
 # ---------------------------------------------------------------------------

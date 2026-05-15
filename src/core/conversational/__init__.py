@@ -2,7 +2,10 @@
 Zenic-Agents Conversational Layer
 
 Capa conversacional multi-turno con session management,
-traduccion LLM, confirm manager y adaptadores de canal.
+traduccion LLM, confirm manager.
+
+Removed (external API connections deleted):
+  - TelegramAdapter, DiscordAdapter (adapters directory deleted)
 """
 
 __all__ = [
@@ -13,8 +16,6 @@ __all__ = [
     "LLMTranslator",
     "LLMDrafter",
     "ConfirmManager",
-    "TelegramAdapter",
-    "DiscordAdapter",
 ]
 
 def __getattr__(name):
@@ -39,10 +40,5 @@ def __getattr__(name):
     if name == "ConfirmManager":
         from src.core.conversational.confirm_manager import ConfirmManager
         return ConfirmManager
-    if name == "TelegramAdapter":
-        from src.core.conversational.adapters.telegram import TelegramAdapter
-        return TelegramAdapter
-    if name == "DiscordAdapter":
-        from src.core.conversational.adapters.discord import DiscordAdapter
-        return DiscordAdapter
+    # TelegramAdapter and DiscordAdapter removed — external API connections deleted
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

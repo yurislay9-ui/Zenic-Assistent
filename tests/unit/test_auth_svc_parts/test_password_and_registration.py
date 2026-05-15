@@ -4,6 +4,7 @@ Tests for AuthService password management and user registration.
 
 import pytest
 
+# auth_parts removed — AuthService is now a stub
 from src.core.auth_service import AuthService
 
 

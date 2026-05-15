@@ -77,8 +77,10 @@ class GraphASTEngine:
         conn.commit()
         # Migrate: add tenant_id column if it doesn't exist
         try:
-            from src.core.tenant._isolation import TenantIsolation
-            TenantIsolation.migrate_add_tenant_id(conn, "ast_nodes", "__anonymous__")
+            # Tenant module removed — skip tenant isolation migration
+            # from src.core.tenant._isolation import TenantIsolation
+            # TenantIsolation.migrate_add_tenant_id(conn, "ast_nodes", "__anonymous__")
+            pass
         except Exception as e:
             logger.debug("ast_nodes tenant migration skipped: %s", e)
 

@@ -17,7 +17,8 @@ from ._imports import (
     GitHubScrapAgent, ASTSurgeon, ReflexionSandbox,
     MerkleLedger, TheoremCache,
     get_isolation_manager, SandboxWorkspace, shutdown_isolation,
-    SubtaskDescriptor, AbortiveProtocol, PartialReasoningManager,
+    SubtaskDescriptor, AbortiveProtocol,
+    # PartialReasoningManager removed — depends on deleted partial_reason_parts
     # CodeGenerator removed — module deleted
     # CodeTransformer removed — module deleted
     AnalysisUtils,
@@ -54,7 +55,8 @@ __all__ = [
     "GitHubScrapAgent", "ASTSurgeon", "ReflexionSandbox",
     "MerkleLedger", "TheoremCache",
     "get_isolation_manager", "SandboxWorkspace", "shutdown_isolation",
-    "SubtaskDescriptor", "AbortiveProtocol", "PartialReasoningManager",
+    "SubtaskDescriptor", "AbortiveProtocol",
+    # "PartialReasoningManager" removed — depends on deleted partial_reason_parts
     # "CodeGenerator" removed — module deleted
     # "CodeTransformer" removed — module deleted
     "AnalysisUtils",

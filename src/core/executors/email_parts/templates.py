@@ -1,20 +1,29 @@
 """
-ZENIC-AGENTS - Email Template Engine (Phase 3)
+ZENIC-AGENTS — Email Template Engine (Phase 2)
 
 Template engine for generating structured email content.
 Provides built-in templates for common business scenarios
 and supports custom template registration.
+
+Built-in templates:
+  - invoice: Financial invoice with itemized details
+  - reminder: General reminder notification
+  - alert: Critical alert notification
+  - welcome: New user welcome email
+  - low_stock: Inventory low stock alert
+
+Uses string.Template.safe_substitute() for variable substitution,
+which leaves unknown $variables as-is instead of raising KeyError.
 """
 
 from __future__ import annotations
 
 import logging
-import re
 from dataclasses import dataclass, field
 from string import Template as StringTemplate
 from typing import Any, Dict, List, Optional
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("zenic_agents.email_parts.templates")
 
 
 # ──────────────────────────────────────────────────────────────
@@ -23,12 +32,23 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class EmailTemplate:
-    """A structured email template."""
+    """A structured email template.
+
+    Attributes:
+        name: Unique template identifier.
+        subject_template: Subject line template with $variable placeholders.
+        body_template: Plain text body template with $variable placeholders.
+        html_template: HTML body template (optional).
+        category: Template category (general, financial, alert, notification).
+        required_variables: List of variable names that should be provided.
+        has_attachments: Whether emails from this template typically have attachments.
+        description: Human-readable description of the template.
+    """
     name: str
     subject_template: str
-    body_template: str                      # Plain text template
-    html_template: str = ""                 # HTML template (optional)
-    category: str = "general"               # general, financial, alert, notification
+    body_template: str
+    html_template: str = ""
+    category: str = "general"
     required_variables: List[str] = field(default_factory=list)
     has_attachments: bool = False
     description: str = ""
@@ -189,8 +209,18 @@ class EmailTemplateEngine:
       - Built-in templates for common business scenarios
       - Custom template registration
       - Variable validation (required variables checked)
-      - Safe substitution (missing variables get placeholder)
+      - Safe substitution (missing variables left as $placeholder)
       - HTML and plain text rendering
+      - Config-driven rendering (render_from_config)
+
+    Usage:
+        engine = EmailTemplateEngine()
+        result = engine.render("invoice", {
+            "invoice_number": "INV-001",
+            "customer_name": "Acme Corp",
+            "total": "$1,234.56",
+        })
+        # result = {"subject": "Invoice #INV-001 from ...", "body": "...", "html": "..."}
     """
 
     def __init__(self) -> None:
@@ -198,17 +228,41 @@ class EmailTemplateEngine:
         self._custom_count: int = 0
 
     def register_template(self, template: EmailTemplate) -> None:
-        """Register a custom email template."""
+        """Register a custom email template.
+
+        If a template with the same name already exists, it will be replaced.
+
+        Args:
+            template: The EmailTemplate to register.
+        """
+        is_overwrite = template.name in self._templates
         self._templates[template.name] = template
-        self._custom_count += 1
-        logger.info(f"EmailTemplateEngine: Registered template '{template.name}'")
+        if not is_overwrite:
+            self._custom_count += 1
+        logger.info(
+            "EmailTemplateEngine: %s template '%s' (category=%s)",
+            "Updated" if is_overwrite else "Registered",
+            template.name,
+            template.category,
+        )
 
     def get_template(self, name: str) -> Optional[EmailTemplate]:
-        """Get a template by name."""
+        """Get a template by name.
+
+        Args:
+            name: Template identifier.
+
+        Returns:
+            The EmailTemplate if found, None otherwise.
+        """
         return self._templates.get(name)
 
     def list_templates(self) -> List[str]:
-        """List all available template names."""
+        """List all available template names (built-in + custom).
+
+        Returns:
+            List of template name strings.
+        """
         return list(self._templates.keys())
 
     def render(
@@ -219,15 +273,28 @@ class EmailTemplateEngine:
     ) -> Dict[str, str]:
         """Render a template with the given variables.
 
+        Uses string.Template.safe_substitute() so missing variables
+        remain as $variable_name in the output instead of raising.
+
+        Args:
+            template_name: Name of the template to render.
+            variables: Dict of variable name → value for substitution.
+            fallback_to_raw: If True and template not found, returns
+                raw variable values instead of raising.
+
         Returns:
             Dict with 'subject', 'body', 'html' keys.
+
+        Raises:
+            ValueError: If template not found and fallback_to_raw is False.
         """
         template = self._templates.get(template_name)
         if not template:
             if fallback_to_raw:
                 logger.warning(
-                    f"EmailTemplateEngine: Template '{template_name}' not found, "
-                    f"using raw variables"
+                    "EmailTemplateEngine: Template '%s' not found, "
+                    "using raw variables",
+                    template_name,
                 )
                 return {
                     "subject": str(variables.get("subject", template_name)),
@@ -239,11 +306,12 @@ class EmailTemplateEngine:
         # Validate required variables
         missing = [
             v for v in template.required_variables
-            if v not in variables and f"${v}" not in str(variables)
+            if v not in variables
         ]
         if missing:
             logger.warning(
-                f"EmailTemplateEngine: Missing variables for '{template_name}': {missing}"
+                "EmailTemplateEngine: Missing variables for '%s': %s",
+                template_name, missing,
             )
 
         # Render with safe substitution
@@ -262,6 +330,12 @@ class EmailTemplateEngine:
 
         Config should have 'template' (name) and 'template_vars' (dict).
         Falls back to raw subject/body/html if no template specified.
+
+        Args:
+            config: Executor configuration dict.
+
+        Returns:
+            Dict with 'subject', 'body', 'html' keys.
         """
         template_name = config.get("template", "")
         template_vars = config.get("template_vars", {})
@@ -278,7 +352,11 @@ class EmailTemplateEngine:
 
     @property
     def stats(self) -> Dict[str, Any]:
-        """Get template engine statistics."""
+        """Get template engine statistics.
+
+        Returns:
+            Dict with template counts and names.
+        """
         return {
             "total_templates": len(self._templates),
             "builtin_templates": len(BUILTIN_TEMPLATES),
@@ -286,15 +364,32 @@ class EmailTemplateEngine:
             "template_names": list(self._templates.keys()),
         }
 
-    # ── Private methods ──────────────────────────────────────
+    # ── Private Methods ───────────────────────────────────────
 
     @staticmethod
     def _prepare_variables(variables: Dict[str, Any]) -> Dict[str, str]:
-        """Convert all variable values to strings for substitution."""
-        return {k: str(v) for k, v in variables.items()}
+        """Convert all variable values to strings for substitution.
+
+        Handles None, lists, dicts, and other types gracefully.
+        """
+        result: Dict[str, str] = {}
+        for k, v in variables.items():
+            if v is None:
+                result[k] = ""
+            elif isinstance(v, (list, tuple)):
+                result[k] = ", ".join(str(item) for item in v)
+            elif isinstance(v, dict):
+                result[k] = str(v)
+            else:
+                result[k] = str(v)
+        return result
 
     @staticmethod
     def _safe_substitute(template_str: str, variables: Dict[str, str]) -> str:
-        """Safe substitution that leaves unknown $variables as-is."""
+        """Safe substitution that leaves unknown $variables as-is.
+
+        Uses string.Template.safe_substitute() which preserves
+        unsubstituted placeholders instead of raising KeyError.
+        """
         tmpl = StringTemplate(template_str)
         return tmpl.safe_substitute(variables)

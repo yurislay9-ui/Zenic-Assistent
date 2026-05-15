@@ -186,7 +186,8 @@ class ApprovalChain:
             return ApprovalResult(False, request_id, request.status,
                                   f"Request is already {request.status.value}")
 
-        from src.core.auth_parts._imports import ROLE_HIERARCHY
+        # auth_parts removed — use fallback ROLE_HIERARCHY from auth_service stub
+        from src.core.auth_service import ROLE_HIERARCHY
         if ROLE_HIERARCHY.get(approver_role, -1) < ROLE_HIERARCHY.get(request.required_role, -1):
             return ApprovalResult(False, request_id, request.status,
                                   f"Approver role '{approver_role}' insufficient")

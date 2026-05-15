@@ -159,19 +159,8 @@ class StreamingReal:
 
         yield from self.stream_chat(messages, max_tokens=max_tokens, temperature=0.3)
 
-    def stream_to_fastapi(self, messages: list, max_tokens: int = 512):
-        """Create a FastAPI StreamingResponse-compatible generator.
-
-        Usage in FastAPI:
-            from fastapi.responses import StreamingResponse
-            streamer = StreamingReal(orchestrator._ai)
-            return StreamingResponse(
-                streamer.stream_to_fastapi(messages),
-                media_type="text/event-stream"
-            )
-        """
-        for sse_chunk in self.stream_chat(messages, max_tokens):
-            yield sse_chunk
+    # stream_to_fastapi() removed — FastAPI server layer has been removed.
+    # The system is now a standalone assistant agent, not an API server.
 
     # ================================================================
     #  HELPERS

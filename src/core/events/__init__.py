@@ -4,9 +4,11 @@ ZENIC-AGENTS — Event-driven Actions Engine (B1)
 Package providing the core event-driven automation components:
 
   - TriggerMap: Declarative mapping from event patterns to automations
-  - WebhookIngestionEngine: Inbound webhook handler with HMAC verification
   - EventSchemaRegistry: Event payload validation against declared schemas
   - ReplayQueue: Dead-letter queue with event replay capability
+
+Removed (external API connections deleted):
+  - WebhookIngestionEngine: Was inbound webhook handler with HMAC verification
 
 Each component is thread-safe and follows the singleton pattern
 for production use. All SQLite-persisted components store data
@@ -21,16 +23,6 @@ from .trigger_map import (
     ConditionOperator,
     get_trigger_map,
     reset_trigger_map,
-)
-
-# ── WebhookIngestionEngine ──
-from .webhook_ingestion import (
-    WebhookIngestionEngine,
-    WebhookEndpoint,
-    InboundWebhookResult,
-    InboundEvent,
-    get_webhook_ingestion_engine,
-    reset_webhook_ingestion_engine,
 )
 
 # ── EventSchemaRegistry ──
@@ -63,13 +55,6 @@ __all__ = [
     "ConditionOperator",
     "get_trigger_map",
     "reset_trigger_map",
-    # WebhookIngestionEngine
-    "WebhookIngestionEngine",
-    "WebhookEndpoint",
-    "InboundWebhookResult",
-    "InboundEvent",
-    "get_webhook_ingestion_engine",
-    "reset_webhook_ingestion_engine",
     # EventSchemaRegistry
     "EventSchemaRegistry",
     "EventSchema",

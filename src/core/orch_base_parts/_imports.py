@@ -38,7 +38,8 @@ try:
     from src.core.abortive_protocol import AbortiveProtocol
 except ImportError:
     AbortiveProtocol = None  # type: ignore[misc,assignment]
-from src.core.partial_reasoning import PartialReasoningManager
+# PartialReasoningManager removed — partial_reasoning depends on deleted partial_reason_parts
+# from src.core.partial_reasoning import PartialReasoningManager
 # CodeGenerator and CodeTransformer removed — Zenic is an assistant agent, not a code generator
 from src.core.analysis_utils import AnalysisUtils
 
@@ -51,6 +52,7 @@ from src.core.automation_engine import AutomationEngine
 # Phase 7: Real Engines
 from src.core.action_executor import ExecutorRegistry, get_default_registry
 from src.core.logic_builder import LogicBuilder
+# AuthService: auth_parts removed — stub with fallback constants
 from src.core.auth_service import AuthService
 
 # Phase 8: Intelligence

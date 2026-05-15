@@ -10,7 +10,37 @@ import sqlite3
 from typing import Dict, List, Optional
 
 from ..types import DB_PATH
-from src.core.tenant._context import get_current_tenant, set_current_tenant, TenantContext
+# Tenant module removed — use fallback from parent module
+# from src.core.tenant._context import get_current_tenant, set_current_tenant, TenantContext
+# These are provided by _core.py via the fallback context
+try:
+    from src.core.tenant._context import get_current_tenant, set_current_tenant, TenantContext
+except ImportError:
+    from src.core.shared.tenant_utils import ANONYMOUS_TENANT
+
+    class TenantContext:
+        """Minimal fallback for removed TenantContext."""
+        def __init__(self, tenant_id=ANONYMOUS_TENANT, user_id=0, username="",
+                     role="viewer", plan="free", quotas=None, features=None,
+                     permissions=None, auth_method="", is_authenticated=False, extra=None):
+            self.tenant_id = tenant_id
+            self.effective_tenant_id = tenant_id
+            self.user_id = user_id
+            self.username = username
+            self.role = role
+            self.plan = plan
+            self.quotas = quotas or {}
+            self.features = features or []
+            self.permissions = permissions or []
+            self.auth_method = auth_method
+            self.is_authenticated = is_authenticated
+            self.extra = extra or {}
+
+    def get_current_tenant():
+        return TenantContext()
+
+    def set_current_tenant(ctx):
+        pass
 
 logger = logging.getLogger(__name__)
 
