@@ -1,0 +1,780 @@
+// Zenic-Agents v3 — MCP Gateway with RBAC & Audit
+// Phase 1: Complete data model
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Identity ──────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  avatar    String?
+  status    String   @default("active") // active | suspended | deactivated
+  lastLogin DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roles     UserRole[]
+  auditLogs AuditLog[]
+  toolExecs ToolExecution[]
+
+  @@map("users")
+}
+
+// ─── RBAC: Roles & Permissions ─────────────────────────────────────
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  displayName String
+  description String
+  color       String   @default("#6b7280") // UI badge color
+  isSystem    Boolean  @default(false)      // system roles cannot be deleted
+  priority    Int      @default(0)          // higher = more permissions
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g. "tool:execute", "audit:read", "policy:write"
+  resource    String                          // e.g. "tool", "audit", "policy", "role", "server"
+  action      String                          // e.g. "read", "write", "execute", "delete", "admin"
+  displayName String
+  description String
+  isDangerous Boolean  @default(false)        // requires extra approval
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@unique([resource, action])
+  @@map("permissions")
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  grantedBy String?                // userId who granted
+  expiresAt DateTime?              // optional expiry
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id         String   @id @default(cuid())
+  roleId     String
+  permissionId String
+  constraints String? @default("{}") // JSON: { "tools": ["weather_*"], "maxCalls": 100 }
+  createdAt  DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ─── MCP Tools Registry ────────────────────────────────────────────
+
+model McpTool {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g. "weather_lookup", "db_query", "file_read"
+  displayName String
+  description String
+  category    String                          // e.g. "data", "communication", "compute", "storage", "external"
+  version     String   @default("1.0.0")
+  icon        String?                         // lucide icon name
+  endpoint    String                          // URL or internal path
+  method      String   @default("POST")       // HTTP method
+  inputSchema String                          // JSON Schema for input validation
+  outputSchema String?                        // JSON Schema for output validation
+  timeout     Int      @default(30000)        // ms
+  retries     Int      @default(2)
+  rateLimit   Int      @default(100)          // calls per minute
+  riskLevel   String   @default("low")        // low | medium | high | critical
+  status      String   @default("active")     // active | deprecated | disabled | testing
+  requiresApproval Boolean @default(false)    // needs human-in-the-loop
+  tags        String   @default("[]")         // JSON array of tags
+  metadata    String   @default("{}")         // JSON: extra config
+  serverId    String?                          // linked MCP server
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  server      McpServer?  @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  executions  ToolExecution[]
+  accessPolicies ToolAccessPolicy[]
+
+  @@map("mcp_tools")
+}
+
+model McpServer {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  displayName   String
+  description   String
+  url           String
+  protocol      String   @default("http") // http | websocket | grpc | stdio
+  status        String   @default("active") // active | unhealthy | offline | maintenance
+  healthCheckUrl String?
+  lastPing      DateTime?
+  lastError     String?
+  authType      String   @default("none") // none | api_key | oauth2 | mtls
+  authConfig    String   @default("{}")   // JSON (encrypted at app layer)
+  capabilities  String   @default("[]")   // JSON array
+  metadata      String   @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tools McpTool[]
+
+  @@map("mcp_servers")
+}
+
+// ─── Gateway Execution & Audit ──────────────────────────────────────
+
+model ToolExecution {
+  id           String   @id @default(cuid())
+  toolId       String
+  executorId   String?                        // userId or service account
+  status       String   @default("pending")   // pending | approved | running | completed | failed | denied | timeout
+  input        String                          // JSON input payload
+  output       String?                         // JSON output payload
+  errorMessage String?
+  duration     Int?                            // ms
+  verdict      String?                         // allow | deny | conditional
+  verdictReason String?                        // why the verdict was given
+  retryCount   Int      @default(0)
+  parentExecId String?                         // for chained calls
+  correlationId String?                        // cross-service tracing
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  completedAt  DateTime?
+
+  tool        McpTool  @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  executor    User?    @relation(fields: [executorId], references: [id], onDelete: SetNull)
+  auditLogId  String?  @unique
+  auditLog    AuditLog?  @relation(fields: [auditLogId], references: [id], onDelete: SetNull)
+
+  @@map("tool_executions")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorId      String?                        // userId or "system"
+  actorType    String   @default("user")      // user | system | service | agent
+  action       String                          // e.g. "tool.execute", "role.assign", "policy.update"
+  resource     String                          // e.g. "tool", "role", "policy"
+  resourceId   String?                         // specific resource id
+  resourceName String?                         // human-readable name
+  severity     String   @default("info")      // debug | info | warn | error | critical
+  outcome      String   @default("success")   // success | failure | denied | error
+  details      String   @default("{}")        // JSON: before/after state, diff
+  ipAddress    String?
+  userAgent    String?
+  sessionId    String?
+  traceId      String?                         // distributed tracing
+  tags         String   @default("[]")        // JSON array for filtering
+  createdAt    DateTime @default(now())
+
+  actor        User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  execution    ToolExecution? // reverse side of one-to-one
+
+  @@index([actorId])
+  @@index([action])
+  @@index([resource])
+  @@index([severity])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─── Access Policies & Rules ───────────────────────────────────────
+
+model AccessPolicy {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  type        String   @default("allow")     // allow | deny | conditional | quota
+  priority    Int      @default(0)           // higher = evaluated first
+  isEnabled   Boolean  @default(true)
+  conditions  String   @default("[]")        // JSON: array of condition objects
+  effect      String   @default("allow")     // allow | deny | require_approval
+  timeWindow  String?                         // JSON: { "start": "09:00", "end": "17:00", "tz": "UTC" }
+  quota       String?                         // JSON: { "maxCalls": 100, "window": "1h" }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  toolAccessPolicies ToolAccessPolicy[]
+
+  @@map("access_policies")
+}
+
+model ToolAccessPolicy {
+  id         String   @id @default(cuid())
+  toolId     String
+  policyId   String
+  createdAt  DateTime @default(now())
+
+  tool       McpTool      @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  policy     AccessPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@unique([toolId, policyId])
+  @@map("tool_access_policies")
+}
+
+// ─── Dashboard Metrics (materialized) ──────────────────────────────
+
+model MetricSnapshot {
+  id         String   @id @default(cuid())
+  metricKey  String                          // e.g. "tools.total", "executions.today", "audit.critical_24h"
+  metricValue Float
+  dimensions String   @default("{}")        // JSON: { "category": "data", "riskLevel": "high" }
+  capturedAt DateTime @default(now())
+
+  @@unique([metricKey, dimensions])
+  @@map("metric_snapshots")
+}
+
+// ─── Observability: Distributed Tracing (Phase 2) ──────────────────
+
+model Trace {
+  id          String   @id @default(cuid())
+  traceId     String   @unique               // Distributed trace ID (W3C format)
+  sessionId   String?                         // Business session ID
+  decisionId  String?                         // Verdict decision correlation ID
+  tenantId    String?                         // Tenant isolation
+  rootSpanId  String?                         // First span in the trace
+  status      String   @default("ok")        // ok | error | timeout | partial
+  verdict     String?                         // allow | deny | conditional — final verdict
+  duration    Int?                            // Total trace duration in ms
+  spanCount   Int      @default(0)           // Number of spans in this trace
+  serviceName String   @default("zenic-gateway")
+  attributes  String   @default("{}")        // JSON: arbitrary key-value attributes
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  spans       Span[]
+
+  @@index([traceId])
+  @@index([sessionId])
+  @@index([decisionId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([verdict])
+  @@index([createdAt])
+  @@map("traces")
+}
+
+model Span {
+  id           String   @id @default(cuid())
+  spanId       String   @unique               // W3C span ID
+  traceId      String                         // FK to Trace.traceId
+  parentSpanId String?                         // Parent span for nesting
+  name         String                         // e.g. "gateway.tool_resolution", "gateway.auth_check"
+  kind         String   @default("internal")  // internal | server | client | producer | consumer
+  status       String   @default("ok")        // ok | error | timeout
+  statusMessage String?                        // Error message if status=error
+  startTime    DateTime                       // Span start timestamp
+  endTime      DateTime?                      // Span end timestamp
+  duration     Int?                           // Duration in ms
+  service      String   @default("zenic-gateway")
+  resource     String?                        // e.g. "tool", "policy", "role"
+  resourceId   String?                        // e.g. tool name or ID
+  action       String?                        // e.g. "execute", "check", "resolve"
+  outcome      String?                        // success | failure | denied | error
+  attributes   String   @default("{}")        // JSON: span-specific key-value attributes
+  events       String   @default("[]")        // JSON: array of { name, timestamp, attributes }
+  links        String   @default("[]")        // JSON: array of { traceId, spanId, attributes }
+  createdAt    DateTime @default(now())
+
+  trace        Trace    @relation(fields: [traceId], references: [traceId], onDelete: Cascade)
+
+  @@index([spanId])
+  @@index([traceId])
+  @@index([parentSpanId])
+  @@index([name])
+  @@index([status])
+  @@index([startTime])
+  @@map("spans")
+}
+
+// ─── Observability: Metric Time Series (Phase 2) ───────────────────
+
+model MetricSeries {
+  id          String   @id @default(cuid())
+  name        String   @unique               // e.g. "gateway.deny_rate", "business.cost_per_flow"
+  description String
+  category    String                          // business | security | resilience | operational
+  unit        String   @default("count")      // count | ms | percent | usd | ratio
+  labels      String   @default("{}")        // JSON: default labels for all points
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  points      MetricPoint[]
+
+  @@index([category])
+  @@map("metric_series")
+}
+
+model MetricPoint {
+  id         String   @id @default(cuid())
+  seriesId   String                         // FK to MetricSeries
+  value      Float                           // The metric value
+  labels     String   @default("{}")        // JSON: point-specific labels { "tool": "db_query", "risk": "high" }
+  timestamp  DateTime                        // Observation time
+  createdAt  DateTime @default(now())
+
+  series     MetricSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@index([seriesId])
+  @@index([timestamp])
+  @@index([seriesId, timestamp])
+  @@map("metric_points")
+}
+
+// ─── Policy Engine: Declarative Policies (Phase 3) ──────────────────
+
+model DeclPolicy {
+  id              String   @id @default(cuid())
+  policyId        String   @unique               // Unique policy identifier (from YAML metadata.id)
+  name            String                          // Human-readable name
+  description     String                          // What the policy controls
+  apiVersion      String   @default("policy.zenic.dev/v1")
+  version         String   @default("1.0.0")     // Current active semantic version
+  labels          String   @default("{}")        // JSON: category, criticality, etc.
+  compliance      String   @default("[]")        // JSON: array of ComplianceMapping
+  statements      String                          // JSON: array of PolicyStatement
+  tests           String   @default("[]")        // JSON: array of PolicyTestCase
+  isActive        Boolean  @default(true)         // Whether this policy is active
+  sourceYaml      String?                         // Original YAML source (for round-trip)
+  contentHash     String                          // SHA-256 of canonical JSON
+  author          String?                         // Policy author
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  versions        DeclPolicyVersion[]
+
+  @@index([policyId])
+  @@index([isActive])
+  @@index([contentHash])
+  @@map("decl_policies")
+}
+
+model DeclPolicyVersion {
+  id                String   @id @default(cuid())
+  declPolicyId      String                         // FK to DeclPolicy
+  version           String                         // Semantic version string
+  contentHash       String                         // SHA-256 of document JSON at this version
+  document          String                         // JSON: full PolicyDocument snapshot
+  status            String   @default("active")   // draft | active | superseded | archived
+  createdBy         String   @default("system")    // Who created this version
+  changeDescription String   @default("")          // Commit message
+  parentVersionId   String?                        // Previous version ID (for history chain)
+  createdAt         DateTime @default(now())
+
+  policy            DeclPolicy @relation(fields: [declPolicyId], references: [id], onDelete: Cascade)
+
+  @@unique([declPolicyId, version])
+  @@index([declPolicyId])
+  @@index([status])
+  @@index([contentHash])
+  @@map("decl_policy_versions")
+}
+
+model DeclPolicyTestResult {
+  id              String   @id @default(cuid())
+  policyId        String                         // DeclPolicy.policyId
+  version         String                         // Version tested
+  totalTests      Int      @default(0)
+  passed          Int      @default(0)
+  failed          Int      @default(0)
+  errors          Int      @default(0)
+  suitePassed     Boolean  @default(false)
+  results         String   @default("[]")        // JSON: array of PolicyTestResult
+  duration        Int      @default(0)           // ms
+  triggeredBy     String   @default("manual")    // manual | hot_reload | ci
+  createdAt       DateTime @default(now())
+
+  @@index([policyId])
+  @@index([version])
+  @@index([createdAt])
+  @@map("decl_policy_test_results")
+}
+
+// ─── Playbooks: Industry Playbooks with ROI (Phase 4) ──────────────
+
+model Playbook {
+  id                    String    @id @default(cuid())
+  playbookId            String    @unique               // From YAML metadata.id, e.g. "healthtech-clinic"
+  name                  String                          // Human-readable name
+  nameEn                String?                         // English name
+  industry              String                          // e.g. "healthtech", "fintech", "edtech"
+  subIndustry           String?                         // e.g. "clinic", "microfinance", "k12"
+  apiVersion            String    @default("playbook.zenic.dev/v1")
+  version               String    @default("1.0.0")    // Semantic version
+  description           String
+  icon                  String?                         // Emoji
+  color                 String?                         // Hex color
+  labels                String    @default("{}")        // JSON
+  compliance            String    @default("[]")        // JSON array of standard names
+  capabilities          String                          // JSON array of PlaybookCapability
+  policies              String    @default("[]")        // JSON array of PolicyReference with policyId links to DeclPolicy
+  roiConfig             String    @default("{}")        // JSON: PlaybookRoiConfig
+  pricing               String    @default("{}")        // JSON: PlaybookPricing
+  onboarding            String    @default("{}")        // JSON: PlaybookOnboardingConfig
+  certificationStatus   String    @default("unsigned")  // unsigned | pending | certified | revoked
+  certificationSignedBy String?
+  certificationSignedAt DateTime?
+  certificationSignature String?
+  certificationHash     String?
+  sourceYaml            String?                         // Original YAML source
+  contentHash           String                          // SHA-256
+  isActive              Boolean   @default(true)
+  author                String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  versions              PlaybookVersion[]
+  activations           PlaybookActivation[]
+  metricsSnapshots      PlaybookMetricsSnapshot[]
+  onboardingSessions    PlaybookOnboardingSession[]
+
+  @@index([playbookId])
+  @@index([industry])
+  @@index([isActive])
+  @@index([certificationStatus])
+  @@index([contentHash])
+  @@map("playbooks")
+}
+
+model PlaybookVersion {
+  id                String   @id @default(cuid())
+  playbookDbId      String                         // FK to Playbook.id
+  version           String                         // Semantic version string
+  contentHash       String                         // SHA-256 of document JSON at this version
+  document          String                         // JSON: full PlaybookDocument snapshot
+  status            String   @default("active")    // draft | active | superseded | archived
+  createdBy         String   @default("system")     // Who created this version
+  changeDescription String   @default("")           // Commit message
+  parentVersionId   String?                         // Previous version ID (for history chain)
+  createdAt         DateTime @default(now())
+
+  playbook          Playbook  @relation(fields: [playbookDbId], references: [id], onDelete: Cascade)
+
+  @@unique([playbookDbId, version])
+  @@index([playbookDbId])
+  @@index([status])
+  @@index([contentHash])
+  @@map("playbook_versions")
+}
+
+model PlaybookActivation {
+  id               String    @id @default(cuid())
+  playbookDbId     String                          // FK to Playbook.id
+  tenantId         String
+  selectedTier     String                          // starter | pro | enterprise
+  customConfig     String    @default("{}")        // JSON
+  activatedPolicies String   @default("[]")        // JSON: array of policyId strings
+  configuredTools  String    @default("[]")        // JSON
+  roiProjection    String    @default("{}")        // JSON: RoiCalculation snapshot
+  status           String    @default("active")    // active | suspended | deactivated
+  activatedBy      String?
+  activatedAt      DateTime  @default(now())
+  deactivatedAt    DateTime?
+
+  playbook         Playbook  @relation(fields: [playbookDbId], references: [id], onDelete: Cascade)
+
+  @@index([playbookDbId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("playbook_activations")
+}
+
+model PlaybookMetricsSnapshot {
+  id            String   @id @default(cuid())
+  playbookDbId  String                         // FK to Playbook.id
+  tenantId      String?
+  operational   String   @default("{}")        // JSON: PlaybookOperationalMetrics
+  roi           String   @default("{}")        // JSON: RoiCalculation
+  uptimePct     Float    @default(99.9)
+  capturedAt    DateTime @default(now())
+
+  playbook      Playbook  @relation(fields: [playbookDbId], references: [id], onDelete: Cascade)
+
+  @@index([playbookDbId])
+  @@index([capturedAt])
+  @@map("playbook_metrics_snapshots")
+}
+
+model PlaybookOnboardingSession {
+  id             String    @id @default(cuid())
+  playbookDbId   String                          // FK to Playbook.id
+  tenantId       String?
+  sessionId      String    @unique
+  status         String    @default("in_progress") // in_progress | completed | abandoned
+  currentStep    Int       @default(0)
+  answers        String    @default("{}")          // JSON: field → answer
+  configSnapshot String    @default("{}")          // JSON: resolved config
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  completedAt    DateTime?
+
+  playbook       Playbook  @relation(fields: [playbookDbId], references: [id], onDelete: Cascade)
+
+  @@index([playbookDbId])
+  @@index([sessionId])
+  @@index([status])
+  @@map("playbook_onboarding_sessions")
+}
+
+// ─── Phase 4: Advanced Policy Engine ────────────────────────────────────
+
+// Policy Sets — Composition of multiple policies
+model PolicySet {
+  id                  String   @id @default(cuid())
+  setId               String   @unique               // From metadata.id
+  name                String                          // Human-readable name
+  description         String
+  apiVersion          String   @default("policyset.zenic.dev/v1")
+  version             String   @default("1.0.0")
+  namespace           String?                         // Namespace this set belongs to
+  labels              String   @default("{}")        // JSON
+  policies            String                          // JSON: array of PolicySetEntry
+  defaultMergeStrategy String  @default("priority_merge") // union | intersection | override | extend | priority_merge
+  denyStopsEvaluation Boolean  @default(true)
+  isActive            Boolean  @default(true)
+  contentHash         String                          // SHA-256
+  author              String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([setId])
+  @@index([namespace])
+  @@index([isActive])
+  @@map("policy_sets")
+}
+
+// Policy Conflicts — Detected cross-policy conflicts
+model PolicyConflictRecord {
+  id              String   @id @default(cuid())
+  conflictId      String   @unique               // Generated conflict ID
+  type            String                          // effect_contradiction | priority_collision | condition_overlap | redundant_rule | shadow_rule | scope_conflict
+  severity        String                          // critical | high | medium | low | info
+  policyIdA       String                          // First policy's policyId
+  versionA        String?                         // First policy version
+  statementIdA    String                          // First statement ID
+  effectA         String                          // First statement effect
+  resourceA       String                          // First statement resource
+  actionA         String                          // First statement action
+  policyIdB       String                          // Second policy's policyId
+  versionB        String?
+  statementIdB    String
+  effectB         String
+  resourceB       String
+  actionB         String
+  description     String                          // Human-readable description
+  suggestedResolution String                       // deny_wins | priority_wins | merge_conditions | first_match | manual
+  resolved        Boolean  @default(false)
+  resolutionStrategy String?                       // Strategy used to resolve
+  resolvedBy      String?
+  resolutionNote  String?
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([severity])
+  @@index([resolved])
+  @@index([policyIdA])
+  @@index([policyIdB])
+  @@index([createdAt])
+  @@map("policy_conflict_records")
+}
+
+// Policy Approval Requests — Draft → Review → Approve → Deploy
+model PolicyApproval {
+  id                  String   @id @default(cuid())
+  approvalId          String   @unique               // Generated approval ID
+  title               String                          // Request title
+  description         String                          // Description of proposed change
+  status              String   @default("draft")     // draft | pending_review | approved | rejected | cancelled | expired | deployed | rolled_back
+  priority            String   @default("medium")    // low | medium | high | critical | emergency
+  targetPolicyId      String?                         // Target policy (for modifications)
+  previousVersion     String?                         // Previous version for rollback
+  proposedDocument    String                          // JSON: PolicyDocument
+  simulationId        String?                         // Linked simulation result
+  requestedBy         String                          // Who requested
+  requiredApprovals   Int      @default(1)
+  currentApprovals    Int      @default(0)
+  approvals           String   @default("[]")        // JSON: array of ApprovalDecision
+  requiredReviewerRoles String @default("[]")        // JSON: array of role names
+  autoApproveRules    String   @default("[]")        // JSON: array of AutoApproveRule
+  autoApproved        Boolean  @default(false)
+  expiresAt           DateTime?
+  deployedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([approvalId])
+  @@index([status])
+  @@index([targetPolicyId])
+  @@index([requestedBy])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("policy_approvals")
+}
+
+// Policy Templates — Parameterized policy templates
+model PolicyTemplate {
+  id                String   @id @default(cuid())
+  templateId        String   @unique               // Unique template identifier
+  name              String                          // Template name
+  version           String   @default("1.0.0")
+  description       String
+  category          String                          // compliance | security | industry
+  industry          String?                         // Target industry
+  tags              String   @default("[]")         // JSON array
+  parameters        String                          // JSON: array of TemplateParameter
+  documentTemplate  String                          // JSON: PolicyDocumentTemplate
+  defaults          String   @default("{}")         // JSON: default parameter values
+  constraints       String   @default("[]")         // JSON: array of TemplateConstraint
+  generatedCount    Int      @default(0)            // Number of policies generated
+  isActive          Boolean  @default(true)
+  author            String?
+  sourceYaml        String?                         // Original YAML source
+  contentHash       String                          // SHA-256
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([templateId])
+  @@index([category])
+  @@index([industry])
+  @@index([isActive])
+  @@map("policy_templates")
+}
+
+// Policy Namespaces — Multi-tenant policy scoping
+model PolicyNamespace {
+  id                  String   @id @default(cuid())
+  namespaceId         String   @unique               // Unique namespace identifier
+  name                String                          // Human-readable name
+  description         String
+  tenantId            String                          // Tenant this namespace belongs to
+  parentNamespaceId   String?                         // Parent namespace ID (for hierarchy)
+  path                String                          // e.g., "root/tenant-abc/department-finance"
+  labels              String   @default("{}")        // JSON
+  inheritFromParent   Boolean  @default(true)
+  maxInheritanceDepth Int      @default(5)
+  parentChildResolution String @default("deny_wins") // deny_wins | priority_wins | merge_conditions
+  childCanOverrideParentDeny Boolean @default(false)
+  childCanAddAllow    Boolean  @default(true)
+  resolutionStrategy  String   @default("local_first") // local_first | priority_based | deny_wins | most_restrictive
+  isolationLevel      String   @default("inherited")   // strict | selective | inherited | shared
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([namespaceId])
+  @@index([tenantId])
+  @@index([parentNamespaceId])
+  @@index([path])
+  @@index([isActive])
+  @@map("policy_namespaces")
+}
+
+// Policy Simulations — What-if analysis results
+model PolicySimulation {
+  id                String   @id @default(cuid())
+  simulationId      String   @unique               // Generated simulation ID
+  name              String                          // Simulation name
+  description       String
+  proposedChanges   String                          // JSON: array of SimulationChange
+  testRequests      String                          // JSON: array of PolicyEvaluationRequest
+  verdictChanges    String   @default("[]")         // JSON: array of VerdictChange
+  newConflicts      String   @default("[]")         // JSON: array of PolicyConflict
+  resolvedConflicts String   @default("[]")         // JSON
+  impactScore       Int      @default(0)            // 0-100
+  riskLevel         String   @default("low")        // low | medium | high | critical
+  riskFactors       String   @default("[]")         // JSON
+  complianceImpact  String   @default("{}")         // JSON
+  totalRequests     Int      @default(0)
+  unchangedCount    Int      @default(0)
+  newDenialsCount   Int      @default(0)
+  newAllowancesCount Int     @default(0)
+  requestedBy       String
+  includeTrace      Boolean  @default(false)
+  trace             String   @default("[]")         // JSON: array of SimulationTrace
+  summary           String                          // Human-readable summary
+  createdAt         DateTime @default(now())
+
+  @@index([simulationId])
+  @@index([requestedBy])
+  @@index([riskLevel])
+  @@index([createdAt])
+  @@map("policy_simulations")
+}
+
+// Policy Impact Analysis — Dependency and blast radius tracking
+model PolicyImpactAnalysis {
+  id                    String   @id @default(cuid())
+  analysisId            String   @unique             // Generated analysis ID
+  policyId              String                        // Target policy
+  proposedVersion       String?                       // Proposed new version
+  analysisDepth         String   @default("standard") // quick | standard | deep
+  directDependencies    String   @default("[]")       // JSON: array of DependencyRef
+  indirectDependencies  String   @default("[]")       // JSON
+  affectedSets          String   @default("[]")       // JSON
+  affectedPlaybooks     String   @default("[]")       // JSON
+  affectedTools         String   @default("[]")       // JSON
+  blastRadius           String   @default("{}")       // JSON: BlastRadius
+  downstreamChanges     String   @default("[]")       // JSON
+  requestedBy           String
+  summary               String
+  createdAt             DateTime @default(now())
+
+  @@index([analysisId])
+  @@index([policyId])
+  @@index([createdAt])
+  @@map("policy_impact_analyses")
+}
+
+// Policy Verification Results — Constraint solver outputs
+model PolicyVerification {
+  id                String   @id @default(cuid())
+  verificationId    String   @unique               // Generated verification ID
+  policyIds         String                          // JSON: array of policy IDs verified
+  consistent        Boolean                         // No contradictions
+  complete          Boolean                         // All requests have matching rules
+  hasUnreachableRules Boolean  @default(false)
+  status            String                          // pass | fail | warning | error | timeout
+  contradictions    String   @default("[]")        // JSON: array of Contradiction
+  unreachableRules  String   @default("[]")        // JSON: array of UnreachableRule
+  coverage          String   @default("{}")        // JSON: CoverageReport
+  solverType        String   @default("ac3_csp")   // z3_sat | ac3_csp | brute_force | hybrid
+  duration          Int      @default(0)           // ms
+  summary           String
+  createdAt         DateTime @default(now())
+
+  @@index([verificationId])
+  @@index([status])
+  @@index([consistent])
+  @@index([createdAt])
+  @@map("policy_verifications")
+}
