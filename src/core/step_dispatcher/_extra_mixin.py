@@ -72,7 +72,7 @@ class StepDispatcherExtraMixin:
         """Handle SYMBOLIC_VALIDATION / SYNTAX_VALIDATION action."""
         # Use ValidationAgent (F5) for intelligent validation
         if self._orch._validation_agent and code:
-            from src.core.agents.schemas import ValidationInput
+            from src.core.agents.schemas import ValidationInput  # v18 schema type
             v_output = self._orch._validation_agent.validate_with_runner(
                 self._orch._agent_runner,
                 target="code",
@@ -109,7 +109,7 @@ class StepDispatcherExtraMixin:
         """Handle SCAFFOLD_FRACTAL action."""
         # Brecha C: Generacion Fractal (Top-Down) multi-archivo
         if hasattr(self._orch, '_fractal_gen') and self._orch._fractal_gen:
-            from src.core.agents.intent_shared import infer_template_type
+            from src.core.agents.understanding import infer_template_type  # v18 utility
             project_type = infer_template_type(
                 str(intent.op), intent.raw_code or str(intent)
             )

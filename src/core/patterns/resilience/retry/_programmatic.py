@@ -80,7 +80,7 @@ def with_retry(
 
 # Alias: prefer ``with_config_retry`` to distinguish from
 # ``src.core.shared.retry.with_retry`` (simple procedural retry)
-# and ``src.core.agents_v2.resilience.with_agent_retry`` (decorator-style).
+# and ``src.core.agents.resilience.with_agent_retry`` (decorator-style).
 with_config_retry = with_retry
 
 

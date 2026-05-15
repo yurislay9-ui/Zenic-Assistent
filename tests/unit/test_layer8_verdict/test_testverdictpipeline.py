@@ -10,13 +10,13 @@ All 4 agents tested:
 
 import pytest
 
-from src.core.agents_v2.verdict import (
+from src.core.agents.verdict import (
     DeterministicPipeline,
     EvidenceCollectorV18,
     ConsensusResolverV18,
     VerdictEngineV18,
 )
-from src.core.agents_v2.schemas import (
+from src.core.agents.schemas import (
     PipelineResult,
     Evidence,
     EvidenceType,

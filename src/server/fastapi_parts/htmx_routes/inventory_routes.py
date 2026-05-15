@@ -61,7 +61,7 @@ async def inventory_page(request: Request) -> HTMLResponse:
 async def list_products(request: Request) -> List[Dict[str, Any]]:
     """List inventory products as JSON."""
     try:
-        from src.core.agents_v2.business.inventory_manager import get_inventory_manager
+        from src.core.agents.business.inventory_manager import get_inventory_manager
         mgr = get_inventory_manager()
         products = mgr.list_products()
         if products:
@@ -75,7 +75,7 @@ async def list_products(request: Request) -> List[Dict[str, Any]]:
 async def inventory_stats(request: Request) -> Dict[str, Any]:
     """Get inventory statistics."""
     try:
-        from src.core.agents_v2.business.inventory_manager import get_inventory_manager
+        from src.core.agents.business.inventory_manager import get_inventory_manager
         mgr = get_inventory_manager()
         return mgr.get_stats()
     except Exception:
@@ -94,7 +94,7 @@ async def add_product(request: Request) -> Dict[str, Any]:
     logger.info("Product added: sku=%s name=%s", body.get("sku"), body.get("name"))
 
     try:
-        from src.core.agents_v2.business.inventory_manager import get_inventory_manager
+        from src.core.agents.business.inventory_manager import get_inventory_manager
         mgr = get_inventory_manager()
         result = mgr.add_product(body)
         return {"status": "ok", "product": result} if result else {"status": "ok"}
@@ -108,7 +108,7 @@ async def update_product(product_id: str, request: Request) -> Dict[str, Any]:
     """Update an existing product."""
     body = await request.json()
     try:
-        from src.core.agents_v2.business.inventory_manager import get_inventory_manager
+        from src.core.agents.business.inventory_manager import get_inventory_manager
         mgr = get_inventory_manager()
         result = mgr.update_product(product_id, body)
         return {"status": "ok", "product": result} if result else {"status": "ok"}
@@ -121,7 +121,7 @@ async def update_product(product_id: str, request: Request) -> Dict[str, Any]:
 async def delete_product(product_id: str) -> Dict[str, Any]:
     """Delete a product."""
     try:
-        from src.core.agents_v2.business.inventory_manager import get_inventory_manager
+        from src.core.agents.business.inventory_manager import get_inventory_manager
         mgr = get_inventory_manager()
         mgr.delete_product(product_id)
         return {"status": "ok"}
@@ -135,7 +135,7 @@ async def delete_product(product_id: str) -> Dict[str, Any]:
 async def low_stock_alerts(request: Request) -> str:
     """Return low stock alerts as HTML partial."""
     try:
-        from src.core.agents_v2.business.inventory_manager import get_inventory_manager
+        from src.core.agents.business.inventory_manager import get_inventory_manager
         mgr = get_inventory_manager()
         products = mgr.get_low_stock_products()
         if products:

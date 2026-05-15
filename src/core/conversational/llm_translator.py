@@ -271,7 +271,7 @@ class LLMTranslator:
     def _deterministic_fallback(self, user_input: str) -> Dict:
         """When LLM unavailable, uses keyword matching + IntentClassifier."""
         try:
-            from ..agents_v2.understanding import IntentClassifier, EntityExtractor
+            from ..agents.understanding import IntentClassifier, EntityExtractor
 
             classifier = IntentClassifier()
             extractor = EntityExtractor()
@@ -328,7 +328,7 @@ class LLMTranslator:
             }
 
         except ImportError:
-            # agents_v2 not available — pure keyword matching
+            # agents not available — pure keyword matching
             return self._pure_keyword_fallback(user_input)
 
     def _pure_keyword_fallback(self, user_input: str) -> Dict:

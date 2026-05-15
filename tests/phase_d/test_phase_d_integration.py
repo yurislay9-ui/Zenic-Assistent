@@ -145,7 +145,7 @@ class TestInteractiveDataCollectorPythonFallback:
     """Test the Python fallback path of InteractiveDataCollector."""
 
     def test_start_session(self):
-        from src.core.agents_v2.business.interactive_data_collector import InteractiveDataCollector
+        from src.core.agents.business.interactive_data_collector import InteractiveDataCollector
         collector = InteractiveDataCollector()
         result = collector._python_fallback({"action": "start", "niche_id": "telemedicine"}, "start")
         assert result.session_id.startswith("py-telemedicine-")
@@ -153,7 +153,7 @@ class TestInteractiveDataCollectorPythonFallback:
         assert result.source == "python_fallback"
 
     def test_validate_email(self):
-        from src.core.agents_v2.business.interactive_data_collector import InteractiveDataCollector
+        from src.core.agents.business.interactive_data_collector import InteractiveDataCollector
         collector = InteractiveDataCollector()
         result = collector._python_fallback(
             {"action": "validate", "field_type": "email", "value": "test@example.com"},
@@ -162,7 +162,7 @@ class TestInteractiveDataCollectorPythonFallback:
         assert result.answers_applied == 1
 
     def test_validate_invalid_email(self):
-        from src.core.agents_v2.business.interactive_data_collector import InteractiveDataCollector
+        from src.core.agents.business.interactive_data_collector import InteractiveDataCollector
         collector = InteractiveDataCollector()
         result = collector._python_fallback(
             {"action": "validate", "field_type": "email", "value": "not-an-email"},
@@ -171,7 +171,7 @@ class TestInteractiveDataCollectorPythonFallback:
         assert result.answers_rejected == 1
 
     def test_validate_boolean(self):
-        from src.core.agents_v2.business.interactive_data_collector import InteractiveDataCollector
+        from src.core.agents.business.interactive_data_collector import InteractiveDataCollector
         collector = InteractiveDataCollector()
         for value in ["true", "false", "yes", "no", "1", "0"]:
             result = collector._python_fallback(
@@ -181,7 +181,7 @@ class TestInteractiveDataCollectorPythonFallback:
             assert result.answers_applied == 1, f"Boolean '{value}' should be valid"
 
     def test_validate_url(self):
-        from src.core.agents_v2.business.interactive_data_collector import InteractiveDataCollector
+        from src.core.agents.business.interactive_data_collector import InteractiveDataCollector
         collector = InteractiveDataCollector()
         result = collector._python_fallback(
             {"action": "validate", "field_type": "url", "value": "https://example.com"},
@@ -190,7 +190,7 @@ class TestInteractiveDataCollectorPythonFallback:
         assert result.answers_applied == 1
 
     def test_suggestions_for_business_name(self):
-        from src.core.agents_v2.business.interactive_data_collector import InteractiveDataCollector
+        from src.core.agents.business.interactive_data_collector import InteractiveDataCollector
         collector = InteractiveDataCollector()
         result = collector._python_fallback(
             {"action": "suggestions", "field_name": "business_name", "field_type": "text"},
@@ -200,7 +200,7 @@ class TestInteractiveDataCollectorPythonFallback:
         assert len(result.questions[0]["suggestions"]) > 0
 
     def test_suggestions_for_currency(self):
-        from src.core.agents_v2.business.interactive_data_collector import InteractiveDataCollector
+        from src.core.agents.business.interactive_data_collector import InteractiveDataCollector
         collector = InteractiveDataCollector()
         result = collector._python_fallback(
             {"action": "suggestions", "field_name": "currency", "field_type": "currency"},

@@ -63,7 +63,7 @@ async def crm_page(request: Request) -> HTMLResponse:
 async def list_clients(request: Request, search: str = "") -> List[Dict[str, Any]]:
     """List CRM clients with optional search."""
     try:
-        from src.core.agents_v2.business.crm_pipeline import get_crm_pipeline
+        from src.core.agents.business.crm_pipeline import get_crm_pipeline
         pipeline = get_crm_pipeline()
         clients = pipeline.list_clients(search=search)
         if clients:
@@ -77,7 +77,7 @@ async def list_clients(request: Request, search: str = "") -> List[Dict[str, Any
 async def crm_stats(request: Request) -> Dict[str, Any]:
     """Get CRM statistics."""
     try:
-        from src.core.agents_v2.business.crm_pipeline import get_crm_pipeline
+        from src.core.agents.business.crm_pipeline import get_crm_pipeline
         pipeline = get_crm_pipeline()
         return pipeline.get_stats()
     except Exception:
@@ -88,7 +88,7 @@ async def crm_stats(request: Request) -> Dict[str, Any]:
 async def get_client_detail(client_id: str, request: Request) -> Dict[str, Any]:
     """Get details for a specific CRM client."""
     try:
-        from src.core.agents_v2.business.crm_pipeline import get_crm_pipeline
+        from src.core.agents.business.crm_pipeline import get_crm_pipeline
         pipeline = get_crm_pipeline()
         client = pipeline.get_client(client_id)
         if client:
@@ -111,7 +111,7 @@ async def add_client(request: Request) -> Dict[str, Any]:
     logger.info("Client added: name=%s email=%s", body.get("name"), body.get("email"))
 
     try:
-        from src.core.agents_v2.business.crm_pipeline import get_crm_pipeline
+        from src.core.agents.business.crm_pipeline import get_crm_pipeline
         pipeline = get_crm_pipeline()
         result = pipeline.add_client(body)
         return {"status": "ok", "client": result} if result else {"status": "ok"}
@@ -125,7 +125,7 @@ async def update_client(client_id: str, request: Request) -> Dict[str, Any]:
     """Update an existing client."""
     body = await request.json()
     try:
-        from src.core.agents_v2.business.crm_pipeline import get_crm_pipeline
+        from src.core.agents.business.crm_pipeline import get_crm_pipeline
         pipeline = get_crm_pipeline()
         result = pipeline.update_client(client_id, body)
         return {"status": "ok", "client": result} if result else {"status": "ok"}
@@ -137,7 +137,7 @@ async def update_client(client_id: str, request: Request) -> Dict[str, Any]:
 async def delete_client(client_id: str) -> Dict[str, Any]:
     """Delete a client."""
     try:
-        from src.core.agents_v2.business.crm_pipeline import get_crm_pipeline
+        from src.core.agents.business.crm_pipeline import get_crm_pipeline
         pipeline = get_crm_pipeline()
         pipeline.delete_client(client_id)
         return {"status": "ok"}
@@ -151,7 +151,7 @@ async def delete_client(client_id: str) -> Dict[str, Any]:
 async def get_pipeline(request: Request) -> Dict[str, Any]:
     """Get pipeline data (clients grouped by stage)."""
     try:
-        from src.core.agents_v2.business.crm_pipeline import get_crm_pipeline
+        from src.core.agents.business.crm_pipeline import get_crm_pipeline
         pipeline = get_crm_pipeline()
         return pipeline.get_pipeline_view()
     except Exception:
@@ -164,7 +164,7 @@ async def get_pipeline(request: Request) -> Dict[str, Any]:
 async def get_crm_metrics(request: Request) -> str:
     """Return CRM conversion metrics as HTML partial."""
     try:
-        from src.core.agents_v2.business.crm_pipeline import get_crm_pipeline
+        from src.core.agents.business.crm_pipeline import get_crm_pipeline
         pipeline = get_crm_pipeline()
         metrics = pipeline.get_conversion_metrics()
         if metrics:

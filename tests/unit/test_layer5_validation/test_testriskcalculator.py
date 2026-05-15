@@ -13,7 +13,7 @@ All 6 agents tested:
 import json
 import pytest
 
-from src.core.agents_v2.validation import (
+from src.core.agents.validation import (
     SecurityScanner,
     SyntaxValidator,
     ChainValidator,
@@ -21,7 +21,7 @@ from src.core.agents_v2.validation import (
     RiskCalculator,
     FixSuggester,
 )
-from src.core.agents_v2.schemas import (
+from src.core.agents.schemas import (
     SecurityResult,
     SyntaxResult,
     ChainResult,

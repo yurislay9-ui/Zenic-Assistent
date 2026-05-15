@@ -15,7 +15,7 @@ import logging
 import copy
 from typing import Any, Callable, Dict, List, Optional, Type
 
-from src.core.agents.base import BaseAgent
+from src.core.agents.resilience import BaseAgent
 
 logger = logging.getLogger(__name__)
 

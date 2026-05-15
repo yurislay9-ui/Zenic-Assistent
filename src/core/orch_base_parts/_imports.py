@@ -12,9 +12,20 @@ from src.core.level1_semantic_engine.parser import SemanticParser
 from src.core.level2_macro_router.router import MacroRouter
 from src.core.level3_graph_ast.engine import GraphASTEngine
 from src.core.level4_apa_planner.planner import APAPlanner
-from src.core.level5_structural_swarm.scrap_agent import GitHubScrapAgent
-from src.core.level5_structural_swarm.ast_surgeon import ASTSurgeon
-from src.core.level6_reflexion_sandbox.executor import ReflexionSandbox
+# Level 5 & 6 modules removed in v3.0.0 integrity sweep
+# Structural swarm and reflexion sandbox were deprecated;
+# their functionality is now covered by agents.validation and agents.reasoning.
+try:
+    from src.core.level5_structural_swarm.scrap_agent import GitHubScrapAgent
+    from src.core.level5_structural_swarm.ast_surgeon import ASTSurgeon
+except ImportError:
+    GitHubScrapAgent = None  # type: ignore[misc,assignment]
+    ASTSurgeon = None  # type: ignore[misc,assignment]
+
+try:
+    from src.core.level6_reflexion_sandbox.executor import ReflexionSandbox
+except ImportError:
+    ReflexionSandbox = None  # type: ignore[misc,assignment]
 from src.core.level7_merkle_ledger.ledger import MerkleLedger
 from src.core.level8_theorem_cache.cache import TheoremCache
 from src.core.shared.sandbox_isolation import (
@@ -23,7 +34,10 @@ from src.core.shared.sandbox_isolation import (
 
 # Decomposed modules
 from src.core.subtask_descriptor import SubtaskDescriptor
-from src.core.abortive_protocol import AbortiveProtocol
+try:
+    from src.core.abortive_protocol import AbortiveProtocol
+except ImportError:
+    AbortiveProtocol = None  # type: ignore[misc,assignment]
 from src.core.partial_reasoning import PartialReasoningManager
 # CodeGenerator and CodeTransformer removed — Zenic is an assistant agent, not a code generator
 from src.core.analysis_utils import AnalysisUtils
@@ -43,13 +57,15 @@ from src.core.auth_service import AuthService
 from src.core.reasoning_engine import ReasoningEngine, ReasoningMode, ReasoningResult
 # ChainValidator removed — code generation pipeline component
 
-# Agent Framework (F1-F5)
-from src.core.agents import AgentRunner, AgentCache
-from src.core.agents.surgical_agent import SurgicalAgent
-from src.core.agents.reasoning_agent import ReasoningAgent
-from src.core.agents.business_logic_agent import BusinessLogicAgent
-# CodeAgent removed — code generation agent
-from src.core.agents.automation_agent import AutomationAgent
-from src.core.agents.validation_agent import ValidationAgent
+# Agent Framework (F1-F5) — migrated to agents with compat adapters
+from src.core.agents.compat import (
+    AgentRunnerCompat as AgentRunner,
+    SurgicalAgentCompat as SurgicalAgent,
+    ReasoningAgentCompat as ReasoningAgent,
+    BusinessLogicAgentCompat as BusinessLogicAgent,
+    AutomationAgentCompat as AutomationAgent,
+    ValidationAgentCompat as ValidationAgent,
+)
+from src.core.agents.infrastructure import AgentCache
 
 logger = logging.getLogger(__name__)

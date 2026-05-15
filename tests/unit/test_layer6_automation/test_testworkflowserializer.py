@@ -13,7 +13,7 @@ All 6 agents tested:
 import json
 import pytest
 
-from src.core.agents_v2.automation import (
+from src.core.agents.automation import (
     TriggerInferrer,
     ActionInferrer,
     ScheduleParser,
@@ -21,7 +21,7 @@ from src.core.agents_v2.automation import (
     AutomationNamer,
     WorkflowSerializer,
 )
-from src.core.agents_v2.schemas import (
+from src.core.agents.schemas import (
     AutoDescription,
     TriggerSpec,
     ActionSpec,

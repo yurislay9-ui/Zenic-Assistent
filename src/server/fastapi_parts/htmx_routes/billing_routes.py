@@ -328,7 +328,7 @@ async def list_invoices(request: Request, status: str = "") -> Any:
     # Fall back to the invoice processor for CRM invoices
     if not invoices:
         try:
-            from src.core.agents_v2.business.invoice_processor import get_invoice_processor
+            from src.core.agents.business.invoice_processor import get_invoice_processor
             proc = get_invoice_processor()
             crm_invoices = proc.list_invoices(status=status)
             if crm_invoices:
@@ -379,7 +379,7 @@ async def create_invoice(request: Request) -> Dict[str, Any]:
     logger.info("Invoice created: client=%s amount=%s", body.get("client_name"), body.get("amount"))
 
     try:
-        from src.core.agents_v2.business.invoice_processor import get_invoice_processor
+        from src.core.agents.business.invoice_processor import get_invoice_processor
         proc = get_invoice_processor()
         result = proc.create_invoice(body)
         return {"status": "ok", "invoice": result} if result else {"status": "ok"}
@@ -394,7 +394,7 @@ async def create_invoice(request: Request) -> Dict[str, Any]:
 async def pending_payment_alerts(request: Request) -> str:
     """Return pending payment alerts as HTML partial."""
     try:
-        from src.core.agents_v2.business.invoice_processor import get_invoice_processor
+        from src.core.agents.business.invoice_processor import get_invoice_processor
         proc = get_invoice_processor()
         overdue = proc.get_overdue_invoices()
         if overdue:

@@ -3,7 +3,7 @@ ZENIC-AGENTS — Shared Retry Utility.
 
 NOTE: This is the simple procedural retry. For the RetryConfig-based version
 used by the server/circuit-breaker, see src.core.patterns.resilience.retry.
-For the v18 agent decorator version, see src.core.agents_v2.resilience.retry.
+For the v18 agent decorator version, see src.core.agents.resilience.retry.
 
 Eliminates duplicated retry-with-exponential-backoff patterns across
 all engine modules. Every engine had its own copy of the same retry loop;

@@ -11,14 +11,14 @@ All 5 agents tested:
 
 import pytest
 
-from src.core.agents_v2.reasoning import (
+from src.core.agents.reasoning import (
     ProblemDetector,
     StepDecomposer,
     TemplateReasoner,
     ConfidenceEstimator,
     ConclusionExtractor,
 )
-from src.core.agents_v2.schemas import (
+from src.core.agents.schemas import (
     ProblemType,
     ReasoningStep,
     ReasoningResult,

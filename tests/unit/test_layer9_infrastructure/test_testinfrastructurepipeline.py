@@ -13,14 +13,14 @@ import pytest
 import time
 import threading
 
-from src.core.agents_v2.infrastructure import (
+from src.core.agents.infrastructure import (
     AgentRunner,
     HealthMonitorAgent,
     AuditLoggerAgent,
     CircuitBreakerManagerAgent,
 )
-from src.core.agents_v2.understanding import BilingualRouter
-from src.core.agents_v2.resilience import (
+from src.core.agents.understanding import BilingualRouter
+from src.core.agents.resilience import (
     BaseAgent,
     CircuitBreakerManager,
     GlobalHealthMonitor,
@@ -31,7 +31,7 @@ from src.core.agents_v2.resilience import (
     BulkheadManager,
     AgentRetryConfig,
 )
-from src.core.agents_v2.schemas import (
+from src.core.agents.schemas import (
     AgentResult,
     HealthSnapshot,
     LanguageResult,

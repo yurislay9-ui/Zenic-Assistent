@@ -12,7 +12,7 @@ import logging
 import threading
 from typing import Any, Dict, Optional, Type
 
-from src.core.agents.base import BaseAgent
+from src.core.agents.resilience import BaseAgent
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,18 @@ def _is_thread_primitive(value: Any) -> bool:
     """Return True if *value* is a threading lock/condition (unpicklable)."""
     type_name = type(value).__name__
     return type_name in ("lock", "RLock", "Condition", "_thread.lock", "_thread.RLock")
+
+
+def _is_unpicklable(value: Any) -> bool:
+    """Return True if *value* cannot be deep-copied (locks, compiled regex, etc.)."""
+    # Threading primitives
+    if _is_thread_primitive(value):
+        return True
+    # Compiled regex patterns (have .pattern attribute but can't always deepcopy)
+    import re
+    if isinstance(value, re.Pattern):
+        return True
+    return False
 
 
 def _make_fresh_thread_primitive(value: Any) -> Any:
@@ -48,19 +60,48 @@ def _safe_deepcopy_agent(agent: BaseAgent) -> BaseAgent:
       3. Deep-copying the cleaned dict.
       4. Constructing a new instance via ``__new__`` and restoring
          the copied state plus fresh threading primitives.
+
+    For v2 BaseAgent: Also handles nested objects (CircuitBreakerManager,
+    BulkheadManager, etc.) that contain internal locks by creating fresh
+    instances instead of deep-copying them.
     """
+    import re as re_mod
+
     # Identify threading primitives in the agent's __dict__
     thread_attrs: Dict[str, Any] = {}
     clean_dict: Dict[str, Any] = {}
+    # Track objects that should be reconstructed rather than deep-copied
+    reconstruct_attrs: Dict[str, type] = {}
+
     for key, value in agent.__dict__.items():
         if _is_thread_primitive(value):
             thread_attrs[key] = value
+            clean_dict[key] = None  # placeholder
+        elif _is_unpicklable(value):
+            # Compiled regex etc — store type info for reconstruction
+            thread_attrs[key] = value
+            clean_dict[key] = None
+        elif hasattr(value, '__dict__') and _has_internal_locks(value):
+            # Objects with internal locks (CircuitBreakerManager, etc.)
+            # Store the type so we can reconstruct a fresh instance
+            reconstruct_attrs[key] = type(value)
             clean_dict[key] = None  # placeholder
         else:
             clean_dict[key] = value
 
     # Deep-copy the clean dict
-    copied_dict = copy.deepcopy(clean_dict)
+    try:
+        copied_dict = copy.deepcopy(clean_dict)
+    except (TypeError, copy.Error):
+        # Fallback: shallow copy for problematic objects
+        copied_dict = {}
+        for key, value in clean_dict.items():
+            if value is None and key in reconstruct_attrs:
+                continue
+            try:
+                copied_dict[key] = copy.deepcopy(value)
+            except (TypeError, copy.Error):
+                copied_dict[key] = value
 
     # Create a new instance without calling __init__
     cloned = object.__new__(type(agent))
@@ -68,9 +109,30 @@ def _safe_deepcopy_agent(agent: BaseAgent) -> BaseAgent:
     cloned.__dict__.update(copied_dict)
     # Replace thread primitives with fresh instances
     for key, orig in thread_attrs.items():
-        cloned.__dict__[key] = _make_fresh_thread_primitive(orig)
+        if _is_thread_primitive(orig):
+            cloned.__dict__[key] = _make_fresh_thread_primitive(orig)
+        elif isinstance(orig, re_mod.Pattern):
+            # Re-compile regex pattern
+            cloned.__dict__[key] = re_mod.compile(orig.pattern, orig.flags)
+    # Reconstruct objects with internal locks
+    for key, cls in reconstruct_attrs.items():
+        try:
+            cloned.__dict__[key] = cls()
+        except Exception:
+            # If default constructor fails, leave as None
+            cloned.__dict__[key] = None
 
     return cloned
+
+
+def _has_internal_locks(obj: Any) -> bool:
+    """Check if an object has threading locks in its __dict__ (recursively, depth=1)."""
+    if not hasattr(obj, '__dict__'):
+        return False
+    for value in obj.__dict__.values():
+        if _is_thread_primitive(value):
+            return True
+    return False
 
 
 class AgentPrototype:

@@ -1,92 +1,160 @@
 """
-ZENIC-AGENTS - Agent Framework
+ZENIC-AGENTS v18 — Single-Responsibility Agent Architecture
 
-Sistema de agentes IA que reemplaza la lógica de negocio hardcodeada.
-Cada agente = Prompt Estructurado + Esquema Pydantic + Wrapper Delgado.
+This is the canonical agent module for Zenic Enterprise Assistant.
+Migrated from the legacy v16 multi-responsibility agents (formerly agents/)
+and the experimental v18 agents (formerly agents_v2/) into a single unified
+module.
 
-Agentes:
-  - IntentAgent: Comprensión semántica (reemplaza keyword matching)
-  - SurgicalAgent (F2): Clasificación quirúrgica multi-señal
-  - ContextAgent (F3): Gestión de ventana de contexto con compresión adaptativa
-  - ReasoningAgent: Razonamiento avanzado (reemplaza reasoning_engine)
-  - BusinessLogicAgent: Lógica de negocio IA (reemplaza 30+ LogicBlocks)
-  - CodeAgent: Generación + transformación (reemplaza templates/f-strings)
-  - AutomationAgent: Automatización inteligente (reemplaza keyword inference)
-  - ValidationAgent: Validación inteligente (reemplaza regex patterns)
-  - YamilAgent: Agente creador de plantillas (nichos → Blueprints certificados)
+Every agent has EXACTLY ONE function. No exceptions.
+Qwen AI is ONLY used for binary verdicts (YES/NO) through VerdictEngine.
+Everything else is 100% deterministic.
 
-Principios:
-  - INFRAESTRUCTURA PERMANECE, LÓGICA DE NEGOCIO → AGENTES IA
-  - Cada agente tiene fallback determinista
-  - Compatible con API OpenAI existente
-  - Tests como contrato de comportamiento
-
-.. deprecated::
-    This module (agents v1) is the legacy pipeline. It will be replaced by
-    ``agents_v2`` which uses the Business Operations model (PROCESS, FORECAST,
-    RESOLVE) instead of the Code Automation model (CREATE, REFACTOR, DEBUG).
-    Import from ``src.core.agents_v2`` for new code.
-    Removal target: post v2.0 stable release.
+INVARIANTS:
+  1. No agent may call the LLM directly. ALL LLM calls go through VerdictEngine.
+  2. The LLM can only return "YES" or "NO". Any other response is treated as "NO".
+  3. Every agent MUST have a deterministic fallback. The system MUST work 100% without AI.
+  4. No two agents may share the same responsibility. Duplication is a design error.
+  5. Every agent call is audited. Every decision has an evidence trail.
+  6. Security veto is absolute. If SecurityScanner says NO, it is NO. No override possible.
 """
 
-import warnings
-
-warnings.warn(
-    "agents v1 (src.core.agents) is deprecated. "
-    "Use agents_v2 (src.core.agents_v2) for new code. "
-    "The v1 pipeline uses the Code Automation model (CREATE, REFACTOR, DEBUG) "
-    "which has been replaced by Business Operations (PROCESS, FORECAST, RESOLVE) "
-    "in v2. Removal target: post v2.0 stable release.",
-    DeprecationWarning,
-    stacklevel=2,
+# Schemas & types (single source of truth for all data types)
+from .schemas import (
+    AgentResult, AgentMessage,
+    IntentResult, EntityResult, TargetResult, CriticalityResult, LanguageResult,
+    MemoryEntries, ScoredEntry, ScoredEntries, CompressedContext, PrefetchResult,
+    BusinessData, InvoiceResult, InventoryResult, CRMResult, TaskResult,
+    ReportResult, NotificationResult, AnalyticsResult, RoutedOperation,
+    CodeRequest, CodeResult, ScaffoldResult,
+    SecurityResult, SyntaxResult, ChainResult, ConfigResult, RiskResult,
+    FixSuggestions, ValidationIssue,
+    AutoDescription, TriggerSpec, ActionSpec, ScheduleSpec, ConditionResult,
+    NameResult, WorkflowSpec,
+    ProblemType, ReasoningStep, ReasoningResult, DecomposedSteps,
+    ConfidenceResult, Conclusion,
+    Verdict, VerdictInput, VerdictOutput, Evidence, EvidenceType,
+    ConsensusResult, PipelineResult,
+    HealthSnapshot, CircuitState, AuditEntry,
 )
 
-from src.core.agents.base import BaseAgent, AgentResult
-from src.core.agents.runner import AgentRunner
-from src.core.agents.schemas import (
-    IntentInput, IntentOutput,
-    ReasoningInput, ReasoningOutput,
-    BusinessInput, BusinessOutput,
-    CodeInput, CodeOutput,
-    AutomationInput, AutomationOutput,
-    ValidationInput, ValidationOutput,
-    ContextInput, ContextOutput,
-    CriticalityInput, CriticalityOutput,
+# Resilience patterns
+from .resilience import (
+    BaseAgent, AgentCircuitBreaker, CircuitBreakerManager,
+    AgentRetryConfig, with_agent_retry,
+    AgentBulkhead, BulkheadManager,
+    GlobalHealthMonitor, AgentHealthSnapshot,
+    AuditLogger,
 )
-from src.core.agents.prompts import PromptBuilder, AgentPrompts
-from src.core.agents.cache import AgentCache
-from src.core.agents.intent_agent import IntentAgent
-from src.core.agents.surgical_agent import SurgicalAgent
-from src.core.agents.context_agent import ContextAgent
-from src.core.agents.reasoning_agent import ReasoningAgent
-from src.core.agents.business_logic_agent import BusinessLogicAgent
-# CodeAgent removed — module deleted
-from src.core.agents.automation_agent import AutomationAgent
-from src.core.agents.validation_agent import ValidationAgent
-from src.core.agents.criticality_agent import CriticalityAgent
-from src.core.agents.yamil import YamilAgent
+
+# Layer 1: Understanding
+from .understanding import (
+    IntentClassifier, EntityExtractor, TargetResolver, CriticalityScorer, BilingualRouter,
+)
+
+# Layer 2: Memory & Context
+from .memory import (
+    MemoryCollector, RelevanceScorer, ContextCompressor, ContextPrefetcher,
+)
+
+# Layer 3: Business
+from .business import (
+    InvoiceProcessor, InventoryManager, CRMPipeline, TaskScheduler,
+    ReportGenerator, NotificationDispatcher, DataAnalyzer, OperationRouter,
+)
+
+# Layer 4: Code — REMOVED (code_ops module deleted; code generation is not part of assistant-agent)
+# CodeGenerator, CodeRefactorer, CodeOptimizer, CodeFixer,
+# ProjectScaffolder, DefensiveInjector no longer available
+
+# Layer 5: Validation & Security
+from .validation import (
+    SecurityScanner, SyntaxValidator, ChainValidator, ConfigValidator,
+    RiskCalculator, FixSuggester,
+)
+
+# Layer 6: Automation
+from .automation import (
+    TriggerInferrer, ActionInferrer, ScheduleParser, ConditionExtractor,
+    AutomationNamer, WorkflowSerializer,
+)
+
+# Layer 7: Reasoning
+from .reasoning import (
+    ProblemDetector, StepDecomposer, TemplateReasoner,
+    ConfidenceEstimator, ConclusionExtractor,
+)
+
+# Layer 8: Verdict
+from .verdict import (
+    DeterministicPipeline, EvidenceCollectorV18,
+    ConsensusResolverV18, VerdictEngineV18,
+)
+
+# Layer 9: Infrastructure
+from .infrastructure import (
+    AgentRunner, HealthMonitorAgent, AuditLoggerAgent,
+    CircuitBreakerManagerAgent, AgentCache,
+)
+
+# Shared intent utilities (migrated from legacy agents/intent_shared.py)
+from .understanding.intent_utils import (
+    extract_code_block, extract_target_and_language, extract_entities,
+    infer_criticality, infer_template_type,
+    OP_KEYWORDS, GOAL_KEYWORDS, VALID_OPERATIONS, VALID_GOALS,
+)
 
 __all__ = [
-    "BaseAgent", "AgentResult",
-    "AgentRunner",
-    "IntentInput", "IntentOutput",
-    "ReasoningInput", "ReasoningOutput",
-    "BusinessInput", "BusinessOutput",
-    "CodeInput", "CodeOutput",
-    "AutomationInput", "AutomationOutput",
-    "ValidationInput", "ValidationOutput",
-    "ContextInput", "ContextOutput",
-    "CriticalityInput", "CriticalityOutput",
-    "PromptBuilder", "AgentPrompts",
-    "AgentCache",
-    "IntentAgent",
-    "SurgicalAgent",
-    "ContextAgent",
-    "ReasoningAgent",
-    "BusinessLogicAgent",
-    # "CodeAgent" removed — module deleted
-    "AutomationAgent",
-    "ValidationAgent",
-    "CriticalityAgent",
-    "YamilAgent",
+    # Schemas & types
+    "AgentResult", "AgentMessage",
+    "IntentResult", "EntityResult", "TargetResult", "CriticalityResult", "LanguageResult",
+    "MemoryEntries", "ScoredEntry", "ScoredEntries", "CompressedContext", "PrefetchResult",
+    "BusinessData", "InvoiceResult", "InventoryResult", "CRMResult", "TaskResult",
+    "ReportResult", "NotificationResult", "AnalyticsResult", "RoutedOperation",
+    # CodeResult types retained in schemas for backward compatibility
+    "CodeRequest", "CodeResult", "ScaffoldResult",
+    "SecurityResult", "SyntaxResult", "ChainResult", "ConfigResult", "RiskResult",
+    "FixSuggestions", "ValidationIssue",
+    "AutoDescription", "TriggerSpec", "ActionSpec", "ScheduleSpec", "ConditionResult",
+    "NameResult", "WorkflowSpec",
+    "ProblemType", "ReasoningStep", "ReasoningResult", "DecomposedSteps",
+    "ConfidenceResult", "Conclusion",
+    "Verdict", "VerdictInput", "VerdictOutput", "Evidence", "EvidenceType",
+    "ConsensusResult", "PipelineResult",
+    "HealthSnapshot", "CircuitState", "AuditEntry",
+    # Resilience
+    "BaseAgent", "AgentCircuitBreaker", "CircuitBreakerManager",
+    "AgentRetryConfig", "with_agent_retry",
+    "AgentBulkhead", "BulkheadManager",
+    "GlobalHealthMonitor", "AgentHealthSnapshot",
+    "AuditLogger",
+    # Layer 1: Understanding
+    "IntentClassifier", "EntityExtractor", "TargetResolver", "CriticalityScorer", "BilingualRouter",
+    # Layer 2: Memory & Context
+    "MemoryCollector", "RelevanceScorer", "ContextCompressor", "ContextPrefetcher",
+    # Layer 3: Business
+    "InvoiceProcessor", "InventoryManager", "CRMPipeline", "TaskScheduler",
+    "ReportGenerator", "NotificationDispatcher", "DataAnalyzer", "OperationRouter",
+    # Layer 4: Code — REMOVED (code_ops deleted)
+    # "CodeGenerator", "CodeRefactorer", "CodeOptimizer", "CodeFixer",
+    # "ProjectScaffolder", "DefensiveInjector",
+    # Layer 5: Validation & Security
+    "SecurityScanner", "SyntaxValidator", "ChainValidator", "ConfigValidator",
+    "RiskCalculator", "FixSuggester",
+    # Layer 6: Automation
+    "TriggerInferrer", "ActionInferrer", "ScheduleParser", "ConditionExtractor",
+    "AutomationNamer", "WorkflowSerializer",
+    # Layer 7: Reasoning
+    "ProblemDetector", "StepDecomposer", "TemplateReasoner",
+    "ConfidenceEstimator", "ConclusionExtractor",
+    # Layer 8: Verdict
+    "DeterministicPipeline", "EvidenceCollectorV18",
+    "ConsensusResolverV18", "VerdictEngineV18",
+    # Layer 9: Infrastructure
+    "AgentRunner", "HealthMonitorAgent", "AuditLoggerAgent",
+    "CircuitBreakerManagerAgent", "AgentCache",
+    # Shared intent utilities
+    "extract_code_block", "extract_target_and_language", "extract_entities",
+    "infer_criticality", "infer_template_type",
+    "OP_KEYWORDS", "GOAL_KEYWORDS", "VALID_OPERATIONS", "VALID_GOALS",
 ]

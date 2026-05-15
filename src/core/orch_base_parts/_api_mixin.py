@@ -68,7 +68,7 @@ class APIMixin:
         """Genera un proyecto de automatizacion a partir de una descripcion."""
         automation_design = None
         if self._automation_agent:
-            from src.core.agents.schemas import AutomationInput
+            from src.core.agents.schemas import AutomationInput  # v18 schema type
             automation_design = self._automation_agent.design_with_runner(
                 self._agent_runner, description,
             )

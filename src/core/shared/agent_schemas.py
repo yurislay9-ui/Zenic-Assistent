@@ -1,13 +1,13 @@
-"""Shared agent schemas — single source of truth for types used by both v1 and v2.
+"""Shared agent schemas — single source of truth for types used across the agent system.
 
-These types are shared between agents/ (v1) and agents_v2/ (v2).
-Previously, agents/ imported from agents_v2/schemas/types, creating a
-circular dependency (v1 → v2). This module breaks that cycle:
+These types are shared across the unified agents/ module (formerly agents/ v1
+and agents_v2/ v2, now merged). This module is the canonical location for
+cross-cutting schema types:
 
-    agents/  →  shared/agent_schemas  ←  agents_v2/
+    agents/  →  shared/agent_schemas  ←  agents/
 
-E-13 FIX: Moved from agents_v2/schemas/types/_advanced_types.py to
-eliminate the v1→v2 dependency.
+E-13 FIX: Moved from agents/schemas/types/_advanced_types.py to
+eliminate the v1->v2 dependency.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ from typing import Any
 class ValidationIssue:
     """A single validation finding.
 
-    Used by both v1 ValidationAgent and v2 validation chain agents.
+    Used by both compat ValidationAgent and validation chain agents.
     """
     severity: str = "warning"  # error|warning|info
     code: str = ""
@@ -33,7 +33,7 @@ class ValidationIssue:
 class TriggerSpec:
     """Trigger specification for automation agents.
 
-    Used by both v1 AutomationAgent and v2 automation subsystem.
+    Used by both compat AutomationAgent and automation subsystem.
     """
     type: str = "manual"  # manual|schedule|event|webhook
     config: dict[str, Any] = field(default_factory=dict)
@@ -45,7 +45,7 @@ class TriggerSpec:
 class ActionSpec:
     """Action specification for automation agents.
 
-    Used by both v1 AutomationAgent and v2 automation subsystem.
+    Used by both compat AutomationAgent and automation subsystem.
     """
     type: str = "log"  # email|http|db|file|webhook|notification|transform|schedule|log
     config: dict[str, Any] = field(default_factory=dict)
@@ -56,7 +56,7 @@ class ActionSpec:
 class ScheduleSpec:
     """Schedule specification for automation agents.
 
-    Used by both v1 AutomationAgent and v2 automation subsystem.
+    Used by both compat AutomationAgent and automation subsystem.
 
     Note: This class uses a manual __init__ instead of @dataclass because
     it supports a backward-compatible ``cron_expression`` alias parameter.

@@ -50,7 +50,7 @@ from src.core.semantic_engine import SemanticEngine   # Capa 1: ENTIENDE
 from src.core.mini_ai_engine import MiniAIEngine      # Capa 4: ARBITRA (solo SÍ/NO)
 from src.core.smart_memory import SmartMemory          # Capa 3: RECUERDA
 from src.core.verdict_engine_module import VerdictEngine  # Verdict pipeline completo
-from src.core.agents.surgical_agent import SurgicalAgent
+from src.core.agents.compat import SurgicalAgentCompat as SurgicalAgent
 
 logger = logging.getLogger(__name__)
 
