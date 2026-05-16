@@ -937,3 +937,108 @@ model HitlDelegationRule {
   @@index([isActive])
   @@map("hitl_delegation_rules")
 }
+
+// ─── Phase 5: HITL Evidence & Justification ──────────────────────────
+
+model HitlEvidence {
+  id              String   @id @default(cuid())
+  evidenceId      String   @unique               // Generated evidence ID
+  requestId       String                         // FK to HitlApprovalRequest
+  evidenceType    String                         // screenshot, log, data_snapshot, policy_result, audit_record, custom
+  content         String                         // JSON: evidence content
+  contentHash     String                         // SHA-256 for immutability
+  source          String                         // Who/what provided the evidence
+  description     String   @default("")
+  createdAt       DateTime @default(now())
+
+  @@index([requestId])
+  @@index([evidenceType])
+  @@index([contentHash])
+  @@map("hitl_evidence")
+}
+
+model HitlJustification {
+  id                      String   @id @default(cuid())
+  justificationId         String   @unique               // Generated justification ID
+  requestId               String                         // FK to HitlApprovalRequest
+  decisionId              String?                        // FK to HitlApprovalDecision (if tied to a specific decision)
+  reason                  String                         // Mandatory reason (min 20 chars for critical)
+  riskAcknowledgment      Boolean  @default(false)       // "I understand the risks"
+  complianceCheck         Boolean  @default(false)       // "I verified compliance"
+  businessJustification   String   @default("")          // Business justification
+  createdBy               String                         // User ID who provided justification
+  createdByName           String                         // Display name
+  contentHash             String                         // SHA-256 for immutability
+  createdAt               DateTime @default(now())
+
+  @@index([requestId])
+  @@index([createdBy])
+  @@index([contentHash])
+  @@map("hitl_justifications")
+}
+
+model HitlExpiryRecord {
+  id                  String   @id @default(cuid())
+  requestId           String   @unique               // FK to HitlApprovalRequest
+  expiresAt           DateTime                       // When the request expires
+  autoRevertEnabled   Boolean  @default(true)         // Whether to auto-revert on expiry
+  revertAction        String   @default("{}")         // JSON: compensating action for auto-revert
+  notificationSchedule String  @default("[60,30,10,5]") // JSON: minutes before expiry to notify
+  notificationsSent   String   @default("[]")         // JSON: array of { minutesBefore, sentAt }
+  status              String   @default("active")     // active, expired, reverted, cancelled
+  revertedAt          DateTime?
+  revertResult        String?                        // JSON: result of revert execution
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("hitl_expiry_records")
+}
+
+model HitlEscalationSLA {
+  id              String   @id @default(cuid())
+  slaId           String   @unique               // Generated SLA ID
+  requestId       String                         // FK to HitlApprovalRequest
+  currentLevel    Int      @default(0)           // 0=L0, 1=L1, 2=L2, 3=L3
+  targetRole      String                         // Role for this escalation level
+  slaDeadline     DateTime                       // When the SLA expires
+  breached        Boolean  @default(false)       // Whether the SLA was breached
+  autoEscalated   Boolean  @default(false)       // Whether auto-escalation occurred
+  escalatedAt     DateTime?                      // When the escalation happened
+  escalationReason String  @default("")          // Why escalation happened
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([breached])
+  @@index([slaDeadline])
+  @@map("hitl_escalation_slas")
+}
+
+model HitlNotificationLog {
+  id              String   @id @default(cuid())
+  notificationId  String   @unique               // Generated notification ID
+  requestId       String                         // FK to HitlApprovalRequest
+  recipientId     String                         // User ID
+  channel         String                         // in_app, email, slack, teams, whatsapp, sms, push, webhook
+  event           String                         // approval_pending, approval_approved, etc.
+  title           String
+  body            String
+  priority        String   @default("normal")    // low, normal, high, urgent
+  status          String   @default("pending")   // pending, sent, failed, delivered
+  metadata        String   @default("{}")        // JSON: additional metadata
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  failedAt        DateTime?
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  @@index([requestId])
+  @@index([recipientId])
+  @@index([channel])
+  @@index([status])
+  @@index([event])
+  @@map("hitl_notification_logs")
+}

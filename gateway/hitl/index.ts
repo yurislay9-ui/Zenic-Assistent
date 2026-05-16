@@ -43,3 +43,46 @@ export {
   resetNotificationService,
   notifyApprovalEvent,
 } from "./notifications";
+
+// ─── Phase 5 Enhancements ──────────────────────────────────────────
+export {
+  getEvidenceService,
+  resetEvidenceService,
+} from "./evidence-service";
+
+export {
+  getJustificationService,
+  resetJustificationService,
+} from "./justification-service";
+
+export {
+  getExpiryService,
+  resetExpiryService,
+} from "./expiry-service";
+
+export {
+  getSLAService,
+  resetSLAService,
+} from "./sla-service";
+
+export {
+  getNotificationLogService,
+  resetNotificationLogService,
+} from "./notification-log-service";
+
+// ─── Phase 5 Coordinator & Pipeline ─────────────────────────────────
+export {
+  getHITLCoordinator,
+  resetHITLCoordinator,
+} from "./hitl-coordinator";
+
+export {
+  getPipelineIntegration,
+  resetPipelineIntegration,
+} from "./pipeline-integration";
+
+// Re-export pipeline integration types for convenience
+export type {
+  SafetyGateVerdict,
+  PolicyApprovalRequirement,
+} from "./pipeline-integration";

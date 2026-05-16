@@ -686,3 +686,194 @@ export interface ComplianceExportRecord {
   /** Timeline hash for integrity verification */
   integrityHash: string;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 5 Enhancements: Evidence, Justification, Expiry, SLA
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Evidence type for approval attachments */
+export const EvidenceType = {
+  SCREENSHOT: "screenshot",
+  LOG: "log",
+  DATA_SNAPSHOT: "data_snapshot",
+  POLICY_RESULT: "policy_result",
+  AUDIT_RECORD: "audit_record",
+  CUSTOM: "custom",
+} as const;
+export type EvidenceType = (typeof EvidenceType)[keyof typeof EvidenceType];
+
+/** Evidence attached to an approval request */
+export interface ApprovalEvidence {
+  /** Evidence ID */
+  evidenceId: string;
+  /** Request ID */
+  requestId: string;
+  /** Type of evidence */
+  evidenceType: EvidenceType;
+  /** Evidence content (JSON) */
+  content: Record<string, unknown>;
+  /** SHA-256 hash for immutability */
+  contentHash: string;
+  /** Who/what provided the evidence */
+  source: string;
+  /** Description */
+  description: string;
+  /** When created */
+  createdAt: string;
+}
+
+/** Attach evidence input */
+export interface AttachEvidenceInput {
+  /** Type of evidence */
+  evidenceType: EvidenceType;
+  /** Evidence content */
+  content: Record<string, unknown>;
+  /** Who/what provided the evidence */
+  source: string;
+  /** Description */
+  description?: string;
+}
+
+/** Justification for approval/rejection */
+export interface ApprovalJustification {
+  /** Justification ID */
+  justificationId: string;
+  /** Request ID */
+  requestId: string;
+  /** Decision ID (if tied to a specific decision) */
+  decisionId: string | null;
+  /** Mandatory reason */
+  reason: string;
+  /** Risk acknowledgment */
+  riskAcknowledgment: boolean;
+  /** Compliance check */
+  complianceCheck: boolean;
+  /** Business justification */
+  businessJustification: string;
+  /** User ID who provided justification */
+  createdBy: string;
+  /** Display name */
+  createdByName: string;
+  /** SHA-256 hash for immutability */
+  contentHash: string;
+  /** When created */
+  createdAt: string;
+}
+
+/** Provide justification input */
+export interface ProvideJustificationInput {
+  /** Mandatory reason (min 20 chars for critical/emergency) */
+  reason: string;
+  /** Risk acknowledgment */
+  riskAcknowledgment: boolean;
+  /** Compliance check */
+  complianceCheck: boolean;
+  /** Business justification */
+  businessJustification?: string;
+  /** User ID */
+  createdBy: string;
+  /** Display name */
+  createdByName: string;
+  /** Decision ID (if tied to a specific decision) */
+  decisionId?: string;
+}
+
+/** Expiry record for auto-revert */
+export interface ExpiryRecord {
+  /** Request ID */
+  requestId: string;
+  /** When the request expires */
+  expiresAt: string;
+  /** Whether auto-revert is enabled */
+  autoRevertEnabled: boolean;
+  /** Compensating action for auto-revert (JSON) */
+  revertAction: Record<string, unknown>;
+  /** Minutes before expiry to notify */
+  notificationSchedule: number[];
+  /** Notifications sent so far */
+  notificationsSent: Array<{ minutesBefore: number; sentAt: string }>;
+  /** Status */
+  status: "active" | "expired" | "reverted" | "cancelled";
+  /** When reverted */
+  revertedAt: string | null;
+  /** Result of revert */
+  revertResult: Record<string, unknown> | null;
+  /** When created */
+  createdAt: string;
+  /** When updated */
+  updatedAt: string;
+}
+
+/** Escalation SLA record */
+export interface EscalationSLA {
+  /** SLA ID */
+  slaId: string;
+  /** Request ID */
+  requestId: string;
+  /** Current escalation level (0-3) */
+  currentLevel: number;
+  /** Target role for this level */
+  targetRole: string;
+  /** When the SLA expires */
+  slaDeadline: string;
+  /** Whether the SLA was breached */
+  breached: boolean;
+  /** Whether auto-escalation occurred */
+  autoEscalated: boolean;
+  /** When escalated */
+  escalatedAt: string | null;
+  /** Why escalation happened */
+  escalationReason: string;
+  /** When created */
+  createdAt: string;
+  /** When updated */
+  updatedAt: string;
+}
+
+/** Notification log record */
+export interface NotificationLogRecord {
+  /** Notification ID */
+  notificationId: string;
+  /** Request ID */
+  requestId: string;
+  /** Recipient user ID */
+  recipientId: string;
+  /** Channel */
+  channel: string;
+  /** Event type */
+  event: string;
+  /** Title */
+  title: string;
+  /** Body */
+  body: string;
+  /** Priority */
+  priority: string;
+  /** Status */
+  status: "pending" | "sent" | "failed" | "delivered";
+  /** Metadata */
+  metadata: Record<string, unknown>;
+  /** When sent */
+  sentAt: string | null;
+  /** When delivered */
+  deliveredAt: string | null;
+  /** When failed */
+  failedAt: string | null;
+  /** Error message */
+  errorMessage: string | null;
+  /** When created */
+  createdAt: string;
+}
+
+/** Extended create approval request input with evidence and justification */
+export interface ExtendedCreateApprovalRequestInput extends CreateApprovalRequestInput {
+  /** Evidence to attach */
+  evidence?: AttachEvidenceInput[];
+  /** Pre-approval justification (optional at creation) */
+  justification?: ProvideJustificationInput;
+  /** Auto-revert on expiry configuration */
+  autoRevertOnExpiry?: boolean;
+  /** Compensating action for auto-revert */
+  revertAction?: Record<string, unknown>;
+  /** Expiry notification schedule (minutes before expiry) */
+  expiryNotificationSchedule?: number[];
+}
