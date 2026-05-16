@@ -1,125 +1,191 @@
-// ─── Zenic-Agents v3 — Subscription API: Confirm Payment ─────────────
-// POST /api/v1/subscription/payment/confirm — Confirm a payment (admin action)
+// ─── Zenic-Agents v3 — Payment Confirm (Admin) ────────────────────────
+// POST /api/v1/subscription/payment/confirm
+// Admin confirms a manual USDT TRC20 payment.
+// Body: { paymentId, adminUserId, action: "confirm" | "reject", notes?, rejectionReason? }
 
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { canTransitionTo, SubscriptionStatus } from '@/lib/subscription/types';
+import { db } from "@/lib/db";
+import { PAYMENT_CURRENCY, PAYMENT_NETWORK } from "@/lib/pricing-engine";
 
-export async function POST(req: NextRequest) {
+interface ConfirmBody {
+  paymentId: string;
+  adminUserId: string;
+  action: "confirm" | "reject";
+  notes?: string;
+  rejectionReason?: string;
+}
+
+export async function POST(request: Request) {
   try {
-    const body = await req.json() as {
-      paymentId?: string;
-      confirmedBy?: string;
-      blockNumber?: number;
-      notes?: string;
-    };
+    const body: ConfirmBody = await request.json();
+    const { paymentId, adminUserId, action, notes, rejectionReason } = body;
 
-    if (!body.paymentId || !body.confirmedBy) {
-      return NextResponse.json(
-        { error: 'paymentId and confirmedBy are required' },
-        { status: 400 },
+    if (!paymentId || !adminUserId || !action) {
+      return Response.json(
+        { error: "Missing required fields: paymentId, adminUserId, action" },
+        { status: 400 }
       );
     }
 
-    const { paymentId, confirmedBy, blockNumber, notes } = body;
+    if (action !== "confirm" && action !== "reject") {
+      return Response.json(
+        { error: "Action must be 'confirm' or 'reject'" },
+        { status: 400 }
+      );
+    }
 
-    // Find payment
-    const payment = await db.usdtPaymentRecord.findUnique({
-      where: { id: paymentId },
-      include: { subscription: true },
+    // Look up payment
+    const payment = await db.subscriptionPayment.findUnique({
+      where: { paymentId },
     });
 
     if (!payment) {
-      return NextResponse.json(
-        { error: 'Payment not found' },
-        { status: 404 },
+      return Response.json(
+        { error: "Payment not found", paymentId },
+        { status: 404 }
       );
     }
 
-    // Only payments with tx_submitted or verifying status can be confirmed
-    if (!['tx_submitted', 'verifying'].includes(payment.status)) {
-      return NextResponse.json(
-        { error: `Payment cannot be confirmed in current status: ${payment.status}` },
-        { status: 400 },
+    // Check payment is in correct status for admin action
+    if (payment.status !== "confirming" && payment.status !== "awaiting_confirmation" && payment.status !== "pending") {
+      return Response.json(
+        { error: `Payment cannot be confirmed. Current status: ${payment.status}` },
+        { status: 400 }
       );
     }
 
-    if (!payment.txHash) {
-      return NextResponse.json(
-        { error: 'Payment must have a tx hash submitted before confirmation' },
-        { status: 400 },
-      );
-    }
+    const now = new Date();
 
-    // Use transaction to update payment and subscription atomically
-    const result = await db.$transaction(async (tx) => {
-      // Update payment status
-      const updatedPayment = await tx.usdtPaymentRecord.update({
-        where: { id: paymentId },
+    if (action === "confirm") {
+      // Confirm payment
+      const updatedPayment = await db.subscriptionPayment.update({
+        where: { paymentId },
         data: {
-          status: 'confirmed',
-          confirmedAt: new Date(),
-          confirmedBy,
-          blockNumber: blockNumber ?? payment.blockNumber,
-          notes: notes ?? payment.notes,
+          status: "confirmed",
+          confirmedAt: now,
+          paidAt: now,
+          verificationMethod: "manual_admin",
+          adminConfirmedBy: adminUserId,
+          adminConfirmedAt: now,
+          adminNotes: notes ?? null,
+          confirmations: 20,
+          metadata: JSON.stringify({
+            ...JSON.parse(payment.metadata || "{}"),
+            manuallyConfirmedBy: adminUserId,
+            manuallyConfirmedAt: now.toISOString(),
+            verificationMethod: "manual_admin",
+            adminNotes: notes ?? "",
+          }),
         },
       });
 
-      // Update subscription based on current status
-      const subscription = payment.subscription;
-      let newStatus: SubscriptionStatus = subscription.status as SubscriptionStatus;
+      // Look up subscription to get tenantId and subscriptionId
+      const subscription = await db.subscription.findUnique({
+        where: { id: payment.subscriptionDbId },
+      });
 
-      if (subscription.status === 'trial') {
-        // Convert trial to active
-        newStatus = 'active';
-        // Also mark trial as converted
-        if (subscription.trialId) {
-          await tx.trial.update({
-            where: { id: subscription.trialId },
-            data: {
-              status: 'converted',
-              convertedAt: new Date(),
-            },
-          });
-        }
-      } else if (subscription.status === 'past_due') {
-        newStatus = 'active';
-      } else if (subscription.status === 'suspended') {
-        newStatus = 'active';
-      }
+      // Create ManualPaymentConfirmation record
+      await db.manualPaymentConfirmation.create({
+        data: {
+          paymentId,
+          subscriptionId: subscription?.subscriptionId ?? "",
+          tenantId: subscription?.tenantId ?? "",
+          amountUsdt: payment.amountUsdt,
+          txHash: payment.txHash,
+          walletFrom: payment.walletFrom,
+          walletTo: payment.walletTo,
+          verifiedByAdmin: adminUserId,
+          adminNotes: notes,
+          status: "confirmed",
+        },
+      });
 
-      if (newStatus !== subscription.status) {
-        if (!canTransitionTo(subscription.status as SubscriptionStatus, newStatus)) {
-          throw new Error(`Cannot transition subscription from ${subscription.status} to ${newStatus}`);
-        }
-
-        // Set up new billing period
-        const now = new Date();
-        const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-
-        await tx.tenantSubscription.update({
+      // Update subscription status to "active" if it was "pending_payment"
+      if (subscription && subscription.status === "pending_payment") {
+        await db.subscription.update({
           where: { id: subscription.id },
           data: {
-            status: newStatus,
-            currentPeriodStart: now,
-            currentPeriodEnd: periodEnd,
-            setupFeePaid: payment.includesSetupFee ? true : subscription.setupFeePaid,
+            status: "active",
+            lastPaymentTxHash: payment.txHash,
+            lastPaymentAmount: payment.amountUsdt,
+            lastPaymentAt: now,
+            updatedAt: now,
           },
         });
       }
 
-      return updatedPayment;
-    });
+      return Response.json({
+        confirmation: {
+          paymentId,
+          action: "confirmed",
+          confirmedBy: adminUserId,
+          confirmedAt: now.toISOString(),
+          amountUsdt: payment.amountUsdt,
+          txHash: payment.txHash,
+          paymentCurrency: PAYMENT_CURRENCY,
+          paymentNetwork: PAYMENT_NETWORK,
+        },
+        message: `Pago de ${payment.amountUsdt} USDT (TRC20) confirmado manualmente por admin ${adminUserId}.`,
+      });
+    } else {
+      // Reject payment
+      const updatedPayment = await db.subscriptionPayment.update({
+        where: { paymentId },
+        data: {
+          status: "failed",
+          verificationMethod: "manual_admin",
+          adminConfirmedBy: adminUserId,
+          adminConfirmedAt: now,
+          adminNotes: notes ?? null,
+          metadata: JSON.stringify({
+            ...JSON.parse(payment.metadata || "{}"),
+            rejectedBy: adminUserId,
+            rejectedAt: now.toISOString(),
+            rejectionReason: rejectionReason ?? "Admin rejected payment",
+            adminNotes: notes ?? "",
+          }),
+        },
+      });
 
-    return NextResponse.json({
-      data: result,
-      message: 'Payment confirmed successfully. Subscription updated.',
-    });
+      // Look up subscription to get tenantId and subscriptionId
+      const subscription = await db.subscription.findUnique({
+        where: { id: payment.subscriptionDbId },
+      });
+
+      // Create ManualPaymentConfirmation record
+      await db.manualPaymentConfirmation.create({
+        data: {
+          paymentId,
+          subscriptionId: subscription?.subscriptionId ?? "",
+          tenantId: subscription?.tenantId ?? "",
+          amountUsdt: payment.amountUsdt,
+          txHash: payment.txHash,
+          walletFrom: payment.walletFrom,
+          walletTo: payment.walletTo,
+          verifiedByAdmin: adminUserId,
+          adminNotes: notes,
+          status: "rejected",
+          rejectionReason: rejectionReason ?? "Admin rejected payment",
+        },
+      });
+
+      return Response.json({
+        confirmation: {
+          paymentId,
+          action: "rejected",
+          rejectedBy: adminUserId,
+          rejectedAt: now.toISOString(),
+          reason: rejectionReason ?? "Admin rejected payment",
+          paymentCurrency: PAYMENT_CURRENCY,
+          paymentNetwork: PAYMENT_NETWORK,
+        },
+        message: `Pago de ${payment.amountUsdt} USDT (TRC20) rechazado por admin ${adminUserId}.`,
+      });
+    }
   } catch (error) {
-    console.error('[Subscription Confirm Payment POST]', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: String(error) },
-      { status: 500 },
+    console.error("[Payment Confirm] Error:", error);
+    return Response.json(
+      { error: "Internal server error confirming payment" },
+      { status: 500 }
     );
   }
 }

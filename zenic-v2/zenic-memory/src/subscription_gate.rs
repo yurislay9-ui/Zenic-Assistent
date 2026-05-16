@@ -5,7 +5,7 @@
 //! Starter:     Schema Drift only, 10 mappings/mes, LRU 100
 //! Business:    Schema Drift + Intent Routing, 50 mappings/mes, LRU 500
 //! Enterprise:  All 3 + Ontología, unlimited, LRU 2000
-//! On-Premise:  All + Export/Import + Custom, unlimited
+//! On-Premise Enterprise:  All + Export/Import + Custom, unlimited
 
 use crate::errors::MemoryError;
 use crate::types::{FeatureGate, LearningMechanism, SubscriptionTier};
@@ -46,9 +46,9 @@ impl SubscriptionGate {
         Self::new(SubscriptionTier::Enterprise)
     }
 
-    /// Creates a subscription gate for the On-Premise tier.
+    /// Creates a subscription gate for the On-Premise Enterprise tier.
     pub fn on_premise() -> Self {
-        Self::new(SubscriptionTier::OnPremise)
+        Self::new(SubscriptionTier::OnPremiseEnterprise)
     }
 
     /// Checks if a learning mechanism is allowed for this tier.

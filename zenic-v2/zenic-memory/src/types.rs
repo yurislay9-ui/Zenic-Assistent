@@ -565,85 +565,20 @@ impl Default for NodeValue {
 }
 
 // ---------------------------------------------------------------------------
-// SubscriptionTier — Feature Gating by Tier [T1]
+// SubscriptionTier — Re-exported from zenic-subscription [T1]
 // ---------------------------------------------------------------------------
 
 /// Subscription tier for feature gating in the memory layer.
+///
+/// Re-exported from `zenic_subscription::types::SubscriptionTierName` to
+/// ensure a single source of truth for tier definitions across crates.
 ///
 /// Maps directly to the pricing tiers in zenic-subscription:
 /// - Starter: $29/mo — Schema Drift only, 10 mappings/mes, LRU 100
 /// - Business: $99/mo — +Intent Routing, 50 mappings/mes, LRU 500
 /// - Enterprise: $299/mo — All 3 + Ontología, unlimited, LRU 2000
-/// - On-Premise: $799/mo — All + Export/Import + Custom, unlimited
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum SubscriptionTier {
-    Starter,
-    Business,
-    Enterprise,
-    OnPremise,
-}
-
-impl SubscriptionTier {
-    /// Returns the tier rank for comparison (0 = lowest).
-    pub fn rank(&self) -> u8 {
-        match self {
-            Self::Starter => 0,
-            Self::Business => 1,
-            Self::Enterprise => 2,
-            Self::OnPremise => 3,
-        }
-    }
-
-    /// Maximum semantic mappings per month for this tier.
-    pub fn max_mappings_per_month(&self) -> u32 {
-        match self {
-            Self::Starter => 10,
-            Self::Business => 50,
-            Self::Enterprise => u32::MAX,
-            Self::OnPremise => u32::MAX,
-        }
-    }
-
-    /// Maximum LRU cache size for this tier.
-    pub fn lru_cache_size(&self) -> usize {
-        match self {
-            Self::Starter => 100,
-            Self::Business => 500,
-            Self::Enterprise => 2000,
-            Self::OnPremise => usize::MAX,
-        }
-    }
-
-    /// Learning mechanisms allowed for this tier.
-    pub fn mechanisms_allowed(&self) -> Vec<LearningMechanism> {
-        match self {
-            Self::Starter => vec![LearningMechanism::SchemaDrift],
-            Self::Business => vec![LearningMechanism::SchemaDrift, LearningMechanism::IntentRouting],
-            Self::Enterprise | Self::OnPremise => LearningMechanism::learnable().to_vec(),
-        }
-    }
-
-    /// Whether this tier has ontology access.
-    pub fn ontology_access(&self) -> bool {
-        matches!(self, Self::Enterprise | Self::OnPremise)
-    }
-
-    /// Whether this tier has export/import capability.
-    pub fn export_import(&self) -> bool {
-        matches!(self, Self::OnPremise)
-    }
-}
-
-impl std::fmt::Display for SubscriptionTier {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Starter => write!(f, "Starter"),
-            Self::Business => write!(f, "Business"),
-            Self::Enterprise => write!(f, "Enterprise"),
-            Self::OnPremise => write!(f, "OnPremise"),
-        }
-    }
-}
+/// - OnPremiseEnterprise: $799/mo — All + Export/Import + Custom, unlimited
+pub use zenic_subscription::types::SubscriptionTierName as SubscriptionTier;
 
 // ---------------------------------------------------------------------------
 // FeatureGate — Subscription-based Access Control [T1]
@@ -672,14 +607,52 @@ pub struct FeatureGate {
 
 impl FeatureGate {
     /// Creates a FeatureGate for the given subscription tier.
+    ///
+    /// Memory-specific tier limits (mappings, cache, mechanisms, etc.) are
+    /// defined here since they belong to the memory layer, not the
+    /// subscription crate's `SubscriptionTierName`.
     pub fn for_tier(tier: SubscriptionTier) -> Self {
+        let (max_mappings, lru_size, mechanisms, ontology, export, custom) = match tier {
+            SubscriptionTier::Starter => (
+                10,
+                100,
+                vec![LearningMechanism::SchemaDrift],
+                false,
+                false,
+                false,
+            ),
+            SubscriptionTier::Business => (
+                50,
+                500,
+                vec![LearningMechanism::SchemaDrift, LearningMechanism::IntentRouting],
+                false,
+                false,
+                false,
+            ),
+            SubscriptionTier::Enterprise => (
+                u32::MAX,
+                2000,
+                LearningMechanism::learnable().to_vec(),
+                true,
+                false,
+                false,
+            ),
+            SubscriptionTier::OnPremiseEnterprise => (
+                u32::MAX,
+                usize::MAX,
+                LearningMechanism::learnable().to_vec(),
+                true,
+                true,
+                true,
+            ),
+        };
         Self {
-            max_mappings_per_month: tier.max_mappings_per_month(),
-            lru_cache_size: tier.lru_cache_size(),
-            mechanisms_allowed: tier.mechanisms_allowed(),
-            ontology_access: tier.ontology_access(),
-            export_import: tier.export_import(),
-            custom_ontology: tier == SubscriptionTier::OnPremise,
+            max_mappings_per_month: max_mappings,
+            lru_cache_size: lru_size,
+            mechanisms_allowed: mechanisms,
+            ontology_access: ontology,
+            export_import: export,
+            custom_ontology: custom,
             tier,
         }
     }

@@ -169,7 +169,8 @@ def initialize_phase6(start_defense_monitoring: bool = True) -> Dict[str, Any]:
 
     # ── 6. Auto-create default license if none exists ──────
     try:
-        from src.core.license.manager import get_license_manager, LicenseTier
+        from src.core.license.types import LicenseTier
+        from src.core.license.manager import get_license_manager
         lm = get_license_manager()
         if not lm.get_current_license():
             # Create a free-tier license by default

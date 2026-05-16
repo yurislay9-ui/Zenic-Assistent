@@ -190,7 +190,7 @@ impl MemoryChip {
 
     /// Creates a MemoryChip with a specific subscription tier.
     ///
-    /// Tier must be one of: "Starter", "Business", "Enterprise", "OnPremise".
+    /// Tier must be one of: "Starter", "Business", "Enterprise", "OnPremiseEnterprise".
     #[pyo3(signature = (db_path, tier))]
     #[staticmethod]
     fn with_tier(db_path: &str, tier: &str) -> PyResult<Self> {
@@ -767,9 +767,9 @@ fn parse_tier(tier: &str) -> PyResult<SubscriptionTier> {
         "Starter" => Ok(SubscriptionTier::Starter),
         "Business" => Ok(SubscriptionTier::Business),
         "Enterprise" => Ok(SubscriptionTier::Enterprise),
-        "OnPremise" => Ok(SubscriptionTier::OnPremise),
+        "OnPremiseEnterprise" | "OnPremise" => Ok(SubscriptionTier::OnPremiseEnterprise),
         _ => Err(PyRuntimeError::new_err(format!(
-            "Invalid tier '{}': must be Starter, Business, Enterprise, or OnPremise",
+            "Invalid tier '{}': must be Starter, Business, Enterprise, or OnPremiseEnterprise",
             tier
         ))),
     }

@@ -1,0 +1,131 @@
+# ─── Zenic-Agents v3 — Access Restriction Policy ──────────────────────
+# Controls access to system resources with time-based and role-based rules.
+# Philosophy: "IA never generates, only arbitrates YES/NO"
+
+apiVersion: policy.zenic.dev/v1
+kind: PolicyDocument
+
+metadata:
+  id: access_restriction
+  name: "Access Restriction Policy"
+  version: "1.0.0"
+  description: |
+    Controls access to system resources with time-based and role-based rules.
+    Enforces principle of least privilege with risk-adaptive restrictions.
+  compliance:
+    PCI-DSS: "7.1, 7.2, 8.1, 8.3"
+    SOX: "302, 404"
+  labels:
+    category: access
+    criticality: medium
+    scope: enterprise
+  author: zenic-system
+
+statements:
+  - id: deny_critical_outside_hours
+    effect: deny
+    resource: "system/critical/*"
+    action: "write"
+    conditions:
+      - field: is_business_hours
+        operator: eq
+        value: false
+    priority: 100
+    description: "Deny critical system changes outside business hours"
+
+  - id: deny_unprivileged_admin
+    effect: deny
+    resource: "system/admin/*"
+    action: "*"
+    conditions:
+      - field: user_role
+        operator: notin
+        value: ["admin", "superadmin"]
+    priority: 95
+    description: "Deny admin access to non-admin roles"
+
+  - id: require_mfa_high_risk
+    effect: conditional
+    resource: "system/*"
+    action: "write"
+    conditions:
+      - field: risk_score
+        operator: gte
+        value: 0.7
+    priority: 80
+    requiredRole: mfa_authenticated
+    description: "High-risk operations require MFA-authenticated role"
+
+  - id: rate_limit_api
+    effect: conditional
+    resource: "api/*"
+    action: "*"
+    conditions:
+      - field: requests_per_minute
+        operator: lte
+        value: 100
+    priority: 50
+    requiredRole: api_user
+    description: "API rate limit: 100 requests/minute"
+
+  - id: allow_read_public
+    effect: allow
+    resource: "system/public/*"
+    action: "read"
+    priority: 10
+    description: "Allow read access to public resources"
+
+  - id: deny_destructive_without_backup
+    effect: deny
+    resource: "data/*"
+    action: "delete"
+    conditions:
+      - field: backup_exists
+        operator: eq
+        value: false
+    priority: 85
+    description: "Deny destructive operations without verified backup"
+
+tests:
+  - name: "Deny critical changes outside hours"
+    resource: "system/critical/config"
+    action: "write"
+    context:
+      is_business_hours: false
+    expected: denied
+    expectedStatementId: deny_critical_outside_hours
+
+  - name: "Deny admin access to viewer"
+    resource: "system/admin/settings"
+    action: "read"
+    context:
+      user_role: "viewer"
+    expected: denied
+    expectedStatementId: deny_unprivileged_admin
+
+  - name: "High-risk needs MFA"
+    resource: "system/database"
+    action: "write"
+    context:
+      risk_score: 0.8
+    expected: conditional
+
+  - name: "API rate limit check"
+    resource: "api/users"
+    action: "list"
+    context:
+      requests_per_minute: 50
+    expected: conditional
+
+  - name: "Allow public read"
+    resource: "system/public/docs"
+    action: "read"
+    context: {}
+    expected: allowed
+
+  - name: "Deny delete without backup"
+    resource: "data/records"
+    action: "delete"
+    context:
+      backup_exists: false
+    expected: denied

@@ -1,0 +1,221 @@
+apiVersion: playbook.zenic.dev/v1
+kind: Playbook
+metadata:
+  id: cybersecurity-mssp
+  name: "Servicios Gestionados de Ciberseguridad"
+  name_en: "Managed Security Services"
+  industry: technology
+  sub_industry: managed_security
+  version: "1.0.0"
+  description: "Comprehensive managed security service provider (MSSP) automation with NIST CSF implementation, CMMC compliance, ISO 27001 certification management, SIEM/SOAR integration, and multi-tenant client security operations."
+  compliance:
+    - NIST
+    - CMMC
+    - ISO 27001
+  icon: "🔐"
+  color: "#7C3AED"
+  labels:
+    category: technology
+    criticality: critical
+  author: "Zenic-Agents"
+capabilities:
+  - id: nist-csf-implementation
+    name: "NIST CSF Implementation"
+    description: "Full NIST Cybersecurity Framework implementation across identify, protect, detect, respond, and recover functions with automated maturity assessment and improvement roadmapping."
+    category: compliance
+    autoEnabled: true
+    riskLevel: high
+  - id: cmmc-compliance-engine
+    name: "CMMC Compliance Engine"
+    description: "CMMC Level 1-3 compliance automation with practice implementation, evidence collection, assessment preparation, and C3PAO audit support for defense supply chain."
+    category: compliance
+    autoEnabled: true
+    riskLevel: critical
+  - id: iso27001-cert-management
+    name: "ISO 27001 Certification Management"
+    description: "End-to-end ISO 27001 certification lifecycle management with ISMS scope definition, risk assessment, Annex A control implementation, and surveillance audit preparation."
+    category: compliance
+    autoEnabled: true
+    riskLevel: high
+  - id: siem-soar-integration
+    name: "SIEM/SOAR Integration"
+    description: "Integration with Splunk, Sentinel, QRadar, and Elastic SIEM platforms with automated playbook execution, alert triage, and incident response orchestration."
+    category: integration
+    autoEnabled: true
+    riskLevel: medium
+  - id: threat-intelligence-platform
+    name: "Threat Intelligence Platform"
+    description: "Curated threat intelligence aggregation from MITRE ATT&CK, STIX/TAXII feeds, dark web monitoring, and automated IOC enrichment for client environments."
+    category: security
+    autoEnabled: true
+    riskLevel: high
+  - id: vulnerability-management
+    name: "Vulnerability Management"
+    description: "Continuous vulnerability scanning, prioritization using CVSS + business context, patch management orchestration, and remediation tracking across client fleets."
+    category: security
+    autoEnabled: true
+    riskLevel: medium
+  - id: multi-tenant-soc-dashboard
+    name: "Multi-Tenant SOC Dashboard"
+    description: "Unified security operations center dashboard with per-client isolation, SLA monitoring, alert metrics, and executive reporting for MSSP service delivery."
+    category: monitoring
+    autoEnabled: false
+    riskLevel: medium
+  - id: security-reporting-engine
+    name: "Security Reporting Engine"
+    description: "Automated client-facing security reports with KPIs, trend analysis, compliance status, and executive summaries with customizable branding and scheduling."
+    category: reporting
+    autoEnabled: true
+    riskLevel: low
+policies:
+  - policyId: mssp_client_data_isolation
+    name: "MSSP Client Data Isolation Policy"
+    description: "Enforces strict data isolation between MSSP client environments preventing cross-tenant data access or leakage in shared infrastructure."
+  - policyId: security_incident_response
+    name: "Security Incident Response Policy"
+    description: "Mandates structured incident response procedures with escalation timelines, containment protocols, and client notification SLAs per NIST SP 800-61."
+  - policyId: cmmc_access_control
+    name: "CMMC Access Control Policy"
+    description: "Enforces CMMC access control requirements for CUI environments with multi-factor authentication, session controls, and wireless access restrictions per AC practice family."
+  - policyId: vulnerability_remediation_sla
+    name: "Vulnerability Remediation SLA Policy"
+    description: "Defines maximum remediation timelines by severity: Critical 24h, High 72h, Medium 30d, Low 90d with automated escalation on SLA breach."
+roi:
+  baseline:
+    manual_time_per_action_min: 45
+    error_rate_pct: 5.5
+    actions_per_month: 8000
+    cost_per_error_usd: 850
+    violations_per_year: 4
+    penalty_per_violation_usd: 200000
+  projected:
+    automated_time_per_action_min: 8
+    reduced_error_rate_pct: 1.0
+    compliance_score_target: 97
+    automation_rate_pct: 78
+pricing:
+  currency: USD
+  starter:
+    name: Starter
+    price_usd: 99
+    features:
+      - "NIST CSF basic assessment"
+      - "Up to 5 client tenants"
+      - "Vulnerability scanning"
+      - "Email support"
+    limits:
+      max_actions_month: 3000
+      max_users: 10
+    recommended_for: "Small MSSPs & security consultancies"
+  pro:
+    name: Professional
+    price_usd: 499
+    features:
+      - "NIST CSF + ISO 27001 suite"
+      - "Up to 30 client tenants"
+      - "SIEM/SOAR integration"
+      - "CMMC Level 1-2 compliance"
+      - "Threat intelligence platform"
+      - "Priority support"
+    limits:
+      max_actions_month: 15000
+      max_users: 50
+    recommended_for: "Growing MSSPs & vCISO providers"
+  enterprise:
+    name: Enterprise
+    price_usd: 2499
+    features:
+      - "Unlimited client tenants"
+      - "Full NIST + CMMC Level 3 + ISO 27001"
+      - "Multi-tenant SOC dashboard"
+      - "Advanced threat intelligence"
+      - "Custom SOAR playbooks"
+      - "Dedicated security architect"
+      - "24/7 support with SLA"
+    limits:
+      max_actions_month: unlimited
+      max_users: unlimited
+    recommended_for: "Large MSSPs & defense contractors"
+onboarding:
+  estimated_minutes: 35
+  steps:
+    - id: select-mssp-type
+      title: "MSSP Type"
+      description: "Select your managed security service type for appropriate configuration."
+      type: selection
+      field: mssp_type
+      default_value: "full_mssp"
+      required: true
+      options:
+        - value: "full_mssp"
+          label: "Full-Service MSSP"
+        - value: "mdr"
+          label: "MDR Provider"
+        - value: "vciso"
+          label: "Virtual CISO Services"
+        - value: "compliance_only"
+          label: "Compliance-as-a-Service"
+    - id: siem-platform
+      title: "SIEM Platform"
+      description: "Select your primary SIEM platform for integration setup."
+      type: selection
+      field: siem_platform
+      default_value: "splunk"
+      required: true
+      options:
+        - value: "splunk"
+          label: "Splunk"
+        - value: "sentinel"
+          label: "Microsoft Sentinel"
+        - value: "qradar"
+          label: "IBM QRadar"
+        - value: "elastic"
+          label: "Elastic SIEM"
+        - value: "none"
+          label: "None / Custom"
+    - id: client-tenant-count
+      title: "Client Tenants"
+      description: "Enter the approximate number of client tenants you manage."
+      type: question
+      field: client_tenant_count
+      default_value: "10"
+      required: true
+    - id: cmmc-level
+      title: "CMMC Level"
+      description: "Select the highest CMMC level you need to support for your clients."
+      type: selection
+      field: cmmc_level
+      default_value: "level2"
+      required: true
+      options:
+        - value: "level1"
+          label: "CMMC Level 1 (Foundational)"
+        - value: "level2"
+          label: "CMMC Level 2 (Advanced)"
+        - value: "level3"
+          label: "CMMC Level 3 (Expert)"
+        - value: "not_applicable"
+          label: "Not Applicable"
+    - id: client-isolation-confirm
+      title: "Client Data Isolation"
+      description: "Confirm that strict data isolation will be enforced between all client tenants."
+      type: confirmation
+      field: client_isolation_enabled
+      default_value: true
+      required: true
+    - id: remediation-sla-config
+      title: "Remediation SLAs"
+      description: "Confirm default vulnerability remediation SLAs: Critical 24h, High 72h, Medium 30d, Low 90d."
+      type: confirmation
+      field: remediation_sla_enabled
+      default_value: true
+      required: true
+    - id: auto-threat-intel
+      title: "Threat Intelligence"
+      description: "Automatically enable threat intelligence feed aggregation and IOC enrichment."
+      type: auto_config
+      field: threat_intel_enabled
+      default_value: true
+      required: true
+certification:
+  status: unsigned

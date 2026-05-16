@@ -491,7 +491,7 @@ model PlaybookActivation {
   id               String    @id @default(cuid())
   playbookDbId     String                          // FK to Playbook.id
   tenantId         String
-  selectedTier     String                          // starter | pro | enterprise
+  selectedTier     String                          // starter | business | enterprise | on_premise_enterprise
   customConfig     String    @default("{}")        // JSON
   activatedPolicies String   @default("[]")        // JSON: array of policyId strings
   configuredTools  String    @default("[]")        // JSON
@@ -1043,94 +1043,307 @@ model HitlNotificationLog {
   @@map("hitl_notification_logs")
 }
 
-// ─── Subscription System ────────────────────────────────────────────────────────
+// ─── Subscriptions: USDT TRC20 Billing (Phase 6) ──────────────────────
 
-/// Tenant subscription with tier-based feature gating.
-/// All payments USDT TRC20 only.
-model TenantSubscription {
-  id                  String              @id @default(cuid())
-  tenantId            String              @unique
-  tier                String              @default("starter") // starter | business | enterprise | on_premise_enterprise
-  status              String              @default("trial")   // trial | active | past_due | suspended | cancelled | expired | downgraded
-  trialId             String?             @unique
-  addOns              String              @default("[]")      // JSON array of add-on IDs
-  createdAt           DateTime            @default(now())
-  currentPeriodStart  DateTime
+model Subscription {
+  id                  String    @id @default(cuid())
+  subscriptionId      String    @unique               // e.g. "sub_abc123"
+  tenantId            String    @unique               // One subscription per tenant
+  tier                String                          // starter | business | enterprise | on_premise_enterprise | trial
+  status              String                          // trial | active | past_due | cancelled | expired | suspended | pending_payment
+  paymentMethod       String    @default("usdt_trc20") // Always USDT TRC20
+  billingWalletAddress String                         // TRC20 wallet address for billing
+  addOns              String    @default("[]")        // JSON array of add-on IDs
+  startedAt           DateTime
   currentPeriodEnd    DateTime
+  trialEndsAt         DateTime?
+  trialCompletedAt    DateTime?                         // When trial was completed/converted
+  autoRenew           Boolean   @default(true)
+  lastPaymentTxHash   String?                         // TRC20 transaction hash
+  lastPaymentAmount   Float?                          // USDT amount
+  lastPaymentAt       DateTime?
   cancelledAt         DateTime?
-  paymentWalletAddr   String?             // USDT TRC20 wallet address
-  setupFeePaid        Boolean             @default(false)
+  cancellationReason  String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  payments            UsdtPaymentRecord[]
-  usageRecords        UsageRecordDb[]
-  trial               Trial?              @relation(fields: [trialId], references: [id])
-
-  @@index([tenantId])
-  @@index([tier])
-  @@index([status])
-  @@map("tenant_subscriptions")
-}
-
-/// USDT TRC20 payment for a subscription.
-model UsdtPaymentRecord {
-  id                  String              @id @default(cuid())
-  subscriptionId      String
-  tenantId            String
-  amountUsdt          Float               // USDT amount
-  method              String              @default("manual") // manual | semi_manual
-  companyWallet       String              // Company's TRC20 wallet
-  sourceWallet        String?             // Payer's TRC20 wallet
-  txHash              String?             // TRON transaction hash (64 hex chars)
-  blockNumber         Int?
-  status              String              @default("pending") // pending | tx_submitted | verifying | confirmed | expired | failed
-  includesSetupFee    Boolean             @default(false)
-  setupFeeAmountUsdt  Float               @default(0)
-  verificationAttempts Int               @default(0)
-  maxVerificationAttempts Int             @default(5)
-  expiresAt           DateTime
-  confirmedAt         DateTime?
-  confirmedBy         String?
-  notes               String?
-  createdAt           DateTime            @default(now())
-
-  subscription        TenantSubscription  @relation(fields: [subscriptionId], references: [id])
+  payments            SubscriptionPayment[]
+  usageRecords        UsageRecord[]
+  featureAccessLogs   FeatureAccessLog[]
 
   @@index([subscriptionId])
   @@index([tenantId])
-  @@index([txHash])
+  @@index([tier])
   @@index([status])
-  @@map("usdt_payments")
+  @@index([currentPeriodEnd])
+  @@map("subscriptions")
 }
 
-/// Usage metering record per tenant.
-model UsageRecordDb {
-  id                  String              @id @default(cuid())
-  tenantId            String
-  usageType           String              // workflows | actions_daily | team_members | api_calls_per_minute | storage_mb | concurrent_sessions | playbooks | policy_rules | approval_chain_depth
-  currentValue        Int                 @default(0)
-  limitValue          Int
-  updatedAt           DateTime            @updatedAt
+model SubscriptionPayment {
+  id                    String   @id @default(cuid())
+  paymentId             String   @unique               // Generated payment ID
+  subscriptionDbId      String                         // FK to Subscription.id
+  amountUsdt            Float                          // USDT amount
+  walletFrom            String                         // Payer TRC20 address
+  walletTo              String                         // Platform TRC20 address
+  txHash                String                         // TRC20 transaction hash
+  network               String   @default("TRC20")     // Always TRC20
+  status                String                         // pending | confirming | confirmed | failed | expired | refunded
+  verificationMethod    String   @default("manual_admin")  // manual_admin | semi_manual_onchain
+  adminConfirmedBy      String?                            // Admin user ID who confirmed
+  adminConfirmedAt      DateTime?                          // When admin confirmed
+  adminNotes            String?                            // Admin notes on confirmation
+  confirmations         Int      @default(0)
+  requiredConfirmations Int      @default(20)          // TRC20 standard
+  paidAt                DateTime?
+  confirmedAt           DateTime?
+  expiresAt             DateTime?
+  metadata              String   @default("{}")        // JSON
+  createdAt             DateTime @default(now())
 
-  subscription        TenantSubscription  @relation(fields: [tenantId], references: [tenantId])
+  subscription          Subscription @relation(fields: [subscriptionDbId], references: [id], onDelete: Cascade)
 
-  @@unique([tenantId, usageType])
+  @@index([subscriptionDbId])
+  @@index([paymentId])
+  @@index([status])
+  @@index([txHash])
+  @@index([createdAt])
+  @@map("subscription_payments")
+}
+
+model UsageRecord {
+  id                String   @id @default(cuid())
+  subscriptionDbId  String                         // FK to Subscription.id
+  tenantId          String
+  resource          String                         // e.g. "workflows", "actions_per_day", "policies"
+  usageCount        Int      @default(0)
+  limitValue        Int                            // 0 means unlimited
+  periodStart       DateTime
+  periodEnd         DateTime
+  overageCount      Int      @default(0)
+  overageChargeUsdt Float    @default(0.0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  subscription      Subscription @relation(fields: [subscriptionDbId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionDbId])
   @@index([tenantId])
+  @@index([resource])
+  @@index([periodStart, periodEnd])
   @@map("usage_records")
 }
 
-/// 14-day trial with Business plan access.
-model Trial {
-  id                  String              @id @default(cuid())
-  tenantId            String              @unique
-  tier                String              @default("business") // Trial always gives Business
-  startedAt           DateTime
-  expiresAt           DateTime
-  status              String              @default("active") // active | converted | expired | cancelled
-  convertedAt         DateTime?
+// ─── Manual Payment Confirmation (Admin) ────────────────────────────
 
-  subscription        TenantSubscription?
+model ManualPaymentConfirmation {
+  id              String   @id @default(cuid())
+  paymentId       String   @unique               // Links to SubscriptionPayment.paymentId
+  subscriptionId  String                         // Subscription subscriptionId
+  tenantId        String
+  amountUsdt      Float                          // USDT amount
+  txHash          String                         // TRC20 transaction hash
+  walletFrom      String                         // Payer TRC20 wallet
+  walletTo        String                         // Platform TRC20 wallet
+  verifiedByAdmin String                         // Admin user ID who verified
+  adminNotes      String?                        // Admin notes
+  status          String   @default("confirmed") // confirmed | rejected
+  rejectionReason String?                        // Why rejected if rejected
+  verifiedAt      DateTime  @default(now())
+  createdAt       DateTime  @default(now())
 
+  @@index([paymentId])
+  @@index([subscriptionId])
+  @@index([tenantId])
+  @@index([verifiedByAdmin])
+  @@map("manual_payment_confirmations")
+}
+
+model FeatureAccessLog {
+  id                String   @id @default(cuid())
+  subscriptionDbId  String                         // FK to Subscription.id
+  tenantId          String
+  feature           String                         // Feature name from Rust engine
+  allowed           Boolean
+  denialReason      String?                        // Why access was denied
+  resource          String?                        // Associated resource
+  userId            String?                        // User who attempted access
+  ipAddress         String?                        // Request IP
+  createdAt         DateTime @default(now())
+
+  subscription      Subscription @relation(fields: [subscriptionDbId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionDbId])
+  @@index([tenantId])
+  @@index([feature])
+  @@index([allowed])
+  @@index([createdAt])
+  @@map("feature_access_logs")
+}
+
+// ─── Saga Pattern: Subscription Lifecycle Orchestration ──────────────
+
+model SagaExecution {
+  id                  String   @id @default(cuid())
+  executionId         String   @unique               // e.g. "saga_trial_creation_abc123"
+  sagaType            String                          // trial_creation | trial_conversion | payment_verification | cancellation | renewal | upgrade | downgrade | reactivation
+  status              String   @default("pending")    // pending | running | completed | compensating | compensated | failed | timed_out | paused
+  tenantId            String
+  subscriptionId      String?                         // Linked subscription ID
+  currentStepIndex    Int      @default(0)
+  totalSteps          Int      @default(0)
+  completedSteps      Int      @default(0)
+  errorMessage        String?
+  compensationReason  String?
+  metadata            String   @default("{}")         // JSON: arbitrary metadata
+  paymentCurrency     String   @default("USDT")
+  paymentNetwork      String   @default("TRC20")
+  startedAt           DateTime @default(now())
+  completedAt         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  steps               SagaStepRecord[]
+
+  @@index([executionId])
+  @@index([sagaType])
   @@index([tenantId])
   @@index([status])
-  @@map("trials")
+  @@index([subscriptionId])
+  @@index([startedAt])
+  @@map("saga_executions")
+}
+
+model SagaStepRecord {
+  id                      String   @id @default(cuid())
+  sagaExecutionDbId       String                         // FK to SagaExecution.id
+  stepIndex               Int                            // Step order in the saga
+  stepName                String                         // e.g. "validate_email", "create_trial_record"
+  action                  String                         // Action to execute
+  compensatingAction      String                         // Rollback action
+  isCritical              Boolean  @default(true)        // Failure triggers compensation
+  status                  String   @default("pending")   // pending | running | completed | failed | compensating | compensated | skipped
+  input                   String   @default("{}")        // JSON: step input data
+  output                  String   @default("{}")        // JSON: step output data
+  errorMessage            String?                        // Error message if failed
+  compensationError       String?                        // Error during compensation
+  retryCount              Int      @default(0)
+  requiresExternalInput   Boolean  @default(false)       // Pauses saga awaiting input
+  startedAt               DateTime?
+  completedAt             DateTime?
+  compensationStartedAt   DateTime?
+  compensationCompletedAt DateTime?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  sagaExecution           SagaExecution @relation(fields: [sagaExecutionDbId], references: [id], onDelete: Cascade)
+
+  @@index([sagaExecutionDbId])
+  @@index([stepIndex])
+  @@index([status])
+  @@map("saga_step_records")
+}
+
+// ─── Phase 5: Memory Chip — Adaptive Binary Memory ──────────────────
+
+model MemoryMapping {
+  id            String   @id @default(cuid())
+  mappingId     String   @unique               // Unique mapping identifier
+  origin        String                         // Source term/concept
+  relation      String                         // Relationship type (e.g. "renamed_to", "maps_to", "classified_as")
+  destination   String                         // Target term/concept
+  mechanism     String                         // schema_drift | intent_routing | policy_refinement | ontology_base
+  confidence    Float    @default(0.0)          // 0.0–1.0 confidence score
+  tenantId      String   @default("__anonymous__")
+  approved      Boolean  @default(false)        // Whether HITL approved this mapping
+  merkleHash    String?                         // BLAKE3 hash of approved mapping
+  metadata      String   @default("{}")         // JSON: additional metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  approvalRecord MemoryApprovalRecord?
+  lifecycleEpisodes MemoryLifecycleEpisode[]
+
+  @@index([mappingId])
+  @@index([origin])
+  @@index([tenantId])
+  @@index([mechanism])
+  @@index([approved])
+  @@index([createdAt])
+  @@map("memory_mappings")
+}
+
+model MemoryApprovalRecord {
+  id                    String   @id @default(cuid())
+  mappingId             String   @unique               // FK to MemoryMapping.mappingId
+  adminEvidenceReview   Boolean                        // GRIETA 3: Must be true
+  adminJustification    String                         // GRIETA 3: Min 50 chars
+  riskAcknowledgment    Boolean                        // GRIETA 3: Must be true
+  adminSessionId        String                         // GRIETA 3: Min 32 chars hex
+  iaQuestion            String   @default("")          // IA question asked
+  iaResponse            Boolean  @default(false)       // IA response
+  evidenceFor           String   @default("[]")        // JSON: string[] evidence supporting
+  evidenceAgainst       String   @default("[]")        // JSON: string[] evidence against
+  consensusScore        Float    @default(0.0)         // 0.0–1.0 consensus score
+  approvedBy            String?                         // Admin user ID
+  approvedAt            DateTime?                       // When approval was granted
+  merkleHash            String?                         // Hash of the approval payload
+  yamlRendered          Boolean  @default(false)       // Whether YAML was rendered
+  createdAt             DateTime @default(now())
+
+  mapping               MemoryMapping @relation(fields: [mappingId], references: [mappingId], onDelete: Cascade)
+
+  @@index([mappingId])
+  @@index([adminSessionId])
+  @@map("memory_approval_records")
+}
+
+model MemoryLifecycleEpisode {
+  id            String   @id @default(cuid())
+  episodeId     String   @unique               // Unique episode identifier
+  mappingId     String                         // FK to MemoryMapping.mappingId
+  currentPhase  String                         // observe | hypothesize | validate | approve | deploy | retire
+  phaseHistory  String   @default("[]")        // JSON: array of { phase, timestamp }
+  status        String   @default("active")    // active | completed | abandoned | failed
+  tenantId      String   @default("__anonymous__")
+  metadata      String   @default("{}")        // JSON: additional metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  completedAt   DateTime?
+
+  mapping       MemoryMapping @relation(fields: [mappingId], references: [mappingId], onDelete: Cascade)
+
+  @@index([episodeId])
+  @@index([mappingId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([currentPhase])
+  @@map("memory_lifecycle_episodes")
+}
+
+// ─── API Credentials — API Keys & Service Connections ──────────────────
+
+model ApiCredential {
+  id            String   @id @default(cuid())
+  name          String                          // Human-readable name e.g. "OpenAI Production"
+  platform      String                          // Platform ID: openai, anthropic, google, azure, aws, custom, etc.
+  type          String   @default("api_key")    // api_key | oauth2 | basic_auth | bearer | custom
+  apiKey        String                          // The API key or token (masked in UI)
+  apiSecret     String?                         // Optional secret (for HMAC, client_secret, etc.)
+  endpoint      String?                         // Custom endpoint URL if applicable
+  username      String?                         // For basic_auth type
+  password      String?                         // For basic_auth type (masked in UI)
+  scope         String   @default("[]")         // JSON: array of permission scopes
+  isActive      Boolean  @default(true)
+  lastVerified  DateTime?                       // When the key was last tested
+  verifyStatus  String   @default("untested")   // untested | valid | invalid | error
+  verifyMessage String?                         // Result message from last verification
+  metadata      String   @default("{}")         // JSON: extra config (model, region, etc.)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([platform])
+  @@index([isActive])
+  @@index([verifyStatus])
+  @@map("api_credentials")
 }

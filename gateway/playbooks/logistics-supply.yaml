@@ -1,0 +1,196 @@
+apiVersion: playbook.zenic.dev/v1
+kind: Playbook
+metadata:
+  id: logistics-supply
+  name: "Logística de Cadena de Suministro"
+  name_en: "Supply Chain Logistics"
+  industry: logistics
+  sub_industry: supply_chain
+  version: "1.0.0"
+  description: "Comprehensive supply chain logistics automation with ISO 28000 security, C-TPAT compliance, shipment tracking, warehouse management, and carrier performance analytics for global logistics operations."
+  compliance:
+    - ISO 28000
+    - C-TPAT
+  icon: "🚛"
+  color: "#0891B2"
+  labels:
+    category: logistics
+    criticality: high
+  author: "Zenic-Agents"
+capabilities:
+  - id: iso28000-supply-security
+    name: "ISO 28000 Supply Chain Security"
+    description: "Automated ISO 28000 security management with threat assessment, security plan generation, incident response, and continuous compliance monitoring."
+    category: compliance
+    autoEnabled: true
+    riskLevel: high
+  - id: ctpat-compliance-engine
+    name: "C-TPAT Compliance Engine"
+    description: "Customs-Trade Partnership Against Terrorism compliance automation with security profile management, self-assessment, and CBP audit preparation."
+    category: compliance
+    autoEnabled: true
+    riskLevel: high
+  - id: shipment-tracking-hub
+    name: "Shipment Tracking Hub"
+    description: "Real-time multi-carrier shipment tracking with predictive ETA, exception management, and automated customer notification across all transport modes."
+    category: monitoring
+    autoEnabled: true
+    riskLevel: low
+  - id: warehouse-automation
+    name: "Warehouse Automation"
+    description: "WMS integration with automated receiving, putaway, pick-pack-ship workflows, inventory optimization, and labor management analytics."
+    category: automation
+    autoEnabled: true
+    riskLevel: medium
+  - id: carrier-performance-analytics
+    name: "Carrier Performance Analytics"
+    description: "Carrier scorecard with on-time delivery, damage rates, cost per lane analysis, and automated carrier selection optimization."
+    category: analytics
+    autoEnabled: false
+    riskLevel: low
+  - id: customs-documentation
+    name: "Customs Documentation"
+    description: "Automated commercial invoice, packing list, certificate of origin generation, and customs clearance workflow with HS code classification assistance."
+    category: workflow
+    autoEnabled: true
+    riskLevel: medium
+policies:
+  - policyId: supply_chain_security
+    name: "Supply Chain Security Policy"
+    description: "Enforces ISO 28000 security controls across the supply chain with threat assessment requirements and incident response procedures."
+  - policyId: ctpat_security_profile
+    name: "C-TPAT Security Profile Policy"
+    description: "Mandates C-TPAT security profile compliance for all supply chain partners with minimum security criteria verification and annual re-validation."
+  - policyId: data_access_restriction
+    name: "Logistics Data Access Restriction"
+    description: "Controls access to shipment data, pricing, and carrier contracts based on organizational role and partner relationship per ISO 28001."
+roi:
+  baseline:
+    manual_time_per_action_min: 30
+    error_rate_pct: 7.0
+    actions_per_month: 6000
+    cost_per_error_usd: 150
+    violations_per_year: 3
+    penalty_per_violation_usd: 50000
+  projected:
+    automated_time_per_action_min: 6
+    reduced_error_rate_pct: 1.5
+    compliance_score_target: 94
+    automation_rate_pct: 76
+pricing:
+  currency: USD
+  starter:
+    name: Starter
+    price_usd: 59
+    features:
+      - "ISO 28000 basic compliance"
+      - "Up to 1,000 shipments/month"
+      - "Shipment tracking"
+      - "Email support"
+    limits:
+      max_actions_month: 2000
+      max_users: 8
+    recommended_for: "Small logistics providers"
+  pro:
+    name: Professional
+    price_usd: 249
+    features:
+      - "Full ISO 28000 & C-TPAT suite"
+      - "Up to 10,000 shipments/month"
+      - "Warehouse automation"
+      - "Customs documentation"
+      - "Carrier analytics"
+      - "Priority support"
+    limits:
+      max_actions_month: 12000
+      max_users: 40
+    recommended_for: "Mid-size 3PL & freight forwarders"
+  enterprise:
+    name: Enterprise
+    price_usd: 1699
+    features:
+      - "Unlimited shipments"
+      - "Multi-modal optimization"
+      - "Global customs automation"
+      - "Advanced carrier analytics"
+      - "Network design & optimization"
+      - "Dedicated logistics consultant"
+      - "24/7 support with SLA"
+    limits:
+      max_actions_month: unlimited
+      max_users: unlimited
+    recommended_for: "Global logistics companies & shippers"
+onboarding:
+  estimated_minutes: 25
+  steps:
+    - id: select-logistics-type
+      title: "Logistics Type"
+      description: "Select your primary logistics operation type."
+      type: selection
+      field: logistics_type
+      default_value: "3pl"
+      required: true
+      options:
+        - value: "3pl"
+          label: "3PL Provider"
+        - value: "freight_forwarder"
+          label: "Freight Forwarder"
+        - value: "shipper"
+          label: "Shipper / Manufacturer"
+        - value: "carrier"
+          label: "Carrier / Fleet"
+    - id: transport-modes
+      title: "Transport Modes"
+      description: "Select the transport modes you operate with."
+      type: selection
+      field: transport_modes
+      default_value: "multimodal"
+      required: true
+      options:
+        - value: "ocean"
+          label: "Ocean Freight"
+        - value: "air"
+          label: "Air Freight"
+        - value: "ground"
+          label: "Ground / Trucking"
+        - value: "multimodal"
+          label: "Multimodal"
+    - id: shipment-volume
+      title: "Monthly Shipment Volume"
+      description: "Enter your approximate monthly shipment volume."
+      type: question
+      field: monthly_shipments
+      default_value: "2000"
+      required: true
+    - id: ctpat-enrollment
+      title: "C-TPAT Enrollment"
+      description: "Is your organization currently enrolled in C-TPAT?"
+      type: confirmation
+      field: ctpat_enrolled
+      default_value: false
+      required: true
+    - id: wms-integration
+      title: "WMS Integration"
+      description: "Select your warehouse management system for integration."
+      type: selection
+      field: wms_system
+      default_value: "none"
+      required: false
+      options:
+        - value: "manhattan"
+          label: "Manhattan Associates"
+        - value: "blue_yonder"
+          label: "Blue Yonder"
+        - value: "sap_ewm"
+          label: "SAP EWM"
+        - value: "none"
+          label: "None / Manual"
+    - id: auto-tracking-enable
+      title: "Shipment Tracking"
+      description: "Automatically enable multi-carrier shipment tracking and exception management."
+      type: auto_config
+      field: tracking_enabled
+      default_value: true
+      required: true
+certification:
+  status: unsigned

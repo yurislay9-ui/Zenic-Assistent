@@ -1,0 +1,219 @@
+apiVersion: playbook.zenic.dev/v1
+kind: Playbook
+metadata:
+  id: saas-platform
+  name: "Plataforma SaaS"
+  name_en: "SaaS Platform"
+  industry: technology
+  sub_industry: saas
+  version: "1.0.0"
+  description: "Comprehensive SaaS platform compliance and operations automation covering SOC 2 Type II, ISO 27001, and GDPR with automated evidence collection, continuous monitoring, and customer trust center generation."
+  compliance:
+    - SOC 2
+    - ISO 27001
+    - GDPR
+  icon: "☁️"
+  color: "#3B82F6"
+  labels:
+    category: technology
+    criticality: high
+  author: "Zenic-Agents"
+capabilities:
+  - id: soc2-evidence-collection
+    name: "SOC 2 Evidence Collection"
+    description: "Automated continuous evidence collection for SOC 2 Type II audits across all 5 trust service criteria with readiness scoring and gap analysis."
+    category: compliance
+    autoEnabled: true
+    riskLevel: high
+  - id: iso27001-controls-monitor
+    name: "ISO 27001 Controls Monitor"
+    description: "Continuous monitoring of Annex A controls with automated risk assessments, statement of applicability management, and ISMS policy enforcement."
+    category: compliance
+    autoEnabled: true
+    riskLevel: high
+  - id: gdpr-data-mapping
+    name: "GDPR Data Mapping"
+    description: "Automated discovery and mapping of personal data flows across systems with processing activity records, DPO workflow management, and DPIA automation."
+    category: compliance
+    autoEnabled: true
+    riskLevel: medium
+  - id: sso-rbac-integration
+    name: "SSO & RBAC Integration"
+    description: "Enterprise SSO integration with SAML/OIDC and fine-grained role-based access control with automated provisioning and deprovisioning."
+    category: security
+    autoEnabled: true
+    riskLevel: medium
+  - id: api-security-gateway
+    name: "API Security Gateway"
+    description: "Automated API security scanning, rate limiting, authentication enforcement, and OWASP Top 10 vulnerability detection for all platform endpoints."
+    category: security
+    autoEnabled: true
+    riskLevel: high
+  - id: uptime-sla-monitoring
+    name: "Uptime & SLA Monitoring"
+    description: "Real-time uptime monitoring with SLA compliance tracking, incident management, status page automation, and customer notification workflows."
+    category: monitoring
+    autoEnabled: true
+    riskLevel: low
+  - id: customer-trust-center
+    name: "Customer Trust Center"
+    description: "Auto-generated customer-facing trust center with compliance certifications, security policies, subprocessor list, and audit report access."
+    category: reporting
+    autoEnabled: false
+    riskLevel: low
+  - id: tenant-isolation-verification
+    name: "Tenant Isolation Verification"
+    description: "Continuous verification of multi-tenant data isolation with automated penetration testing, data leakage detection, and cross-tenant access prevention."
+    category: security
+    autoEnabled: false
+    riskLevel: critical
+policies:
+  - policyId: data_access_restriction
+    name: "SaaS Data Access Restriction"
+    description: "Enforces tenant-aware access controls preventing cross-tenant data access and ensuring least-privilege access per SOC 2 CC6.1 and ISO 27001 A.9."
+  - policyId: data_retention_saas
+    name: "SaaS Data Retention Policy"
+    description: "Controls data retention periods per customer contract and GDPR Article 5(1)(e) with automated purge scheduling and certification of deletion."
+  - policyId: security_incident_response
+    name: "Security Incident Response Policy"
+    description: "Mandates automated incident detection, classification, containment, and GDPR 72-hour breach notification workflow activation."
+  - policyId: change_management_control
+    name: "Change Management Control"
+    description: "Enforces change management procedures for production deployments with approval workflows, rollback plans, and audit trails per SOC 2 CC8.1."
+roi:
+  baseline:
+    manual_time_per_action_min: 30
+    error_rate_pct: 5.0
+    actions_per_month: 5000
+    cost_per_error_usd: 220
+    violations_per_year: 2
+    penalty_per_violation_usd: 150000
+  projected:
+    automated_time_per_action_min: 5
+    reduced_error_rate_pct: 0.5
+    compliance_score_target: 98
+    automation_rate_pct: 80
+pricing:
+  currency: USD
+  starter:
+    name: Starter
+    price_usd: 89
+    features:
+      - "SOC 2 evidence collection (basic)"
+      - "GDPR data mapping"
+      - "Up to 50 API endpoints"
+      - "Email support"
+    limits:
+      max_actions_month: 2000
+      max_users: 10
+    recommended_for: "Early-stage SaaS startups"
+  pro:
+    name: Professional
+    price_usd: 399
+    features:
+      - "Full SOC 2 & ISO 27001 suite"
+      - "GDPR & privacy compliance"
+      - "API security gateway"
+      - "SSO integration"
+      - "SLA monitoring"
+      - "Priority support"
+    limits:
+      max_actions_month: 15000
+      max_users: 50
+    recommended_for: "Growth-stage SaaS companies"
+  enterprise:
+    name: Enterprise
+    price_usd: 1999
+    features:
+      - "Unlimited compliance coverage"
+      - "Customer trust center"
+      - "Tenant isolation verification"
+      - "Custom audit workflows"
+      - "Dedicated CISO advisor"
+      - "24/7 support with SLA"
+      - "On-premise deployment option"
+    limits:
+      max_actions_month: unlimited
+      max_users: unlimited
+    recommended_for: "Enterprise SaaS & regulated platforms"
+onboarding:
+  estimated_minutes: 30
+  steps:
+    - id: select-deployment-model
+      title: "Deployment Model"
+      description: "Select your SaaS deployment model for appropriate security configuration."
+      type: selection
+      field: deployment_model
+      default_value: "multi_tenant"
+      required: true
+      options:
+        - value: "multi_tenant"
+          label: "Multi-tenant Cloud"
+        - value: "single_tenant"
+          label: "Single-tenant Cloud"
+        - value: "hybrid"
+          label: "Hybrid (Cloud + On-prem)"
+        - value: "on_premise"
+          label: "On-premise Only"
+    - id: compliance-frameworks
+      title: "Compliance Frameworks"
+      description: "Select the compliance frameworks your platform needs to satisfy."
+      type: selection
+      field: compliance_frameworks
+      default_value: "soc2"
+      required: true
+      options:
+        - value: "soc2"
+          label: "SOC 2 Type II"
+        - value: "iso27001"
+          label: "ISO 27001"
+        - value: "both"
+          label: "SOC 2 + ISO 27001"
+        - value: "all"
+          label: "SOC 2 + ISO 27001 + GDPR"
+    - id: sso-provider
+      title: "SSO Provider"
+      description: "Select your identity provider for SSO integration."
+      type: selection
+      field: sso_provider
+      default_value: "okta"
+      required: false
+      options:
+        - value: "okta"
+          label: "Okta"
+        - value: "azure_ad"
+          label: "Azure AD"
+        - value: "google"
+          label: "Google Workspace"
+        - value: "none"
+          label: "None / Manual"
+    - id: api-endpoint-count
+      title: "API Endpoints"
+      description: "Enter the approximate number of API endpoints to monitor for security scanning."
+      type: question
+      field: api_endpoint_count
+      default_value: "50"
+      required: true
+    - id: tenant-isolation-confirm
+      title: "Tenant Isolation"
+      description: "Confirm that tenant data isolation verification will be enabled for your multi-tenant environment."
+      type: confirmation
+      field: tenant_isolation_enabled
+      default_value: true
+      required: true
+    - id: auto-evidence-collection
+      title: "Evidence Collection"
+      description: "Automatically enable continuous SOC 2 evidence collection across all trust service criteria."
+      type: auto_config
+      field: evidence_collection_enabled
+      default_value: true
+      required: true
+    - id: gdpr-dpo-contact
+      title: "DPO Contact"
+      description: "Provide your Data Protection Officer contact for GDPR compliance workflow routing."
+      type: question
+      field: dpo_contact_email
+      default_value: ""
+      required: false
+certification:
+  status: unsigned

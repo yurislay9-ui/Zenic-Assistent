@@ -1407,6 +1407,7 @@ dependencies = [
  "tracing",
  "uuid",
  "zenic-proto",
+ "zenic-subscription",
 ]
 
 [[package]]

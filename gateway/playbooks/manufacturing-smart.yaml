@@ -1,0 +1,195 @@
+apiVersion: playbook.zenic.dev/v1
+kind: Playbook
+metadata:
+  id: manufacturing-smart
+  name: "Fabricación Inteligente"
+  name_en: "Smart Manufacturing"
+  industry: manufacturing
+  sub_industry: smart_manufacturing
+  version: "1.0.0"
+  description: "Industry 4.0 automation playbook for smart manufacturing operations with ISO 27001 information security, NIST cybersecurity framework, IoT device management, and predictive maintenance workflows."
+  compliance:
+    - ISO 27001
+    - NIST
+  icon: "🏭"
+  color: "#D97706"
+  labels:
+    category: manufacturing
+    criticality: high
+  author: "Zenic-Agents"
+capabilities:
+  - id: iot-device-management
+    name: "IoT Device Management"
+    description: "Centralized management of industrial IoT sensors and actuators with device provisioning, certificate management, and firmware update orchestration."
+    category: integration
+    autoEnabled: true
+    riskLevel: medium
+  - id: nist-cybersecurity-framework
+    name: "NIST CSF Implementation"
+    description: "Automated NIST Cybersecurity Framework implementation across identify, protect, detect, respond, and recover functions with maturity scoring."
+    category: compliance
+    autoEnabled: true
+    riskLevel: high
+  - id: iso27001-ot-security
+    name: "ISO 27001 OT Security"
+    description: "Operational technology security controls per ISO 27001 Annex A with SCADA/PLC network segmentation, access management, and continuous monitoring."
+    category: security
+    autoEnabled: true
+    riskLevel: critical
+  - id: predictive-maintenance
+    name: "Predictive Maintenance"
+    description: "ML-driven predictive maintenance from vibration, temperature, and acoustic sensor data with automated work order generation and parts procurement."
+    category: automation
+    autoEnabled: true
+    riskLevel: low
+  - id: quality-control-automation
+    name: "Quality Control Automation"
+    description: "Computer vision and sensor-based quality inspection with statistical process control, non-conformance tracking, and CAPA workflow automation."
+    category: automation
+    autoEnabled: false
+    riskLevel: medium
+  - id: supply-chain-visibility
+    name: "Supply Chain Visibility"
+    description: "End-to-end supply chain monitoring with supplier risk assessment, lead time prediction, and automated alternative sourcing triggers."
+    category: monitoring
+    autoEnabled: false
+    riskLevel: low
+  - id: production-analytics
+    name: "Production Analytics"
+    description: "Real-time OEE calculation, throughput analysis, bottleneck detection, and energy consumption optimization with configurable dashboards."
+    category: analytics
+    autoEnabled: true
+    riskLevel: low
+policies:
+  - policyId: ot_network_isolation
+    name: "OT Network Isolation Policy"
+    description: "Enforces network segmentation between IT and OT environments with controlled data flow, preventing lateral movement per NIST SP 800-82."
+  - policyId: data_access_restriction
+    name: "Manufacturing Data Access Restriction"
+    description: "Controls access to production recipes, PLC programs, and quality data based on role and shift assignment per ISO 27001 A.9."
+  - policyId: safety_system_override
+    name: "Safety System Override Policy"
+    description: "Requires multi-person authorization for any safety system override or PLC program modification with automatic audit logging and incident escalation."
+roi:
+  baseline:
+    manual_time_per_action_min: 50
+    error_rate_pct: 6.0
+    actions_per_month: 3500
+    cost_per_error_usd: 1200
+    violations_per_year: 2
+    penalty_per_violation_usd: 200000
+  projected:
+    automated_time_per_action_min: 10
+    reduced_error_rate_pct: 1.0
+    compliance_score_target: 95
+    automation_rate_pct: 70
+pricing:
+  currency: USD
+  starter:
+    name: Starter
+    price_usd: 89
+    features:
+      - "IoT device management (100 devices)"
+      - "NIST CSF basic assessment"
+      - "Predictive maintenance alerts"
+      - "Email support"
+    limits:
+      max_actions_month: 1500
+      max_users: 10
+    recommended_for: "Small manufacturing facilities"
+  pro:
+    name: Professional
+    price_usd: 399
+    features:
+      - "IoT management (1,000 devices)"
+      - "Full NIST CSF & ISO 27001"
+      - "Predictive maintenance suite"
+      - "Quality control automation"
+      - "Production analytics"
+      - "Priority support"
+    limits:
+      max_actions_month: 8000
+      max_users: 50
+    recommended_for: "Mid-size manufacturing plants"
+  enterprise:
+    name: Enterprise
+    price_usd: 1999
+    features:
+      - "Unlimited IoT devices"
+      - "Multi-site management"
+      - "Supply chain visibility"
+      - "Advanced production analytics"
+      - "Custom OT security controls"
+      - "Dedicated manufacturing specialist"
+      - "24/7 support with SLA"
+    limits:
+      max_actions_month: unlimited
+      max_users: unlimited
+    recommended_for: "Large manufacturers & industrial groups"
+onboarding:
+  estimated_minutes: 30
+  steps:
+    - id: select-manufacturing-type
+      title: "Manufacturing Type"
+      description: "Select your manufacturing process type for tailored automation templates."
+      type: selection
+      field: manufacturing_type
+      default_value: "discrete"
+      required: true
+      options:
+        - value: "discrete"
+          label: "Discrete Manufacturing"
+        - value: "process"
+          label: "Process Manufacturing"
+        - value: "mixed"
+          label: "Mixed Mode"
+        - value: "lean"
+          label: "Lean Manufacturing"
+    - id: iot-device-count
+      title: "IoT Device Count"
+      description: "Enter the approximate number of IoT sensors and actuators in your facility."
+      type: question
+      field: iot_device_count
+      default_value: "100"
+      required: true
+    - id: scada-plc-platform
+      title: "SCADA/PLC Platform"
+      description: "Select your primary industrial control system platform."
+      type: selection
+      field: control_system
+      default_value: "siemens"
+      required: true
+      options:
+        - value: "siemens"
+          label: "Siemens"
+        - value: "allen_bradley"
+          label: "Allen-Bradley"
+        - value: "schneider"
+          label: "Schneider Electric"
+        - value: "mitsubishi"
+          label: "Mitsubishi"
+        - value: "other"
+          label: "Other"
+    - id: nist-csf-confirm
+      title: "NIST CSF Implementation"
+      description: "Confirm NIST Cybersecurity Framework implementation will be enabled for your OT environment."
+      type: confirmation
+      field: nist_csf_enabled
+      default_value: true
+      required: true
+    - id: safety-override-config
+      title: "Safety Override Controls"
+      description: "Configure multi-person authorization requirement for safety system overrides."
+      type: confirmation
+      field: safety_override_required
+      default_value: true
+      required: true
+    - id: auto-ot-monitoring
+      title: "OT Network Monitoring"
+      description: "Automatically enable continuous OT network monitoring and anomaly detection."
+      type: auto_config
+      field: ot_monitoring_enabled
+      default_value: true
+      required: true
+certification:
+  status: unsigned

@@ -1,0 +1,48 @@
+import { NextResponse } from "next/server";
+
+export async function GET() {
+  try {
+    const niches = [
+      { id: "healthtech", name: "Telemedicina y Salud", icon: "Heart", standard: "HIPAA", standardName: "Health Insurance Portability and Accountability Act", active: true, rules: ["Cifrado obligatorio de datos de pacientes", "Auditoría de acceso a historiales clínicos", "Consentimiento informado digital requerido"] },
+      { id: "pharma", name: "Farmacéutica", icon: "Pill", standard: "FDA 21 CFR Part 11 / GxP", standardName: "Code of Federal Regulations Title 21", active: false, rules: ["Trazabilidad completa de lotes de producción", "Firmas electrónicas con integridad garantizada", "Validación de sistemas computarizados"] },
+      { id: "biotech", name: "Biotecnología", icon: "Microscope", standard: "ISO 13485 / GLP", standardName: "Gestión de Calidad en Dispositivos Médicos", active: false, rules: ["Registro inmutable de experimentos", "Control de acceso a datos de investigación", "Auditoría de modificaciones en protocolos"] },
+      { id: "health_insur", name: "Seguros de Salud", icon: "Stethoscope", standard: "HIPAA / ACA", standardName: "Affordable Care Act", active: false, rules: ["Verificación de elegibilidad antes de reclamos", "Cifrado de información médica", "Auditoría de acceso a registros"] },
+      { id: "fintech", name: "Fintech y Pagos", icon: "Landmark", standard: "PCI-DSS / AML/KYC", standardName: "Payment Card Industry Data Security Standard / Anti-Money Laundering", active: true, rules: ["Tokenización de datos de tarjetas", "Registro inmutable de transacciones", "Aprobación humana para transferencias > $10,000"] },
+      { id: "banking", name: "Banca Digital", icon: "Landmark", standard: "Basel III / SOX", standardName: "Acuerdos de Basilea III / Sarbanes-Oxley Act", active: false, rules: ["Reportes regulatorios con trazabilidad", "Control de acceso multinivel", "Conciliación automática con validación humana"] },
+      { id: "insurance", name: "Seguros", icon: "ShieldCheck", standard: "Solvency II / NAIC", standardName: "Directiva de Solvencia II", active: false, rules: ["Cálculo de reservas con auditoría automática", "Registro inmutable de pólizas y siniestros", "Validación humana para siniestros mayores"] },
+      { id: "crypto", name: "Criptoactivos y DeFi", icon: "Waves", standard: "MiCA / FATF Travel Rule", standardName: "Markets in Crypto-Assets / Financial Action Task Force", active: false, rules: ["Verificación de contraparte en transacciones", "Registro inmutable on-chain/off-chain", "Monitoreo de patrones de lavado de dinero"] },
+      { id: "edtech", name: "Tecnología Educativa", icon: "GraduationCap", standard: "COPPA / FERPA", standardName: "Children's Online Privacy Protection Act / Family Educational Rights and Privacy Act", active: false, rules: ["Protección de datos de menores", "Consentimiento parental verificado", "Anonimización de registros estudiantiles"] },
+      { id: "highered", name: "Educación Superior", icon: "GraduationCap", standard: "FERPA / GDPR", standardName: "Family Educational Rights and Privacy Act / General Data Protection Regulation", active: false, rules: ["Control de acceso a expedientes académicos", "Auditoría de acceso a datos de investigación", "Consentimiento para uso de datos"] },
+      { id: "corptraining", name: "Capacitación Corporativa", icon: "Workflow", standard: "SCORM / ISO 10015", standardName: "Sharable Content Object Reference Model", active: false, rules: ["Registro inmutable de certificaciones", "Trazabilidad de programas de capacitación", "Validación de competencias con evidencia"] },
+      { id: "legaltech", name: "Tecnología Legal", icon: "Scale", standard: "ABA / GDPR", standardName: "American Bar Association / General Data Protection Regulation", active: false, rules: ["Privilegio abogado-cliente protegido", "Retención documental por jurisdicción", "No generación de opiniones legales por IA"] },
+      { id: "compliance", name: "Cumplimiento Regulatorio", icon: "ShieldCheck", standard: "SOX / ISO 37301", standardName: "Sarbanes-Oxley Act / Compliance Management Systems", active: false, rules: ["Reportes de cumplimiento con firma digital", "Mapeo de regulaciones a controles internos", "Auditoría continua de desviaciones"] },
+      { id: "ip", name: "Propiedad Intelectual", icon: "Lock", standard: "WIPO / TRIPS", standardName: "World Intellectual Property Organization", active: false, rules: ["Registro de creación con sello temporal", "Control de acceso a patentes pendientes", "Auditoría de uso de propiedad intelectual"] },
+      { id: "manufacturing", name: "Manufactura Inteligente", icon: "Factory", standard: "ISO 27001", standardName: "International Standard for Information Security Management", active: false, rules: ["Control de acceso a sistemas SCADA", "Registro de modificaciones en producción", "Validación humana para cambios críticos"] },
+      { id: "supplychain", name: "Cadena de Suministro", icon: "Truck", standard: "ISO 28000 / C-TPAT", standardName: "Supply Chain Security Management", active: false, rules: ["Trazabilidad end-to-end de productos", "Validación de proveedores", "Registro inmutable de movimiento de mercancías"] },
+      { id: "energy", name: "Energía y Utilities", icon: "Zap", standard: "NERC CIP / IEC 62351", standardName: "Critical Infrastructure Protection", active: false, rules: ["Monitoreo de ciberseguridad en infraestructura crítica", "Validación humana para despacho de carga", "Auditoría de acceso a sistemas de control"] },
+      { id: "mining", name: "Minería y Recursos", icon: "TreePine", standard: "ISO 14001 / IFC", standardName: "Environmental Management Standards", active: false, rules: ["Monitoreo de impacto ambiental", "Auditoría de permisos ambientales", "Validación de seguridad en operaciones de riesgo"] },
+      { id: "government", name: "Gobierno y Sector Público", icon: "Building2", standard: "NIST / FISMA", standardName: "National Institute of Standards and Technology / Federal Information Security Modernization Act", active: false, rules: ["Clasificación obligatoria de datos sensibles", "Cadena de custodia digital", "Aprobación multinivel para acceso a datos"] },
+      { id: "defense", name: "Defensa y Seguridad Nacional", icon: "ShieldCheck", standard: "ITAR / CMMC", standardName: "International Traffic in Arms Regulations / Cybersecurity Maturity Model Certification", active: false, rules: ["Control de acceso basado en clearance", "Auditoría de transacciones con datos controlados", "Aislamiento de redes con datos clasificados"] },
+      { id: "critical_infra", name: "Infraestructura Crítica", icon: "Building2", standard: "NIST CSF / EU NIS2", standardName: "Cybersecurity Framework / Network and Information Security Directive 2", active: false, rules: ["Detección de anomalías en tiempo real", "Planes de respuesta con validación humana", "Respaldo con verificación de integridad"] },
+      { id: "ecommerce", name: "Comercio Electrónico", icon: "ShoppingCart", standard: "PCI-DSS / PSD2", standardName: "Payment Card Industry / Payment Services Directive 2", active: false, rules: ["Tokenización de datos de pago", "Autenticación fuerte del cliente", "Protección contra fraude en tiempo real"] },
+      { id: "retail", name: "Retail y Consumo", icon: "ShoppingCart", standard: "GDPR / CCPA", standardName: "General Data Protection Regulation / California Consumer Privacy Act", active: false, rules: ["Consentimiento explícito para personalización", "Derecho de eliminación de datos", "Transparencia en uso de datos"] },
+      { id: "realestate", name: "Bienes Raíces", icon: "Building2", standard: "TRID / AML", standardName: "TILA-RESPA Integrated Disclosure / Anti-Money Laundering", active: false, rules: ["Divulgación obligatoria de términos", "Verificación de identidad en alto valor", "Registro de transacciones con trazabilidad"] },
+      { id: "saas", name: "SaaS y Cloud", icon: "Cpu", standard: "SOC 2 / ISO 27001", standardName: "Service Organization Control 2 / Information Security Management", active: false, rules: ["Cifrado de datos en reposo y tránsito", "Control de acceso basado en roles (RBAC)", "Auditoría de acceso con registros inmutables"] },
+      { id: "iot", name: "IoT y Dispositivos", icon: "Smartphone", standard: "ETSI EN 303 645 / NIST 8259A", standardName: "Cybersecurity Standard for Consumer IoT", active: false, rules: ["Autenticación obligatoria en dispositivos", "Actualizaciones de seguridad verificadas", "Cifrado de comunicaciones dispositivo-gateway"] },
+      { id: "travel", name: "Viajes y Hotelería", icon: "Plane", standard: "PCI-DSS / GDPR", standardName: "Payment Card Industry / General Data Protection Regulation", active: false, rules: ["Cifrado de datos de pasaporte y documentos", "Consentimiento explícito para personalización", "Registro de acceso a datos de huéspedes"] },
+      { id: "media", name: "Medios y Publicidad", icon: "Megaphone", standard: "GDPR / DSA", standardName: "General Data Protection Regulation / Digital Services Act", active: false, rules: ["Consentimiento para tracking y publicidad", "Transparencia en algoritmos de recomendación", "Derecho de acceso y eliminación de datos"] },
+    ];
+
+    return NextResponse.json({
+      niches,
+      activeNiche: niches.find((n) => n.active)?.id ?? null,
+      activeStandard: niches.find((n) => n.active)?.standard ?? null,
+    });
+  } catch (error) {
+    console.error("[/api/dashboard/niches GET]", error);
+    return NextResponse.json(
+      { error: "Error al obtener nichos industriales" },
+      { status: 500 }
+    );
+  }
+}

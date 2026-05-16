@@ -1,0 +1,186 @@
+apiVersion: playbook.zenic.dev/v1
+kind: Playbook
+metadata:
+  id: healthtech-clinic
+  name: "Clínica de Telemedicina"
+  name_en: "Telemedicine Clinic"
+  industry: healthcare
+  sub_industry: telemedicine
+  version: "1.0.0"
+  description: "Automated compliance and workflow management for telemedicine clinics, including HIPAA-compliant patient data handling, appointment scheduling, and clinical documentation automation."
+  compliance:
+    - HIPAA
+    - HITECH
+  icon: "🏥"
+  color: "#10B981"
+  labels:
+    category: healthcare
+    criticality: high
+  author: "Zenic-Agents"
+capabilities:
+  - id: phi-data-encryption
+    name: "PHI Data Encryption"
+    description: "Automatic encryption of Protected Health Information at rest and in transit using AES-256 and TLS 1.3 standards."
+    category: security
+    autoEnabled: true
+    riskLevel: critical
+  - id: telehealth-appointment-automation
+    name: "Telehealth Appointment Automation"
+    description: "Automated scheduling, reminders, and follow-up workflows for telehealth consultations with provider availability matching."
+    category: automation
+    autoEnabled: true
+    riskLevel: low
+  - id: hipaa-audit-trail
+    name: "HIPAA Audit Trail"
+    description: "Comprehensive audit logging of all PHI access events with tamper-proof Merkle chain verification for HIPAA compliance."
+    category: compliance
+    autoEnabled: true
+    riskLevel: high
+  - id: clinical-documentation-assist
+    name: "Clinical Documentation Assist"
+    description: "AI-assisted clinical note generation from telehealth sessions with structured templates and ICD-10 code suggestions."
+    category: workflow
+    autoEnabled: false
+    riskLevel: medium
+  - id: patient-consent-management
+    name: "Patient Consent Management"
+    description: "Digital consent form management with version tracking, e-signature capture, and automated consent verification before data processing."
+    category: compliance
+    autoEnabled: true
+    riskLevel: high
+  - id: hitech-breach-notification
+    name: "HITECH Breach Notification"
+    description: "Automated breach detection and notification workflow triggering required HITECH notifications within the 60-day mandate."
+    category: compliance
+    autoEnabled: false
+    riskLevel: critical
+  - id: ehr-integration-bridge
+    name: "EHR Integration Bridge"
+    description: "Bidirectional integration with Epic, Cerner, and other EHR systems via HL7 FHIR APIs for seamless patient data synchronization."
+    category: integration
+    autoEnabled: false
+    riskLevel: medium
+policies:
+  - policyId: data_access_restriction
+    name: "PHI Access Restriction Policy"
+    description: "Controls access to Protected Health Information based on role, purpose, and minimum necessary standard per HIPAA Privacy Rule."
+  - policyId: data_retention_healthcare
+    name: "Healthcare Data Retention Policy"
+    description: "Enforces minimum 6-year retention for medical records and automatic disposal scheduling per state and federal requirements."
+  - policyId: breach_notification_control
+    name: "Breach Notification Control"
+    description: "Mandates immediate risk assessment and notification procedures upon detection of unauthorized PHI access or disclosure."
+roi:
+  baseline:
+    manual_time_per_action_min: 35
+    error_rate_pct: 8.5
+    actions_per_month: 2400
+    cost_per_error_usd: 185
+    violations_per_year: 3
+    penalty_per_violation_usd: 50000
+  projected:
+    automated_time_per_action_min: 8
+    reduced_error_rate_pct: 1.2
+    compliance_score_target: 96
+    automation_rate_pct: 78
+pricing:
+  currency: USD
+  starter:
+    name: Starter
+    price_usd: 79
+    features:
+      - "PHI encryption & basic HIPAA compliance"
+      - "Up to 200 telehealth appointments/month"
+      - "Audit trail with 90-day retention"
+      - "Email support"
+    limits:
+      max_actions_month: 500
+      max_users: 5
+    recommended_for: "Small telemedicine practices"
+  pro:
+    name: Professional
+    price_usd: 299
+    features:
+      - "Full HIPAA & HITECH compliance suite"
+      - "Up to 2,000 telehealth appointments/month"
+      - "Clinical documentation assist"
+      - "EHR integration (1 system)"
+      - "Breach notification automation"
+      - "Priority support"
+    limits:
+      max_actions_month: 3000
+      max_users: 25
+    recommended_for: "Growing telemedicine clinics"
+  enterprise:
+    name: Enterprise
+    price_usd: 1299
+    features:
+      - "Unlimited telehealth appointments"
+      - "Multi-EHR integration"
+      - "Advanced breach analytics & forensics"
+      - "Custom consent workflows"
+      - "Dedicated compliance officer dashboard"
+      - "24/7 support with SLA"
+      - "On-premise deployment option"
+    limits:
+      max_actions_month: unlimited
+      max_users: unlimited
+    recommended_for: "Hospital systems & large telehealth providers"
+onboarding:
+  estimated_minutes: 25
+  steps:
+    - id: select-practice-size
+      title: "Practice Size"
+      description: "Select your telemedicine practice size to configure appropriate defaults."
+      type: selection
+      field: practice_size
+      default_value: "small"
+      required: true
+      options:
+        - value: "solo"
+          label: "Solo Practitioner"
+        - value: "small"
+          label: "Small Practice (2-10 providers)"
+        - value: "medium"
+          label: "Medium Clinic (11-50 providers)"
+        - value: "large"
+          label: "Large Organization (50+ providers)"
+    - id: configure-ehr-system
+      title: "EHR System"
+      description: "Select your primary Electronic Health Record system for integration setup."
+      type: selection
+      field: ehr_system
+      default_value: "none"
+      required: false
+      options:
+        - value: "epic"
+          label: "Epic"
+        - value: "cerner"
+          label: "Cerner"
+        - value: "athena"
+          label: "Athenahealth"
+        - value: "none"
+          label: "None / Manual Entry"
+    - id: phi-encryption-confirm
+      title: "PHI Encryption"
+      description: "Confirm AES-256 encryption will be enabled for all Protected Health Information at rest and in transit."
+      type: confirmation
+      field: phi_encryption_enabled
+      default_value: true
+      required: true
+    - id: breach-notification-config
+      title: "Breach Notification Contacts"
+      description: "Configure recipients for HITECH breach notification alerts."
+      type: question
+      field: breach_notification_emails
+      default_value: ""
+      required: true
+    - id: auto-hipaa-audit
+      title: "HIPAA Audit Trail"
+      description: "Automatically enable HIPAA-compliant audit trail for all PHI access events."
+      type: auto_config
+      field: hipaa_audit_enabled
+      default_value: true
+      required: true
+certification:
+  status: unsigned

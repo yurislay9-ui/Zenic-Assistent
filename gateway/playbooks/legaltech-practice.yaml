@@ -1,0 +1,204 @@
+apiVersion: playbook.zenic.dev/v1
+kind: Playbook
+metadata:
+  id: legaltech-practice
+  name: "Gestión de Práctica Legal"
+  name_en: "Legal Practice Management"
+  industry: legal
+  sub_industry: practice_management
+  version: "1.0.0"
+  description: "Automated legal practice management with ABA compliance, GDPR-compliant client data handling, conflict of interest checking, and billable hours tracking for law firms."
+  compliance:
+    - ABA Model Rules
+    - GDPR
+  icon: "⚖️"
+  color: "#6366F1"
+  labels:
+    category: legal
+    criticality: high
+  author: "Zenic-Agents"
+capabilities:
+  - id: conflict-of-interest-check
+    name: "Conflict of Interest Checker"
+    description: "Automated conflict of interest screening against client and matter databases per ABA Model Rule 1.7 with adverse party cross-referencing."
+    category: compliance
+    autoEnabled: true
+    riskLevel: high
+  - id: client-data-gdpr
+    name: "GDPR Client Data Protection"
+    description: "Automated GDPR compliance for client personal data including consent management, data subject access requests, and right-to-erasure workflows."
+    category: compliance
+    autoEnabled: true
+    riskLevel: critical
+  - id: billable-hours-automation
+    name: "Billable Hours Automation"
+    description: "Automated time tracking, invoice generation, and client billing with ABA-compliant fee arrangement documentation."
+    category: automation
+    autoEnabled: true
+    riskLevel: low
+  - id: document-management-legal
+    name: "Legal Document Management"
+    description: "Version-controlled document management with attorney-client privilege protections, secure sharing, and e-filing integration."
+    category: workflow
+    autoEnabled: true
+    riskLevel: medium
+  - id: matter-workflow-orchestration
+    name: "Matter Workflow Orchestration"
+    description: "Automated matter lifecycle management from intake through resolution with deadline tracking, task assignment, and court date alerts."
+    category: automation
+    autoEnabled: false
+    riskLevel: low
+  - id: privilege-access-control
+    name: "Privilege Access Control"
+    description: "Granular access controls ensuring attorney-client privilege preservation with audit logging of all privileged document access."
+    category: security
+    autoEnabled: true
+    riskLevel: high
+  - id: compliance-reporting-legal
+    name: "Legal Compliance Reporting"
+    description: "Automated IOLTA account monitoring, trust ledger reconciliation, and ABA compliance reporting with deficiency alerts."
+    category: reporting
+    autoEnabled: false
+    riskLevel: medium
+policies:
+  - policyId: client_data_privilege
+    name: "Attorney-Client Privilege Policy"
+    description: "Enforces strict access controls on privileged communications and work product, preventing inadvertent disclosure per ABA Rule 1.6."
+  - policyId: data_access_restriction
+    name: "Legal Data Access Restriction"
+    description: "Controls access to client matter files based on attorney assignment, practice group, and need-to-know basis per ABA confidentiality rules."
+  - policyId: conflict_check_mandatory
+    name: "Mandatory Conflict Check Policy"
+    description: "Requires automated conflict of interest screening before any new matter intake, blocking engagement until clearance is confirmed."
+roi:
+  baseline:
+    manual_time_per_action_min: 40
+    error_rate_pct: 9.0
+    actions_per_month: 1500
+    cost_per_error_usd: 450
+    violations_per_year: 2
+    penalty_per_violation_usd: 75000
+  projected:
+    automated_time_per_action_min: 10
+    reduced_error_rate_pct: 2.0
+    compliance_score_target: 95
+    automation_rate_pct: 68
+pricing:
+  currency: USD
+  starter:
+    name: Starter
+    price_usd: 69
+    features:
+      - "Conflict of interest checking"
+      - "Up to 300 matters"
+      - "Billable hours tracking"
+      - "Email support"
+    limits:
+      max_actions_month: 600
+      max_users: 5
+    recommended_for: "Solo practitioners & small firms"
+  pro:
+    name: Professional
+    price_usd: 299
+    features:
+      - "Full ABA compliance suite"
+      - "Up to 3,000 matters"
+      - "GDPR client data management"
+      - "Document management & e-filing"
+      - "Matter workflow orchestration"
+      - "Priority support"
+    limits:
+      max_actions_month: 4000
+      max_users: 25
+    recommended_for: "Mid-size law firms"
+  enterprise:
+    name: Enterprise
+    price_usd: 1499
+    features:
+      - "Unlimited matters"
+      - "Multi-jurisdiction compliance"
+      - "Advanced privilege analytics"
+      - "Custom court integrations"
+      - "IOLTA monitoring & reporting"
+      - "Dedicated legal tech specialist"
+      - "24/7 support with SLA"
+    limits:
+      max_actions_month: unlimited
+      max_users: unlimited
+    recommended_for: "Large law firms & legal departments"
+onboarding:
+  estimated_minutes: 30
+  steps:
+    - id: select-practice-area
+      title: "Practice Areas"
+      description: "Select your primary practice areas for tailored workflow templates."
+      type: selection
+      field: practice_area
+      default_value: "general"
+      required: true
+      options:
+        - value: "general"
+          label: "General Practice"
+        - value: "corporate"
+          label: "Corporate & Business"
+        - value: "litigation"
+          label: "Litigation"
+        - value: "family"
+          label: "Family Law"
+        - value: "ip"
+          label: "Intellectual Property"
+    - id: firm-size-config
+      title: "Firm Size"
+      description: "Select your firm size to configure appropriate billing and access defaults."
+      type: selection
+      field: firm_size
+      default_value: "small"
+      required: true
+      options:
+        - value: "solo"
+          label: "Solo (1 attorney)"
+        - value: "small"
+          label: "Small (2-10 attorneys)"
+        - value: "medium"
+          label: "Medium (11-50 attorneys)"
+        - value: "large"
+          label: "Large (50+ attorneys)"
+    - id: gdpr-applicability
+      title: "GDPR Applicability"
+      description: "Confirm whether your firm handles EU client data requiring GDPR compliance."
+      type: confirmation
+      field: gdpr_enabled
+      default_value: false
+      required: true
+    - id: conflict-database-setup
+      title: "Conflict Check Database"
+      description: "Configure the parties database for automated conflict of interest screening."
+      type: question
+      field: conflict_db_source
+      default_value: ""
+      required: true
+    - id: auto-privilege-protection
+      title: "Privilege Protection"
+      description: "Automatically enable attorney-client privilege access controls on all matter files."
+      type: auto_config
+      field: privilege_protection_enabled
+      default_value: true
+      required: true
+    - id: billing-integration
+      title: "Billing Integration"
+      description: "Select your billing system for automated invoice generation and trust accounting."
+      type: selection
+      field: billing_system
+      default_value: "internal"
+      required: false
+      options:
+        - value: "internal"
+          label: "Zenic Built-in Billing"
+        - value: "quickbooks"
+          label: "QuickBooks"
+        - value: "xero"
+          label: "Xero"
+        - value: "custom"
+          label: "Custom Integration"
+certification:
+  status: unsigned

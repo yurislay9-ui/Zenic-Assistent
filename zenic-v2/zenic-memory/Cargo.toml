@@ -8,6 +8,7 @@ description = "Adaptive Binary Memory Chip — Semantic graph, DAG adapter, lear
 
 [dependencies]
 zenic-proto = { workspace = true }
+zenic-subscription = { path = "../zenic-subscription" }
 serde = { workspace = true }
 bincode = { workspace = true }
 thiserror = { workspace = true }

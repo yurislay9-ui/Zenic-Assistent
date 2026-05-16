@@ -1,0 +1,202 @@
+apiVersion: playbook.zenic.dev/v1
+kind: Playbook
+metadata:
+  id: insurance-claims
+  name: "Procesamiento de Reclamos de Seguros"
+  name_en: "Insurance Claims Processing"
+  industry: insurance
+  sub_industry: claims_processing
+  version: "1.0.0"
+  description: "Intelligent insurance claims processing automation with NAIC compliance, SOX financial controls, fraud detection, and automated adjudication for P&C and life insurance carriers."
+  compliance:
+    - NAIC
+    - SOX
+  icon: "🛡️"
+  color: "#059669"
+  labels:
+    category: insurance
+    criticality: critical
+  author: "Zenic-Agents"
+capabilities:
+  - id: claims-intake-automation
+    name: "Claims Intake Automation"
+    description: "Multi-channel claims intake with automated FNOL processing, damage assessment via photo AI, and policy coverage verification."
+    category: automation
+    autoEnabled: true
+    riskLevel: medium
+  - id: fraud-detection-engine
+    name: "Fraud Detection Engine"
+    description: "ML-powered fraud detection with pattern recognition, network analysis, suspicious claim flagging, and SIU referral automation."
+    category: security
+    autoEnabled: true
+    riskLevel: critical
+  - id: naic-compliance-monitor
+    name: "NAIC Compliance Monitor"
+    description: "Continuous monitoring of state-specific NAIC regulatory requirements with automated filing, market conduct examination support, and solvency reporting."
+    category: compliance
+    autoEnabled: true
+    riskLevel: high
+  - id: sox-financial-controls
+    name: "SOX Financial Controls"
+    description: "Automated SOX compliance for insurance financial reporting with reserve estimation controls, premium reconciliation, and statutory accounting."
+    category: compliance
+    autoEnabled: true
+    riskLevel: high
+  - id: adjudication-workflow
+    name: "Adjudication Workflow"
+    description: "Rules-based claims adjudication with configurable approval hierarchies, payment authorization, and settlement calculation automation."
+    category: workflow
+    autoEnabled: true
+    riskLevel: medium
+  - id: subrogation-automation
+    name: "Subrogation Automation"
+    description: "Automated subrogation opportunity identification, third-party recovery workflow, and net recovery tracking with legal referral triggers."
+    category: automation
+    autoEnabled: false
+    riskLevel: low
+  - id: reserving-analytics
+    name: "Reserving Analytics"
+    description: "AI-driven loss reserving with chain ladder analysis, Bornhuetter-Ferguson modeling, and reserve adequacy monitoring per NAIC statutory requirements."
+    category: analytics
+    autoEnabled: false
+    riskLevel: medium
+policies:
+  - policyId: financial_transfer_control
+    name: "Claims Payment Control Policy"
+    description: "Enforces dual-authorization for claim payments exceeding thresholds and blocks suspicious disbursements per SOX and NAIC requirements."
+  - policyId: claims_data_privacy
+    name: "Claims Data Privacy Policy"
+    description: "Controls access to claimant PII and medical records ensuring NAIC Model Privacy Act and HIPAA intersection compliance."
+  - policyId: fraud_referral_control
+    name: "Fraud Referral Control Policy"
+    description: "Mandates automatic SIU referral for claims exceeding fraud score thresholds with investigation documentation and reporting requirements."
+roi:
+  baseline:
+    manual_time_per_action_min: 55
+    error_rate_pct: 7.5
+    actions_per_month: 2800
+    cost_per_error_usd: 380
+    violations_per_year: 3
+    penalty_per_violation_usd: 125000
+  projected:
+    automated_time_per_action_min: 12
+    reduced_error_rate_pct: 1.5
+    compliance_score_target: 96
+    automation_rate_pct: 75
+pricing:
+  currency: USD
+  starter:
+    name: Starter
+    price_usd: 99
+    features:
+      - "Claims intake automation"
+      - "Up to 500 claims/month"
+      - "Basic fraud scoring"
+      - "Email support"
+    limits:
+      max_actions_month: 1000
+      max_users: 8
+    recommended_for: "Small insurance agencies"
+  pro:
+    name: Professional
+    price_usd: 449
+    features:
+      - "Full claims processing suite"
+      - "Up to 5,000 claims/month"
+      - "Advanced fraud detection"
+      - "NAIC compliance monitoring"
+      - "SOX financial controls"
+      - "Priority support"
+    limits:
+      max_actions_month: 6000
+      max_users: 40
+    recommended_for: "Mid-size insurance carriers"
+  enterprise:
+    name: Enterprise
+    price_usd: 2299
+    features:
+      - "Unlimited claims processing"
+      - "ML-powered fraud analytics"
+      - "Multi-state NAIC compliance"
+      - "Reserving analytics"
+      - "Subrogation automation"
+      - "Dedicated claims strategist"
+      - "24/7 support with SLA"
+    limits:
+      max_actions_month: unlimited
+      max_users: unlimited
+    recommended_for: "Large insurance carriers & reinsurers"
+onboarding:
+  estimated_minutes: 35
+  steps:
+    - id: select-insurance-line
+      title: "Insurance Line"
+      description: "Select your primary insurance line for tailored claims workflow configuration."
+      type: selection
+      field: insurance_line
+      default_value: "p_and_c"
+      required: true
+      options:
+        - value: "p_and_c"
+          label: "Property & Casualty"
+        - value: "auto"
+          label: "Auto Insurance"
+        - value: "life"
+          label: "Life Insurance"
+        - value: "health"
+          label: "Health Insurance"
+        - value: "specialty"
+          label: "Specialty Lines"
+    - id: states-of-operation
+      title: "States of Operation"
+      description: "Enter the US states where you operate for NAIC state-specific compliance configuration."
+      type: question
+      field: operating_states
+      default_value: ""
+      required: true
+    - id: claims-volume-range
+      title: "Monthly Claims Volume"
+      description: "Select your approximate monthly claims volume for capacity and fraud model tuning."
+      type: selection
+      field: claims_volume
+      default_value: "1000-5000"
+      required: true
+      options:
+        - value: "under-1000"
+          label: "Under 1,000"
+        - value: "1000-5000"
+          label: "1,000 - 5,000"
+        - value: "5000-20000"
+          label: "5,000 - 20,000"
+        - value: "over-20000"
+          label: "Over 20,000"
+    - id: fraud-sensitivity
+      title: "Fraud Detection Sensitivity"
+      description: "Configure fraud detection sensitivity level — higher sensitivity catches more fraud but increases false positives."
+      type: selection
+      field: fraud_sensitivity
+      default_value: "balanced"
+      required: true
+      options:
+        - value: "conservative"
+          label: "Conservative (fewer false positives)"
+        - value: "balanced"
+          label: "Balanced"
+        - value: "aggressive"
+          label: "Aggressive (more fraud caught)"
+    - id: payment-approval-threshold
+      title: "Payment Approval Threshold"
+      description: "Set the claim payment amount above which dual authorization is required."
+      type: question
+      field: payment_approval_threshold_usd
+      default_value: "10000"
+      required: true
+    - id: auto-naic-monitoring
+      title: "NAIC Compliance"
+      description: "Automatically enable NAIC compliance monitoring for your operating states."
+      type: auto_config
+      field: naic_monitoring_enabled
+      default_value: true
+      required: true
+certification:
+  status: unsigned

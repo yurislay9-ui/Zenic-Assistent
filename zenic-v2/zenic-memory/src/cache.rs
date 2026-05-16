@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 use crate::errors::MemoryError;
-use crate::types::{SemanticMapping, SubscriptionTier};
+use crate::types::{FeatureGate, SemanticMapping, SubscriptionTier};
 
 // ---------------------------------------------------------------------------
 // CacheEntry
@@ -100,9 +100,9 @@ impl MemoryCache {
     /// Creates a new cache with tier-appropriate size using [`SubscriptionTier`].
     ///
     /// The maximum number of entries is determined by
-    /// [`SubscriptionTier::lru_cache_size`].
+    /// [`FeatureGate::for_tier`] which maps the tier to its LRU cache size.
     pub fn new_for_tier(tier: SubscriptionTier) -> Self {
-        Self::new(tier.lru_cache_size())
+        Self::new(FeatureGate::for_tier(tier).lru_cache_size)
     }
 
     /// Hot path lookup (<1μs target).

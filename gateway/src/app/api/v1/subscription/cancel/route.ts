@@ -1,95 +1,97 @@
-// ─── Zenic-Agents v3 — Subscription API: Cancel ──────────────────────
-// POST /api/v1/subscription/cancel — Cancel a subscription
+// ─── Zenic-Agents v3 — Subscription Cancel ─────────────────────────────
+// POST /api/v1/subscription/cancel
+// Cancel a subscription. All payments were USDT TRC20.
 
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { canTransitionTo, SubscriptionStatus } from '@/lib/subscription/types';
+import { db } from "@/lib/db";
+import { PAYMENT_CURRENCY, PAYMENT_NETWORK } from "@/lib/pricing-engine";
 
-const CANCELLABLE_STATUSES: SubscriptionStatus[] = ['trial', 'active', 'past_due', 'suspended', 'downgraded'];
+interface CancelBody {
+  tenantId: string;
+  reason?: string;
+}
 
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const body = await req.json() as {
-      tenantId?: string;
-      reason?: string;
-    };
-
-    if (!body.tenantId) {
-      return NextResponse.json(
-        { error: 'tenantId is required' },
-        { status: 400 },
-      );
-    }
-
+    const body: CancelBody = await request.json();
     const { tenantId, reason } = body;
 
-    const subscription = await db.tenantSubscription.findUnique({
+    // Validate required fields
+    if (!tenantId) {
+      return Response.json(
+        { error: "Missing required field: tenantId" },
+        { status: 400 }
+      );
+    }
+
+    // Look up subscription
+    const existing = await db.subscription.findUnique({
       where: { tenantId },
-      include: { trial: true },
     });
 
-    if (!subscription) {
-      return NextResponse.json(
-        { error: 'Subscription not found' },
-        { status: 404 },
-      );
-    }
-
-    const currentStatus = subscription.status as SubscriptionStatus;
-
-    if (!CANCELLABLE_STATUSES.includes(currentStatus)) {
-      return NextResponse.json(
-        { error: `Subscription in status '${currentStatus}' cannot be cancelled. Cancellable statuses: ${CANCELLABLE_STATUSES.join(', ')}` },
-        { status: 400 },
-      );
-    }
-
-    if (!canTransitionTo(currentStatus, 'cancelled')) {
-      return NextResponse.json(
-        { error: `Cannot transition subscription from '${currentStatus}' to 'cancelled'` },
-        { status: 400 },
-      );
-    }
-
-    const result = await db.$transaction(async (tx) => {
-      // Cancel trial if active
-      if (subscription.trial && subscription.trial.status === 'active') {
-        await tx.trial.update({
-          where: { id: subscription.trial.id },
-          data: { status: 'cancelled' },
-        });
-      }
-
-      // Cancel subscription
-      const updated = await tx.tenantSubscription.update({
-        where: { tenantId },
-        data: {
-          status: 'cancelled',
-          cancelledAt: new Date(),
+    if (!existing) {
+      return Response.json(
+        {
+          error: "No subscription found for this tenant",
+          tenantId,
         },
-      });
+        { status: 404 }
+      );
+    }
 
-      // Expire any pending payments
-      await tx.usdtPaymentRecord.updateMany({
-        where: {
-          subscriptionId: subscription.id,
-          status: { in: ['pending', 'tx_submitted', 'verifying'] },
+    // Check if already cancelled
+    if (existing.status === "cancelled") {
+      return Response.json(
+        {
+          error: "Subscription is already cancelled",
+          tenantId,
+          subscriptionId: existing.subscriptionId,
+          cancelledAt: existing.cancelledAt?.toISOString(),
+          cancellationReason: existing.cancellationReason,
         },
-        data: { status: 'expired' },
-      });
+        { status: 400 }
+      );
+    }
 
-      return updated;
+    // Set status to "cancelled", record cancellation details
+    const now = new Date();
+    const cancellationReason = reason ?? "User requested cancellation";
+
+    const updated = await db.subscription.update({
+      where: { tenantId },
+      data: {
+        status: "cancelled",
+        autoRenew: false,
+        cancelledAt: now,
+        cancellationReason,
+        updatedAt: now,
+      },
     });
 
-    return NextResponse.json({
-      data: result,
-      message: reason ? `Subscription cancelled: ${reason}` : 'Subscription cancelled successfully.',
+    // Return cancellation confirmation
+    return Response.json({
+      confirmation: {
+        subscriptionId: updated.subscriptionId,
+        tenantId: updated.tenantId,
+        previousStatus: existing.status,
+        currentStatus: updated.status,
+        cancelledAt: updated.cancelledAt?.toISOString(),
+        cancellationReason: updated.cancellationReason,
+        tier: updated.tier,
+        paymentMethod: updated.paymentMethod,
+        paymentCurrency: PAYMENT_CURRENCY,
+        paymentNetwork: PAYMENT_NETWORK,
+        message: existing.status === "trial"
+          ? "Trial subscription cancelled successfully. No payment was required."
+          : `Subscription cancelled. Your access will continue until the end of the current billing period (${updated.currentPeriodEnd.toISOString()}). No further USDT TRC20 charges will be made.`,
+        billingPeriodEnd: updated.currentPeriodEnd.toISOString(),
+        reactivateEndpoint: "/api/v1/subscription/signup",
+      },
     });
   } catch (error) {
-    console.error('[Subscription Cancel POST]', error);
-    return NextResponse.json(
-      { error: 'Internal server error', details: String(error) },
-      { status: 500 },
+    console.error("[Subscription Cancel] Error:", error);
+    return Response.json(
+      { error: "Internal server error cancelling subscription" },
+      { status: 500 }
     );
   }
 }

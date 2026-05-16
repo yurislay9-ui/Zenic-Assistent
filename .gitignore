@@ -56,3 +56,20 @@ agent-ctx/
 
 # PDFs (code-only repo)
 *.pdf
+
+# Next.js
+.next/
+node_modules/
+*.sqlite
+rollback.sqlite
+escalation.sqlite
+expiry.sqlite
+evidence.sqlite
+justification.sqlite
+audit_merkle.sqlite
+approval_chain.sqlite
+notification.sqlite
+
+# Upload dir
+upload/
+download/

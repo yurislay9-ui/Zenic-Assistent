@@ -15,18 +15,84 @@ from typing import Any, Dict, List, Optional
 class LicenseTier(str, Enum):
     """License tier levels — aligned with zenic-subscription Rust crate.
 
-    5-tier model:
+    6-tier model:
+    - FREE: $0/mo — development/testing tier (basic_pipeline only)
     - STARTER: $29/mo USDT TRC20 — basic pipeline
     - BUSINESS: $99/mo USDT TRC20 — full pipeline (14-day trial tier)
     - ENTERPRISE: $299/mo USDT TRC20 — unlimited features
     - ON_PREMISE_ENTERPRISE: $799/mo + $2,000 setup USDT TRC20 — self-hosted
     - TRIAL: 14-day free trial with Business plan access
+
+    The ``to_subscription_tier()`` method maps each tier to the canonical
+    ``SubscriptionTierName`` used in the Rust gateway and zenic-subscription
+    crate.  ``from_subscription_tier()`` provides the reverse mapping.
     """
+    FREE = "free"
     STARTER = "starter"
     BUSINESS = "business"
     ENTERPRISE = "enterprise"
     ON_PREMISE_ENTERPRISE = "on_premise_enterprise"
     TRIAL = "trial"
+
+    # ── Canonical tier mapping ──────────────────────────────────
+
+    def to_subscription_tier(self) -> str:
+        """Map this LicenseTier to the canonical ``SubscriptionTierName``
+        used by the Rust gateway and zenic-subscription crate.
+
+        Returns:
+            The canonical tier name string:
+            - FREE → "starter" (free tier maps to Starter capabilities)
+            - STARTER → "starter"
+            - BUSINESS → "business"
+            - ENTERPRISE → "enterprise"
+            - ON_PREMISE_ENTERPRISE → "on_premise_enterprise"
+            - TRIAL → "business" (trial uses Business tier capabilities)
+        """
+        mapping: Dict[LicenseTier, str] = {
+            LicenseTier.FREE: "starter",
+            LicenseTier.STARTER: "starter",
+            LicenseTier.BUSINESS: "business",
+            LicenseTier.ENTERPRISE: "enterprise",
+            LicenseTier.ON_PREMISE_ENTERPRISE: "on_premise_enterprise",
+            LicenseTier.TRIAL: "business",
+        }
+        return mapping[self]
+
+    @classmethod
+    def from_subscription_tier(cls, tier_name: str) -> LicenseTier:
+        """Create a LicenseTier from a canonical ``SubscriptionTierName`` string.
+
+        Accepts the canonical names from the Rust/TypeScript gateway and also
+        common aliases for backward compatibility.
+
+        Args:
+            tier_name: The canonical tier name string (e.g. "starter",
+                       "business", "enterprise", "on_premise_enterprise").
+
+        Returns:
+            The corresponding LicenseTier enum member.  Unknown values
+            default to ``LicenseTier.STARTER``.
+        """
+        normalized = tier_name.lower().strip()
+        mapping: Dict[str, LicenseTier] = {
+            "free": cls.FREE,
+            "starter": cls.STARTER,
+            "community": cls.STARTER,
+            "business": cls.BUSINESS,
+            "professional": cls.BUSINESS,
+            "pro": cls.BUSINESS,
+            "enterprise": cls.ENTERPRISE,
+            "on_premise_enterprise": cls.ON_PREMISE_ENTERPRISE,
+            "onpremiseenterprise": cls.ON_PREMISE_ENTERPRISE,
+            "on-premise": cls.ON_PREMISE_ENTERPRISE,
+            "on_premise": cls.ON_PREMISE_ENTERPRISE,
+            "whitelabel": cls.ON_PREMISE_ENTERPRISE,
+            "white_label": cls.ON_PREMISE_ENTERPRISE,
+            "white-label": cls.ON_PREMISE_ENTERPRISE,
+            "trial": cls.TRIAL,
+        }
+        return mapping.get(normalized, cls.STARTER)
 
 
 class LicenseStatus(str, Enum):
