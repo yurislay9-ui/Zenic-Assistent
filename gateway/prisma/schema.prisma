@@ -1042,3 +1042,95 @@ model HitlNotificationLog {
   @@index([event])
   @@map("hitl_notification_logs")
 }
+
+// ─── Subscription System ────────────────────────────────────────────────────────
+
+/// Tenant subscription with tier-based feature gating.
+/// All payments USDT TRC20 only.
+model TenantSubscription {
+  id                  String              @id @default(cuid())
+  tenantId            String              @unique
+  tier                String              @default("starter") // starter | business | enterprise | on_premise_enterprise
+  status              String              @default("trial")   // trial | active | past_due | suspended | cancelled | expired | downgraded
+  trialId             String?             @unique
+  addOns              String              @default("[]")      // JSON array of add-on IDs
+  createdAt           DateTime            @default(now())
+  currentPeriodStart  DateTime
+  currentPeriodEnd    DateTime
+  cancelledAt         DateTime?
+  paymentWalletAddr   String?             // USDT TRC20 wallet address
+  setupFeePaid        Boolean             @default(false)
+
+  payments            UsdtPaymentRecord[]
+  usageRecords        UsageRecordDb[]
+  trial               Trial?              @relation(fields: [trialId], references: [id])
+
+  @@index([tenantId])
+  @@index([tier])
+  @@index([status])
+  @@map("tenant_subscriptions")
+}
+
+/// USDT TRC20 payment for a subscription.
+model UsdtPaymentRecord {
+  id                  String              @id @default(cuid())
+  subscriptionId      String
+  tenantId            String
+  amountUsdt          Float               // USDT amount
+  method              String              @default("manual") // manual | semi_manual
+  companyWallet       String              // Company's TRC20 wallet
+  sourceWallet        String?             // Payer's TRC20 wallet
+  txHash              String?             // TRON transaction hash (64 hex chars)
+  blockNumber         Int?
+  status              String              @default("pending") // pending | tx_submitted | verifying | confirmed | expired | failed
+  includesSetupFee    Boolean             @default(false)
+  setupFeeAmountUsdt  Float               @default(0)
+  verificationAttempts Int               @default(0)
+  maxVerificationAttempts Int             @default(5)
+  expiresAt           DateTime
+  confirmedAt         DateTime?
+  confirmedBy         String?
+  notes               String?
+  createdAt           DateTime            @default(now())
+
+  subscription        TenantSubscription  @relation(fields: [subscriptionId], references: [id])
+
+  @@index([subscriptionId])
+  @@index([tenantId])
+  @@index([txHash])
+  @@index([status])
+  @@map("usdt_payments")
+}
+
+/// Usage metering record per tenant.
+model UsageRecordDb {
+  id                  String              @id @default(cuid())
+  tenantId            String
+  usageType           String              // workflows | actions_daily | team_members | api_calls_per_minute | storage_mb | concurrent_sessions | playbooks | policy_rules | approval_chain_depth
+  currentValue        Int                 @default(0)
+  limitValue          Int
+  updatedAt           DateTime            @updatedAt
+
+  subscription        TenantSubscription  @relation(fields: [tenantId], references: [tenantId])
+
+  @@unique([tenantId, usageType])
+  @@index([tenantId])
+  @@map("usage_records")
+}
+
+/// 14-day trial with Business plan access.
+model Trial {
+  id                  String              @id @default(cuid())
+  tenantId            String              @unique
+  tier                String              @default("business") // Trial always gives Business
+  startedAt           DateTime
+  expiresAt           DateTime
+  status              String              @default("active") // active | converted | expired | cancelled
+  convertedAt         DateTime?
+
+  subscription        TenantSubscription?
+
+  @@index([tenantId])
+  @@index([status])
+  @@map("trials")
+}
