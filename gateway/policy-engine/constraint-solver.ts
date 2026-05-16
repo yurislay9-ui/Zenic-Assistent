@@ -29,12 +29,12 @@ import type {
   CoverageReport,
   CoverageGap,
   PartialCoverageEntry,
-} from "./types-v2";
+} from "./types";
 import {
   VerificationStatus as VerificationStatusEnum,
   SolverType as SolverTypeEnum,
   ContradictionType as ContradictionTypeEnum,
-} from "./types-v2";
+} from "./types";
 import { PolicyEvaluator } from "./evaluator";
 
 // ─── Solver Configuration ─────────────────────────────────────────────

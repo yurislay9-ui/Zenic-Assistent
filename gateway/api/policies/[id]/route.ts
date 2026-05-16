@@ -1,8 +1,18 @@
+// ─── DEPRECATED: Use /api/v1/policies/[policyId] instead ───────────────
+// This route operates on the AccessPolicy model (Phase 1 RBAC).
+// For the full declarative policy engine, use /api/v1/policies (DeclPolicy).
+
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { recordAudit } from "@/lib/mcp-gateway/services/audit-service";
 import type { PolicyDTO } from "@/lib/mcp-gateway/types";
 
+const DEPRECATION_HEADERS = {
+  "Deprecation": "true",
+  "Link": "</api/v1/policies>; rel=\"successor-version\"",
+};
+
+/** @deprecated Use GET /api/v1/policies/[policyId] */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -36,7 +46,7 @@ export async function GET(
         tools: policy.toolAccessPolicies.map((tap) => tap.tool),
         toolAccessPolicies: undefined,
       },
-    });
+    }, { headers: DEPRECATION_HEADERS });
   } catch (error) {
     console.error("[Policy GET]", error);
     return NextResponse.json(
@@ -46,6 +56,7 @@ export async function GET(
   }
 }
 
+/** @deprecated Use PUT /api/v1/policies/[policyId] */
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -126,7 +137,7 @@ export async function PUT(
         tools: policyWithTools!.toolAccessPolicies.map((tap) => tap.tool),
         toolAccessPolicies: undefined,
       },
-    });
+    }, { headers: DEPRECATION_HEADERS });
   } catch (error) {
     console.error("[Policy PUT]", error);
     return NextResponse.json(
@@ -136,6 +147,7 @@ export async function PUT(
   }
 }
 
+/** @deprecated Use DELETE /api/v1/policies/[policyId] */
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -168,7 +180,7 @@ export async function DELETE(
       success: true,
       data: { id, name: policy.name },
       message: "Policy deleted successfully",
-    });
+    }, { headers: DEPRECATION_HEADERS });
   } catch (error) {
     console.error("[Policy DELETE]", error);
     return NextResponse.json(

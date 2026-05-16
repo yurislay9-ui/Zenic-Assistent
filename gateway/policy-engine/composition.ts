@@ -31,7 +31,7 @@ import {
   type ConflictSeverity,
   type ConflictResolutionStrategy,
   type ConflictStatementRef,
-} from "./types-v2";
+} from "./types";
 
 // ─── Constants ────────────────────────────────────────────────────────
 

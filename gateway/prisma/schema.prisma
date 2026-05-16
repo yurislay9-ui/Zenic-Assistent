@@ -778,3 +778,162 @@ model PolicyVerification {
   @@index([createdAt])
   @@map("policy_verifications")
 }
+
+// ─── Phase 5: Human-in-the-Loop Models ──────────────────────────────
+
+model HitlApprovalRequest {
+  id              String   @id @default(cuid())
+  requestId       String   @unique
+  title           String
+  description     String
+  type            String   // action_approval, policy_change, deployment, data_access
+  status          String   @default("pending") // pending, approved, rejected, delegated, escalated, expired, undone
+  priority        String   @default("medium") // low, medium, high, critical, emergency
+  requesterId     String
+  requesterName   String
+  targetResource  String   // What resource is affected
+  targetAction    String   // What action is being requested
+  actionPayload   String   @default("{}") // JSON: action parameters
+  undoPayload     String   @default("{}") // JSON: compensating action parameters
+  isReversible    Boolean  @default(true)
+  undoDeadline    DateTime? // When the undo window expires
+  undoExecutedAt  DateTime? // When the undo was executed
+  executedAt      DateTime? // When the approved action was executed
+  executionResult String?  // JSON: result of the executed action
+  requiredApprovals Int    @default(1)
+  currentApprovals Int     @default(0)
+  approvalPolicy  String   @default("{}") // JSON: quorum, unanimous, auto-approve rules
+  deadline        DateTime? // When the request expires
+  escalationLevel Int      @default(0)
+  parentId        String?  // For sub-requests in multi-level chains
+  tags            String   @default("[]") // JSON: string[]
+  metadata        String   @default("{}") // JSON: additional metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  decisions       HitlApprovalDecision[]
+  delegations     HitlDelegation[]
+  escalations     HitlEscalation[]
+  undoActions     HitlUndoAction[]
+  auditRecords    HitlApprovalAudit[]
+
+  @@index([requesterId])
+  @@index([status])
+  @@index([priority])
+  @@index([deadline])
+  @@map("hitl_approval_requests")
+}
+
+model HitlApprovalDecision {
+  id          String   @id @default(cuid())
+  requestId   String
+  decision    String   // approved, rejected
+  decisionBy  String   // User ID
+  decisionByName String
+  role        String   // Reviewer's role
+  comment     String   @default("")
+  delegatedFrom String? // If this decision was made on behalf of someone
+  decidedAt   DateTime @default(now())
+
+  request     HitlApprovalRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([decisionBy])
+  @@map("hitl_approval_decisions")
+}
+
+model HitlDelegation {
+  id              String   @id @default(cuid())
+  requestId       String
+  fromUserId      String
+  fromUserName    String
+  toUserId        String
+  toUserName      String
+  reason          String   @default("")
+  expiresAt       DateTime?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  request         HitlApprovalRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@map("hitl_delegations")
+}
+
+model HitlEscalation {
+  id              String   @id @default(cuid())
+  requestId       String
+  fromLevel       Int
+  toLevel         Int
+  fromUserId      String?
+  toUserId        String?
+  toRole          String
+  reason          String   @default("")
+  autoEscalated   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  request         HitlApprovalRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("hitl_escalations")
+}
+
+model HitlUndoAction {
+  id              String   @id @default(cuid())
+  requestId       String
+  undoType        String   // full_undo, partial_undo, compensating_action
+  undoBy          String
+  undoByName      String
+  reason          String
+  snapshotBefore  String   @default("{}") // JSON: state snapshot before action
+  undoPayload     String   @default("{}") // JSON: undo action parameters
+  undoResult      String?  // JSON: result of undo execution
+  status          String   @default("pending") // pending, executed, failed, skipped
+  executedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  request         HitlApprovalRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("hitl_undo_actions")
+}
+
+model HitlApprovalAudit {
+  id              String   @id @default(cuid())
+  requestId       String
+  eventType       String   // created, approved, rejected, delegated, escalated, executed, undone, expired, cancelled
+  actorId         String
+  actorName       String
+  details         String   @default("{}") // JSON: event-specific details
+  contentHash     String   // SHA-256 for integrity
+  previousHash    String?  // Chain link for Merkle audit trail
+  timestamp       DateTime @default(now())
+
+  request         HitlApprovalRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([eventType])
+  @@index([timestamp])
+  @@map("hitl_approval_audit")
+}
+
+model HitlDelegationRule {
+  id              String   @id @default(cuid())
+  fromUserId      String
+  toUserId        String
+  toUserName      String
+  ruleName        String
+  description     String   @default("")
+  isActive        Boolean  @default(true)
+  maxDepth        Int      @default(1)
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([isActive])
+  @@map("hitl_delegation_rules")
+}

@@ -1,8 +1,13 @@
+// ─── DEPRECATED: Use /api/v1/policies instead ─────────────────────────
+// This route operates on the AccessPolicy model (Phase 1 RBAC).
+// For the full declarative policy engine, use /api/v1/policies (DeclPolicy).
+
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { recordAudit } from "@/lib/mcp-gateway/services/audit-service";
 import type { PaginatedResponse, PolicyDTO } from "@/lib/mcp-gateway/types";
 
+/** @deprecated Use /api/v1/policies for the declarative policy engine */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -23,7 +28,6 @@ export async function GET(request: NextRequest) {
       db.accessPolicy.count(),
     ]);
 
-    // Parse JSON fields and map tool associations
     const data = policies.map((policy) => ({
       ...policy,
       conditions: safeJsonParse(policy.conditions),
@@ -42,9 +46,11 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / pageSize),
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: { "Deprecation": "true", "Link": "</api/v1/policies>; rel=\"successor-version\"" },
+    });
   } catch (error) {
-    console.error("[Policies GET]", error);
+    console.error("[Policies GET] [DEPRECATED]", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch policies", code: "INTERNAL_ERROR" },
       { status: 500 }
@@ -52,6 +58,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/** @deprecated Use POST /api/v1/policies for the declarative policy engine */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -64,7 +71,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for duplicate name
     const existing = await db.accessPolicy.findUnique({ where: { name } });
     if (existing) {
       return NextResponse.json(
@@ -117,9 +123,12 @@ export async function POST(request: NextRequest) {
         tools: policy.toolAccessPolicies.map((tap) => tap.tool),
         toolAccessPolicies: undefined,
       },
-    }, { status: 201 });
+    }, {
+      status: 201,
+      headers: { "Deprecation": "true", "Link": "</api/v1/policies>; rel=\"successor-version\"" },
+    });
   } catch (error) {
-    console.error("[Policies POST]", error);
+    console.error("[Policies POST] [DEPRECATED]", error);
     return NextResponse.json(
       { success: false, error: "Failed to create policy", code: "INTERNAL_ERROR" },
       { status: 500 }

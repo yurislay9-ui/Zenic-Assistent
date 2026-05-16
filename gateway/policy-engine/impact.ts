@@ -33,13 +33,13 @@ import type {
   SimulationRiskLevel,
   ConflictSeverity,
   PolicySetEntry,
-} from "./types-v2";
+} from "./types";
 import {
   ImpactAnalysisDepth as ImpactAnalysisDepthValues,
   DependencyType as DependencyTypeValues,
   SimulationRiskLevel as SimulationRiskLevelValues,
   ConflictSeverity as ConflictSeverityValues,
-} from "./types-v2";
+} from "./types";
 
 // ─── Composite: Dependency Node ─────────────────────────────────────────
 

@@ -34,7 +34,7 @@ import {
   ConflictSeverity,
   ConflictType,
   ConflictResolutionStrategy,
-} from "./types-v2";
+} from "./types";
 import type {
   SimulationRequest,
   SimulationChange,
@@ -45,7 +45,7 @@ import type {
   SimulationTrace,
   PolicyConflict,
   ConflictStatementRef,
-} from "./types-v2";
+} from "./types";
 import { PolicyEvaluator, getPolicyEvaluator } from "./evaluator";
 
 // ─── Local Types ─────────────────────────────────────────────────────

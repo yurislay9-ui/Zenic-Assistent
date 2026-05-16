@@ -30,7 +30,7 @@ import {
   type ConflictStatementRef,
   type ConflictResolution,
   type ConflictReport,
-} from "./types-v2";
+} from "./types";
 
 // ─── Pattern Matching (shared with evaluator) ─────────────────────────
 

@@ -43,16 +43,24 @@ class PolicyAction(str, Enum):
 
 
 class ConditionOperator(str, Enum):
-    """Supported condition operators for policy evaluation."""
+    """Supported condition operators for policy evaluation.
+
+    Canonical source of truth — policy_code.types imports from here.
+    """
     EQ = "eq"
     NEQ = "neq"
     GT = "gt"
     LT = "lt"
     GTE = "gte"
     LTE = "lte"
-    CONTAINS = "contains"
     IN = "in"
+    NOT_IN = "not_in"       # Added for parity with TypeScript/Rust
+    CONTAINS = "contains"
+    STARTS_WITH = "starts_with"  # Added for parity with TypeScript/Rust
+    ENDS_WITH = "ends_with"      # Added for parity with TypeScript/Rust
     REGEX = "regex"
+    EXISTS = "exists"            # Added for parity with TypeScript/Rust
+    NOT_EXISTS = "not_exists"    # Added for parity with TypeScript/Rust
 
 
 # ──────────────────────────────────────────────────────────────
@@ -177,6 +185,27 @@ class PolicyCondition:
             if isinstance(actual, str) and isinstance(expected, str):
                 return actual in expected
             return False
+
+        if op == ConditionOperator.NOT_IN:
+            if isinstance(expected, (list, tuple, set)):
+                return actual not in expected
+            return True
+
+        if op == ConditionOperator.STARTS_WITH:
+            if isinstance(actual, str) and isinstance(expected, str):
+                return actual.startswith(expected)
+            return False
+
+        if op == ConditionOperator.ENDS_WITH:
+            if isinstance(actual, str) and isinstance(expected, str):
+                return actual.endswith(expected)
+            return False
+
+        if op == ConditionOperator.EXISTS:
+            return actual is not None and actual is not _SENTINEL
+
+        if op == ConditionOperator.NOT_EXISTS:
+            return actual is None or actual is _SENTINEL
 
         if op == ConditionOperator.REGEX:
             try:

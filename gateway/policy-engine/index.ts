@@ -57,9 +57,6 @@ export {
   generateComplianceReport,
 } from "./compliance-map";
 
-// Types V2 (Phase 4 — Advanced Policy Engine)
-export * from "./types-v2";
-
 // Composition Engine (Phase 4 — Policy Sets)
 export {
   CompositionEngine,

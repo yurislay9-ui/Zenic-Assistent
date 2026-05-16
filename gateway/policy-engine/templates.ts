@@ -37,13 +37,13 @@ import type {
   TemplateConstraint,
   TemplateInstantiationRequest,
   TemplateInstantiationResult,
-} from "./types-v2";
+} from "./types";
 import {
   TEMPLATE_API_VERSION,
   TEMPLATE_KIND,
   TemplateParameterType,
   TemplateConstraintType,
-} from "./types-v2";
+} from "./types";
 
 // ─── Validation Errors ────────────────────────────────────────────────
 

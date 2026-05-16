@@ -17,11 +17,11 @@ import type {
   ApprovalDecision,
   AutoApproveRule,
   AutoApproveCondition,
-} from "./types-v2";
+} from "./types";
 import {
   ApprovalStatus as ApprovalStatusEnum,
   ApprovalPriority as ApprovalPriorityEnum,
-} from "./types-v2";
+} from "./types";
 
 // ─── State Machine: Valid Transitions ─────────────────────────────────
 

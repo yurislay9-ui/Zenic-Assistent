@@ -22,13 +22,13 @@ import type {
   NamespaceIsolationLevel,
   NamespaceResolutionResult,
   ConflictResolutionStrategy,
-} from "./types-v2";
+} from "./types";
 import {
   NamespaceResolutionStrategy as ResolutionStrategy,
   ConflictResolutionStrategy as ConflictStrategy,
   NAMESPACE_API_VERSION as NS_API_VERSION,
   NAMESPACE_KIND as NS_KIND,
-} from "./types-v2";
+} from "./types";
 import { PolicyEvaluator, getPolicyEvaluator } from "./evaluator";
 
 // ─── Namespace Engine Error Types ─────────────────────────────────────
