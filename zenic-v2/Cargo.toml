@@ -12,6 +12,7 @@ members = [
     "zenic-pybridge",
     "zenic-bench",
     "zenic-tests",
+    "zenic-subscription",
 ]
 
 [workspace.package]

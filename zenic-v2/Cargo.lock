@@ -1203,10 +1203,6 @@ checksum = "fdd20c5420375476fbd4394763288da7eb0cc0b8c11deed431a91562af7335d3"
 [[package]]
 name = "zenic-bench"
 version = "0.1.0"
-dependencies = [
- "zenic-graph",
- "zenic-proto",
-]
 
 [[package]]
 name = "zenic-core"
@@ -1227,14 +1223,12 @@ dependencies = [
 [[package]]
 name = "zenic-ffi"
 version = "0.1.0"
-dependencies = [
- "zenic-core",
-]
 
 [[package]]
 name = "zenic-flow"
 version = "0.1.0"
 dependencies = [
+ "log",
  "serde",
  "thiserror",
  "zenic-graph",
@@ -1297,6 +1291,7 @@ dependencies = [
  "sha2",
  "tempfile",
  "xxhash-rust",
+ "zenic-safety",
 ]
 
 [[package]]
@@ -1325,16 +1320,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "zenic-tests"
+name = "zenic-subscription"
 version = "0.1.0"
 dependencies = [
- "zenic-core",
+ "serde",
+ "thiserror",
+ "uuid",
  "zenic-flow",
- "zenic-graph",
- "zenic-policy",
  "zenic-proto",
- "zenic-runtime",
 ]
+
+[[package]]
+name = "zenic-tests"
+version = "0.1.0"
 
 [[package]]
 name = "zerocopy"

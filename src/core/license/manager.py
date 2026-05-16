@@ -68,13 +68,15 @@ class LicenseManager:
 
         if features is None:
             tier_features = {
-                LicenseTier.FREE: ["basic_pipeline", "chat_completions"],
+                LicenseTier.STARTER: ["basic_pipeline", "chat_completions"],
                 LicenseTier.TRIAL: ["basic_pipeline", "chat_completions", "app_generation",
-                                     "automation_generation", "schema_design"],
-                LicenseTier.PRO: ["basic_pipeline", "chat_completions", "app_generation",
+                                     "automation_generation", "schema_design",
+                                     "thinking_engine", "reasoning_engine", "logic_chains"],
+                LicenseTier.BUSINESS: ["basic_pipeline", "chat_completions", "app_generation",
                                   "automation_generation", "schema_design", "thinking_engine",
                                   "reasoning_engine", "logic_chains"],
                 LicenseTier.ENTERPRISE: ["all"],
+                LicenseTier.ON_PREMISE_ENTERPRISE: ["all"],
             }
             features = tier_features.get(tier, ["basic_pipeline"])
 

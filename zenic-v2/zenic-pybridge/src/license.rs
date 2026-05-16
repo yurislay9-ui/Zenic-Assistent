@@ -30,44 +30,50 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 //  LicenseTier
 // ═══════════════════════════════════════════════════════════════
 
-/// License tier levels.
+/// License tier levels — aligned with zenic-subscription Rust crate.
 ///
-/// ============ ==================================================
-/// Variant      Meaning
-/// ============ ==================================================
-/// Community    Free tier with basic features
-/// Professional Professional tier with advanced features
-/// Enterprise   Enterprise tier with all features
-/// WhiteLabel   White-label / OEM redistribution license
-/// ============ ==================================================
+/// 5-tier model (all prices in USDT TRC20):
+/// ====================== ======================================================
+/// Variant                Meaning
+/// ====================== ======================================================
+/// Starter               $29/mo — basic pipeline, limited features
+/// Business              $99/mo — full pipeline, advanced features (trial tier)
+/// Enterprise            $299/mo — unlimited features, priority support
+/// OnPremiseEnterprise   $799/mo + $2,000 setup — self-hosted, custom SLA
+/// Trial                 14-day free trial with Business plan access
+/// ====================== ======================================================
 #[pyclass(name = "LicenseTier", eq, eq_int, frozen, hash)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Copy)]
 pub enum LicenseTier {
-    Community,
-    Professional,
+    Starter,
+    Business,
     Enterprise,
-    WhiteLabel,
+    OnPremiseEnterprise,
+    Trial,
 }
 
 impl LicenseTier {
     /// Return the Python-enum string value (e.g. ``"community"``).
     fn as_str(&self) -> &'static str {
         match self {
-            LicenseTier::Community => "community",
-            LicenseTier::Professional => "professional",
+            LicenseTier::Starter => "starter",
+            LicenseTier::Business => "business",
             LicenseTier::Enterprise => "enterprise",
-            LicenseTier::WhiteLabel => "whitelabel",
+            LicenseTier::OnPremiseEnterprise => "on_premise_enterprise",
+            LicenseTier::Trial => "trial",
         }
     }
 
     /// Parse a tier string into a LicenseTier, defaulting to Community.
     fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
-            "community" | "free" => LicenseTier::Community,
-            "professional" | "pro" => LicenseTier::Professional,
+            "starter" | "community" | "free" => LicenseTier::Starter,
+            "business" | "professional" | "pro" => LicenseTier::Business,
             "enterprise" => LicenseTier::Enterprise,
-            "whitelabel" | "white_label" | "white-label" => LicenseTier::WhiteLabel,
-            _ => LicenseTier::Community,
+            "on_premise_enterprise" | "onpremiseenterprise" | "on-premise" | "on_premise" => LicenseTier::OnPremiseEnterprise,
+            "whitelabel" | "white_label" | "white-label" => LicenseTier::OnPremiseEnterprise,
+            "trial" => LicenseTier::Trial,
+            _ => LicenseTier::Starter,
         }
     }
 }
@@ -82,10 +88,11 @@ impl LicenseTier {
     /// Python ``repr()`` → ``LicenseTier.Community`` etc.
     fn __repr__(&self) -> String {
         match self {
-            LicenseTier::Community => "LicenseTier.Community".into(),
-            LicenseTier::Professional => "LicenseTier.Professional".into(),
+            LicenseTier::Starter => "LicenseTier.Starter".into(),
+            LicenseTier::Business => "LicenseTier.Business".into(),
             LicenseTier::Enterprise => "LicenseTier.Enterprise".into(),
-            LicenseTier::WhiteLabel => "LicenseTier.WhiteLabel".into(),
+            LicenseTier::OnPremiseEnterprise => "LicenseTier.OnPremiseEnterprise".into(),
+            LicenseTier::Trial => "LicenseTier.Trial".into(),
         }
     }
 }
@@ -1099,21 +1106,26 @@ mod tests {
 
     #[test]
     fn test_license_tier_str_roundtrip() {
-        assert_eq!(LicenseTier::Community.as_str(), "community");
-        assert_eq!(LicenseTier::Professional.as_str(), "professional");
+        assert_eq!(LicenseTier::Starter.as_str(), "starter");
+        assert_eq!(LicenseTier::Business.as_str(), "business");
         assert_eq!(LicenseTier::Enterprise.as_str(), "enterprise");
-        assert_eq!(LicenseTier::WhiteLabel.as_str(), "whitelabel");
+        assert_eq!(LicenseTier::OnPremiseEnterprise.as_str(), "on_premise_enterprise");
+        assert_eq!(LicenseTier::Trial.as_str(), "trial");
     }
 
     #[test]
     fn test_license_tier_from_str() {
-        assert_eq!(LicenseTier::from_str("community"), LicenseTier::Community);
-        assert_eq!(LicenseTier::from_str("free"), LicenseTier::Community);
-        assert_eq!(LicenseTier::from_str("professional"), LicenseTier::Professional);
-        assert_eq!(LicenseTier::from_str("pro"), LicenseTier::Professional);
+        assert_eq!(LicenseTier::from_str("starter"), LicenseTier::Starter);
+        assert_eq!(LicenseTier::from_str("community"), LicenseTier::Starter);
+        assert_eq!(LicenseTier::from_str("free"), LicenseTier::Starter);
+        assert_eq!(LicenseTier::from_str("business"), LicenseTier::Business);
+        assert_eq!(LicenseTier::from_str("professional"), LicenseTier::Business);
+        assert_eq!(LicenseTier::from_str("pro"), LicenseTier::Business);
         assert_eq!(LicenseTier::from_str("enterprise"), LicenseTier::Enterprise);
-        assert_eq!(LicenseTier::from_str("whitelabel"), LicenseTier::WhiteLabel);
-        assert_eq!(LicenseTier::from_str("unknown"), LicenseTier::Community);
+        assert_eq!(LicenseTier::from_str("on_premise_enterprise"), LicenseTier::OnPremiseEnterprise);
+        assert_eq!(LicenseTier::from_str("whitelabel"), LicenseTier::OnPremiseEnterprise);
+        assert_eq!(LicenseTier::from_str("trial"), LicenseTier::Trial);
+        assert_eq!(LicenseTier::from_str("unknown"), LicenseTier::Starter);
     }
 
     #[test]
@@ -1139,7 +1151,7 @@ mod tests {
     fn test_signable_data_deterministic() {
         let info = LicenseInfo {
             license_key: "zl-abc123".to_string(),
-            tier: LicenseTier::Professional,
+            tier: LicenseTier::Business,
             holder: "Test Org".to_string(),
             issued_at: 1700000000,
             expires_at: 1800000000,
@@ -1150,7 +1162,7 @@ mod tests {
         };
         let data = info.to_signable_data();
         assert!(data.contains("a,b"));
-        assert!(data.starts_with("zl-abc123|professional|Test Org|"));
+        assert!(data.starts_with("zl-abc123|business|Test Org|"));
     }
 
     #[test]

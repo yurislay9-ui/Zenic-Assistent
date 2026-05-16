@@ -1,16 +1,16 @@
 [package]
-name = "zenic-flow"
+name = "zenic-subscription"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Durable workflow engine with checkpoints, SAGA, and retry for Zenic-Agents"
+description = "Subscription engine with Saga pattern, USDT TRC20 payments, and 14-day trial for Zenic-Agents"
 
 [dependencies]
 zenic-proto = { workspace = true }
-zenic-graph = { workspace = true }
+zenic-flow = { path = "../zenic-flow" }
 serde = { workspace = true }
 thiserror = { workspace = true }
-log = "0.4"
+uuid = { workspace = true }
 
 [dev-dependencies]

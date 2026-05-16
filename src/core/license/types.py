@@ -13,10 +13,19 @@ from typing import Any, Dict, List, Optional
 
 
 class LicenseTier(str, Enum):
-    """License tier levels."""
-    FREE = "free"
-    PRO = "pro"
+    """License tier levels — aligned with zenic-subscription Rust crate.
+
+    5-tier model:
+    - STARTER: $29/mo USDT TRC20 — basic pipeline
+    - BUSINESS: $99/mo USDT TRC20 — full pipeline (14-day trial tier)
+    - ENTERPRISE: $299/mo USDT TRC20 — unlimited features
+    - ON_PREMISE_ENTERPRISE: $799/mo + $2,000 setup USDT TRC20 — self-hosted
+    - TRIAL: 14-day free trial with Business plan access
+    """
+    STARTER = "starter"
+    BUSINESS = "business"
     ENTERPRISE = "enterprise"
+    ON_PREMISE_ENTERPRISE = "on_premise_enterprise"
     TRIAL = "trial"
 
 

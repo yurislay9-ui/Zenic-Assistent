@@ -369,7 +369,7 @@ impl CheckpointStore {
 
         // Remove from disk if enabled.
         if let Some(ref dir) = self.persist_dir {
-            let path = dir.join(format("{}.ckpt", execution_id));
+            let path = dir.join(format!("{}.ckpt", execution_id));
             let _ = std::fs::remove_file(path); // Best-effort removal
         }
 
