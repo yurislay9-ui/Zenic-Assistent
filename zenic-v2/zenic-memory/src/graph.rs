@@ -59,6 +59,27 @@ CREATE TABLE IF NOT EXISTS learning_audit (
 "#;
 
 // ---------------------------------------------------------------------------
+// AuditEntry
+// ---------------------------------------------------------------------------
+
+/// A single entry from the learning_audit table.
+#[derive(Debug, Clone)]
+pub struct AuditEntry {
+    /// The auto-incremented audit ID.
+    pub audit_id: i64,
+    /// The mapping ID this audit entry relates to.
+    pub mapping_id: String,
+    /// The action that was performed.
+    pub action: String,
+    /// Who performed the action.
+    pub performed_by: String,
+    /// When the action was performed (Unix epoch millis).
+    pub timestamp: i64,
+    /// Additional details (JSON or free-text).
+    pub details: Option<String>,
+}
+
+// ---------------------------------------------------------------------------
 // SemanticGraph
 // ---------------------------------------------------------------------------
 
@@ -307,6 +328,66 @@ impl SemanticGraph {
             .map_err(|e| MemoryError::Database(e.to_string()))?;
 
         Ok(())
+    }
+
+    /// Lists all mappings in the graph.
+    ///
+    /// Used by `MerkleSeal::verify_graph_integrity` and other
+    /// operations that need to iterate over all mappings.
+    pub fn list_all_mappings(&self) -> Result<Vec<SemanticMapping>, MemoryError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT mapping_id, origin, relation, destination, mechanism,
+                        confidence, tenant_id, created_at, approved, merkle_hash
+                 FROM semantic_mappings",
+            )
+            .map_err(|e| MemoryError::Database(e.to_string()))?;
+
+        let mappings = stmt
+            .query_map([], |row| Ok(row_to_mapping(row)))
+            .map_err(|e| MemoryError::Database(e.to_string()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| MemoryError::Database(e.to_string()))?;
+
+        Ok(mappings)
+    }
+
+    /// Queries the audit log for entries matching a mapping_id and action.
+    ///
+    /// Used by `LifecycleOrchestrator::load_episode` and other
+    /// audit-related operations.
+    pub fn query_audit_log(
+        &self,
+        mapping_id: &str,
+        action: &str,
+    ) -> Result<Vec<AuditEntry>, MemoryError> {
+        let mut stmt = self
+            .conn
+            .prepare(
+                "SELECT audit_id, mapping_id, action, performed_by, timestamp, details
+                 FROM learning_audit
+                 WHERE mapping_id = ?1 AND action = ?2
+                 ORDER BY timestamp DESC",
+            )
+            .map_err(|e| MemoryError::Database(e.to_string()))?;
+
+        let entries = stmt
+            .query_map(params![mapping_id, action], |row| {
+                Ok(AuditEntry {
+                    audit_id: row.get(0)?,
+                    mapping_id: row.get(1)?,
+                    action: row.get(2)?,
+                    performed_by: row.get(3)?,
+                    timestamp: row.get(4)?,
+                    details: row.get(5)?,
+                })
+            })
+            .map_err(|e| MemoryError::Database(e.to_string()))?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| MemoryError::Database(e.to_string()))?;
+
+        Ok(entries)
     }
 }
 

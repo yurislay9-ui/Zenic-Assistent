@@ -1441,6 +1441,7 @@ name = "zenic-pybridge"
 version = "2.5.0"
 dependencies = [
  "argon2",
+ "bincode",
  "blake3",
  "chrono",
  "hmac",
@@ -1453,7 +1454,9 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+ "uuid",
  "xxhash-rust",
+ "zenic-memory",
  "zenic-safety",
 ]
 

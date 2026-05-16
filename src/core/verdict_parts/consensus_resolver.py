@@ -52,6 +52,17 @@ VETO_TYPES = {
     EvidenceType.SANDBOX_PASS,     # Si el sandbox falla, es NO
 }
 
+# === Dynamic Memory Chip weight multipliers [T2-11] ===
+# Memory chip evidence gets boosted weights based on confidence tier:
+# - cache_hit with high confidence → 1.8x (strongest: pre-approved by HITL)
+# - cache_hit with medium confidence → 1.5x (approved but less validated)
+# - cache_hit with low confidence → 1.3x (new mapping, minimal validation)
+MEMORY_CHIP_WEIGHT_MULTIPLIERS: Dict[str, float] = {
+    "high": 1.8,    # Pre-approved mapping, high confidence
+    "medium": 1.5,  # Approved mapping, medium confidence
+    "low": 1.3,     # New mapping, minimal validation
+}
+
 
 class ConsensusResolver:
     """
@@ -122,10 +133,18 @@ class ConsensusResolver:
 
         for e in evidence_for:
             type_weight = EVIDENCE_TYPE_WEIGHTS.get(e.evidence_type, 1.0)
+            # Apply dynamic multiplier for memory chip evidence
+            if e.source.startswith("memory_chip"):
+                confidence_tier = "high" if e.weight >= 0.8 else ("medium" if e.weight >= 0.5 else "low")
+                type_weight *= MEMORY_CHIP_WEIGHT_MULTIPLIERS.get(confidence_tier, 1.0)
             score_for += e.weight * type_weight
 
         for e in evidence_against:
             type_weight = EVIDENCE_TYPE_WEIGHTS.get(e.evidence_type, 1.0)
+            # Apply dynamic multiplier for memory chip evidence
+            if e.source.startswith("memory_chip"):
+                confidence_tier = "high" if e.weight >= 0.8 else ("medium" if e.weight >= 0.5 else "low")
+                type_weight *= MEMORY_CHIP_WEIGHT_MULTIPLIERS.get(confidence_tier, 1.0)
             score_against += e.weight * type_weight
 
         total = score_for + score_against

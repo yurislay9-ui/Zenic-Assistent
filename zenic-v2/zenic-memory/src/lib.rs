@@ -21,6 +21,7 @@
 //! - [`YamlRenderer`] — Serializes graph state to human-readable YAML.
 //! - [`SubscriptionGate`] — Enforces subscription-based access controls.
 //! - [`LifecycleManager`] — Manages the full learning lifecycle.
+//! - [`LifecycleOrchestrator`] — Full integration orchestrator (Phase 4).
 //!
 //! ## Architecture
 //!
@@ -55,16 +56,24 @@ pub mod yaml_renderer;
 pub use cache::MemoryCache;
 pub use dag_adapter::DagAdapter;
 pub use errors::MemoryError;
-pub use graph::SemanticGraph;
-pub use hitl_bridge::HitlBridge;
+pub use graph::{AuditEntry, SemanticGraph};
+pub use hitl_bridge::{ApprovalState, HitlBridge, HitlCallback, HitlOutcome};
 pub use hypothesis::HypothesisManager;
 pub use intent_routing::IntentRouter;
-pub use lifecycle::LifecycleManager;
-pub use merkle_seal::MerkleSeal;
+pub use lifecycle::{
+    CompensationAction, EpisodeOutcome, EpisodeResult, LifecycleEpisode, LifecycleManager,
+    LifecycleOrchestrator, LifecyclePhase,
+};
+pub use merkle_seal::{
+    IntegrityDetail, IntegrityReport, IntegrityStatus, MerkleSeal,
+};
 pub use ontology::OntologyBase;
 pub use policy_refinement::PolicyRefinementEngine;
 pub use schema_drift::SchemaDriftDetector;
 pub use subscription_gate::SubscriptionGate;
-pub use types::{FeatureGate, LearningMechanism, LearningVerdict, MemoryApprovalRequest, NodeValue, SemanticMapping, SubscriptionTier};
+pub use types::{
+    FeatureGate, Hypothesis, LearningMechanism, LearningVerdict, MemoryApprovalRequest, NodeValue,
+    SemanticMapping, SubscriptionTier,
+};
 pub use verdict_adapter::VerdictAdapter;
 pub use yaml_renderer::YamlRenderer;

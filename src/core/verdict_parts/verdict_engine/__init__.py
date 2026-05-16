@@ -49,6 +49,7 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
         self._mini_ai = mini_ai
         self._semantic = semantic_engine
         self._memory = smart_memory
+        self._memory_chip = None  # Injected from _zenic_native
 
         # Subsistemas determinísticos (siempre disponibles)
         self._pipeline = DeterministicPipeline()
@@ -92,6 +93,10 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
             )
         else:
             self._resilience = None
+
+    def set_memory_chip(self, chip) -> None:
+        """Inject the Memory Chip reference (via PyO3 bridge)."""
+        self._memory_chip = chip
 
     def shutdown(self):
         """Shut down the internal ThreadPoolExecutor to prevent resource leaks.
@@ -139,12 +144,39 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
         self._total_verdicts += 1
         ctx = context or {}
 
+        # === MEMORY CHIP PRE-CHECK (T2-17, T1-15) ===
+        # If the memory chip has a high-confidence mapping, bypass the entire
+        # verdict pipeline and return immediately. This is the <5ms path.
+        if self._memory_chip is not None:
+            try:
+                chip_result = self._memory_chip.lookup(text, ctx.get("tenant_id", "__anonymous__"))
+                if chip_result and chip_result.get("cache_hit"):
+                    mapping = chip_result.get("mapping", {})
+                    confidence = 0.9  # Memory chip mappings are pre-approved
+                    self._total_verdicts += 1
+                    self._consensus_verdicts += 1
+                    self._yes_count += 1
+                    return VerdictOutput(
+                        verdict=Verdict.YES,
+                        confidence=confidence,
+                        source="memory_chip_cache",
+                        evidence_summary=f"Memory chip cache hit: '{text}' → '{mapping.get('destination', '?')}' "
+                                         f"(mechanism: {mapping.get('mechanism', 'unknown')})",
+                        llm_used=False,
+                        llm_raw_response="",
+                        retry_count=0,
+                    )
+            except Exception as exc:
+                logger.debug("Memory chip pre-check error: %s", exc)
+
         # === PASO 1: Ejecutar pipeline determinístico ===
         pipeline_results = self._pipeline.execute_all(text, code, language, ctx)
 
         # === PASO 2: Recolectar evidencia ===
         evidence = self._evidence_collector.collect_all_evidence(
-            text, code, language
+            text, code, language,
+            memory_chip=self._memory_chip,
+            tenant_id=ctx.get("tenant_id", "__anonymous__"),
         )
 
         # Agregar evidencia de los resultados del pipeline
@@ -289,7 +321,7 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
     # ================================================================
 
     def update_engines(self, mini_ai=None, semantic_engine=None,
-                       smart_memory=None) -> None:
+                       smart_memory=None, memory_chip=None) -> None:
         """Actualiza las referencias a los motores."""
         if mini_ai is not None:
             self._mini_ai = mini_ai
@@ -297,6 +329,10 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
             self._semantic = semantic_engine
         if smart_memory is not None:
             self._memory = smart_memory
+        if memory_chip is not None:
+            self._memory_chip = memory_chip
+            # Also inject into the pipeline
+            self._pipeline.set_memory_chip(memory_chip)
 
         logger.info(
             f"VerdictEngine: Updated engines - "

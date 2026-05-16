@@ -297,15 +297,78 @@ class EvidenceCollector:
 
         return evidence
 
+    def collect_memory_chip_evidence(
+        self,
+        text: str,
+        memory_chip=None,
+        tenant_id: str = "__anonymous__",
+    ) -> List[Evidence]:
+        """
+        PASO 2 (Capa 2): Recolecta evidencia del Chip de Memoria Adaptativa.
+
+        Si el memory_chip está disponible, busca mapeos semánticos
+        existentes y genera evidencia a favor o en contra basada en
+        si encontró una coincidencia en la caché o en el grafo.
+
+        No usa IA. Solo consulta la base de datos determinística.
+        """
+        evidence: List[Evidence] = []
+
+        if memory_chip is None:
+            return evidence
+
+        try:
+            lookup_result = memory_chip.lookup(text, tenant_id)
+            if lookup_result.get("cache_hit"):
+                mapping = lookup_result.get("mapping", {})
+                evidence.append(Evidence(
+                    evidence_type=EvidenceType.CACHE_HIT,
+                    favors=Verdict.YES,
+                    weight=0.9,
+                    source="memory_chip_cache",
+                    detail=f"Memory chip cache hit: '{text}' → '{mapping.get('destination', '?')}'",
+                    metadata={
+                        "mapping_id": mapping.get("mapping_id", ""),
+                        "origin": mapping.get("origin", ""),
+                        "destination": mapping.get("destination", ""),
+                        "mechanism": mapping.get("mechanism", ""),
+                        "source": "cache",
+                    },
+                ))
+            else:
+                # Cache miss — weak evidence against (we haven't seen this before)
+                evidence.append(Evidence(
+                    evidence_type=EvidenceType.CACHE_HIT,
+                    favors=Verdict.NO,
+                    weight=0.1,
+                    source="memory_chip_cache",
+                    detail=f"Memory chip cache miss for '{text}'",
+                    metadata={"source": "miss"},
+                ))
+        except Exception as exc:
+            # Memory chip errors should never block the pipeline
+            evidence.append(Evidence(
+                evidence_type=EvidenceType.CACHE_HIT,
+                favors=Verdict.NO,
+                weight=0.0,
+                source="memory_chip_error",
+                detail=f"Memory chip lookup error: {exc}",
+                metadata={"error": str(exc)},
+            ))
+
+        return evidence
+
     def collect_all_evidence(self, text: str, code: str = "",
-                             language: str = "python") -> List[Evidence]:
+                             language: str = "python",
+                             memory_chip=None,
+                             tenant_id: str = "__anonymous__") -> List[Evidence]:
         """
         Recolecta TODA la evidencia disponible para una decisión.
 
         Este es el método principal que se llama antes del consenso.
         No usa IA en absoluto.
         """
-        all_evidence = []
+        all_evidence: List[Evidence] = []
 
         # Intent evidence
         all_evidence.extend(self.collect_intent_evidence(text))
@@ -315,6 +378,9 @@ class EvidenceCollector:
 
         # Entity evidence
         all_evidence.extend(self.collect_entity_evidence(text))
+
+        # Memory chip evidence (T2-10: Capa 2)
+        all_evidence.extend(self.collect_memory_chip_evidence(text, memory_chip, tenant_id))
 
         # Code evidence (if code provided)
         if code:

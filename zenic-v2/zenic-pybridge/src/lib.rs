@@ -40,6 +40,7 @@ mod forensic;
 mod hash;
 mod ingest;
 mod license;
+mod memory_chip;
 mod niche;
 mod risk;
 mod rollback;
@@ -245,6 +246,11 @@ fn _zenic_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_certify, m)?)?;
     m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_export, m)?)?;
     m.add_function(wrap_pyfunction!(e2e_pipeline::e2e_get_progress, m)?)?;
+
+    // Memory Chip (Phase 3/4) — Adaptive Binary Memory Chip PyO3 bridge + TheoremCache
+    m.add_class::<memory_chip::MemoryChip>()?;
+    m.add_function(wrap_pyfunction!(memory_chip::theorem_cache_serialize, m)?)?;
+    m.add_function(wrap_pyfunction!(memory_chip::theorem_cache_deserialize, m)?)?;
 
     // Module metadata
     m.add("__version__", "2.5.0")?;

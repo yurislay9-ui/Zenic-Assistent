@@ -23,12 +23,17 @@ use std::sync::{Arc, Mutex, RwLock};
 ///
 /// Messages are stored as Python objects. The bus uses per-mailbox
 /// locking to avoid global contention.
+///
+/// Phase 3: Added rkyv raw-bytes mailboxes for zero-copy Rust↔Rust
+/// communication through the bus, avoiding Python serialization overhead.
 #[pyclass(name = "SharedMemoryBus")]
 pub struct SharedMemoryBus {
     /// topic -> set of subscriber_ids
     subscriptions: Arc<RwLock<HashMap<String, HashSet<String>>>>,
     /// subscriber_id -> mailbox (Vec of PyObject messages)
     mailboxes: Arc<RwLock<HashMap<String, Mutex<Vec<PyObject>>>>>,
+    /// subscriber_id -> rkyv raw-bytes mailbox (for zero-copy Rust↔Rust)
+    rkyv_mailboxes: Arc<RwLock<HashMap<String, Mutex<Vec<Vec<u8>>>>>>,
     /// Metrics counters
     total_published: Arc<Mutex<u64>>,
     total_received: Arc<Mutex<u64>>,
@@ -44,6 +49,7 @@ impl SharedMemoryBus {
         SharedMemoryBus {
             subscriptions: Arc::new(RwLock::new(HashMap::new())),
             mailboxes: Arc::new(RwLock::new(HashMap::new())),
+            rkyv_mailboxes: Arc::new(RwLock::new(HashMap::new())),
             total_published: Arc::new(Mutex::new(0)),
             total_received: Arc::new(Mutex::new(0)),
             max_buffer_size: max_buffer_size.unwrap_or(1000),
@@ -370,6 +376,93 @@ impl SharedMemoryBus {
 
         Ok(result.unbind())
     }
+
+    // ─── rkyv Zero-Copy Methods (Phase 3) ──────────────────────
+
+    /// Publishes pre-serialized rkyv data to all subscribers of a topic.
+    ///
+    /// This method avoids Python serialization overhead for Rust↔Rust
+    /// communication. The raw bytes are stored directly in rkyv-specific
+    /// mailboxes, enabling zero-copy deserialization on the receiving side.
+    ///
+    /// Returns True if the data was delivered to at least one subscriber.
+    fn publish_rkyv(&self, topic: &str, data: &[u8]) -> PyResult<bool> {
+        // Get subscribers for this topic
+        let subscribers = {
+            let subs = self.subscriptions.read().map_err(|e| {
+                PyRuntimeError::new_err(format!("Lock poisoned: {}", e))
+            })?;
+            match subs.get(topic) {
+                Some(s) => s.clone(),
+                None => return Ok(false),
+            }
+        };
+
+        let data_owned = data.to_vec();
+        let max_mailbox_size = self.max_mailbox_size;
+
+        // Deliver to each subscriber's rkyv mailbox
+        let delivered: u32 = {
+            let boxes = self.rkyv_mailboxes.read().map_err(|e| {
+                PyRuntimeError::new_err(format!("Lock poisoned: {}", e))
+            })?;
+
+            let mut count = 0u32;
+            for sub_id in &subscribers {
+                if let Some(mailbox) = boxes.get(sub_id) {
+                    if let Ok(mut mb) = mailbox.lock() {
+                        if mb.len() < max_mailbox_size {
+                            mb.push(data_owned.clone());
+                            count += 1;
+                        }
+                    }
+                }
+            }
+            count
+        };
+
+        if delivered > 0 {
+            let mut count = self.total_published.lock().map_err(|e| {
+                PyRuntimeError::new_err(format!("Counter lock poisoned: {}", e))
+            })?;
+            *count += delivered as u64;
+        }
+
+        Ok(delivered > 0)
+    }
+
+    /// Receives and returns raw rkyv bytes from a subscriber's mailbox.
+    ///
+    /// Returns the first pending rkyv message as raw bytes (for zero-copy
+    /// deserialization on the other side), or None if no rkyv messages
+    /// are pending.
+    ///
+    /// This method avoids Python serialization overhead for Rust↔Rust
+    /// communication through the bus.
+    fn receive_rkyv(&self, subscriber_id: &str) -> PyResult<Option<Vec<u8>>> {
+        let boxes = self.rkyv_mailboxes.read().map_err(|e| {
+            PyRuntimeError::new_err(format!("Lock poisoned: {}", e))
+        })?;
+
+        if let Some(mailbox) = boxes.get(subscriber_id) {
+            let mut mb = mailbox.lock().map_err(|e| {
+                PyRuntimeError::new_err(format!("Mailbox lock poisoned: {}", e))
+            })?;
+            if mb.is_empty() {
+                return Ok(None);
+            }
+
+            let data = mb.remove(0);
+
+            if let Ok(mut count) = self.total_received.lock() {
+                *count += 1;
+            }
+
+            Ok(Some(data))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 // ─── Shared State ──────────────────────────────────────────────
@@ -378,9 +471,14 @@ impl SharedMemoryBus {
 ///
 /// Uses RwLock for concurrent reads with exclusive writes.
 /// Supports atomic increment/decrement and compare-and-swap.
+///
+/// Phase 3: Added bincode raw-bytes storage for zero-copy Rust↔Rust
+/// communication, avoiding Python serialization overhead.
 #[pyclass(name = "SharedState")]
 pub struct SharedState {
     data: Arc<RwLock<HashMap<String, PyObject>>>,
+    /// Raw bytes storage for bincode-serialized data (Rust↔Rust fast path).
+    bincode_data: Arc<RwLock<HashMap<String, Vec<u8>>>>,
 }
 
 #[pymethods]
@@ -389,6 +487,7 @@ impl SharedState {
     fn new() -> Self {
         SharedState {
             data: Arc::new(RwLock::new(HashMap::new())),
+            bincode_data: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -587,12 +686,53 @@ impl SharedState {
         Ok(result.unbind())
     }
 
-    /// Clear all data.
-    fn clear(&self) -> PyResult<()> {
-        let mut data = self.data.write().map_err(|e| {
+    // ─── bincode Raw-Bytes Methods (Phase 3) ──────────────────
+
+    /// Stores bincode-serialized data by key.
+    ///
+    /// This method avoids Python serialization overhead for Rust↔Rust
+    /// communication. The raw bytes are stored directly, enabling
+    /// zero-copy deserialization on the reading side.
+    ///
+    /// Returns True if the key was new.
+    fn set_bincode(&self, key: &str, data: Vec<u8>) -> PyResult<bool> {
+        let key_owned = key.to_string();
+        let mut bc_data = self.bincode_data.write().map_err(|e| {
             PyRuntimeError::new_err(format!("Lock poisoned: {}", e))
         })?;
-        data.clear();
+        let was_new = !bc_data.contains_key(&key_owned);
+        bc_data.insert(key_owned, data);
+        Ok(was_new)
+    }
+
+    /// Retrieves bincode-serialized data by key.
+    ///
+    /// Returns the raw bytes for zero-copy deserialization, or None
+    /// if the key does not exist.
+    ///
+    /// This method avoids Python serialization overhead for Rust↔Rust
+    /// communication through the shared state.
+    fn get_bincode(&self, key: &str) -> PyResult<Option<Vec<u8>>> {
+        let bc_data = self.bincode_data.read().map_err(|e| {
+            PyRuntimeError::new_err(format!("Lock poisoned: {}", e))
+        })?;
+        Ok(bc_data.get(key).cloned())
+    }
+
+    /// Clear all data.
+    fn clear(&self) -> PyResult<()> {
+        {
+            let mut data = self.data.write().map_err(|e| {
+                PyRuntimeError::new_err(format!("Lock poisoned: {}", e))
+            })?;
+            data.clear();
+        }
+        {
+            let mut bc_data = self.bincode_data.write().map_err(|e| {
+                PyRuntimeError::new_err(format!("Lock poisoned: {}", e))
+            })?;
+            bc_data.clear();
+        }
         Ok(())
     }
 }
