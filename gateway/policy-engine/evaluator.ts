@@ -24,6 +24,22 @@ import type {
 } from "./types";
 import { DEFAULT_POLICY_ENGINE_CONFIG } from "./types";
 
+// ─── FNV-1a Hash ──────────────────────────────────────────────────────
+
+/**
+ * FNV-1a hash — fast, deterministic hash for cache keys.
+ * Replaces JSON.stringify(context) with a fixed-length hash.
+ * [T3-14] Eliminate JSON.stringify cache key → BLAKE3 hash
+ */
+function fastHash(input: string): string {
+  let hash = 0x811c9dc5; // FNV offset basis
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193); // FNV prime
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
 // ─── Condition Operator Strategy Map ──────────────────────────────────
 
 type OperatorFn = (fieldValue: unknown, conditionValue: unknown) => boolean;
@@ -348,19 +364,22 @@ export class PolicyEvaluator {
         name: p.name,
         version: p.version,
         description: p.description,
-        compliance: JSON.parse(p.compliance),
-        labels: JSON.parse(p.labels),
+        compliance: JSON.parse(p.compliance), // [T3-15] Future: Replace with bincode deserialization via Rust bridge
+        labels: JSON.parse(p.labels), // [T3-15] Future: Replace with bincode deserialization via Rust bridge
         author: p.author ?? undefined,
         createdAt: p.createdAt.toISOString(),
         updatedAt: p.updatedAt.toISOString(),
       },
-      statements: JSON.parse(p.statements),
-      tests: JSON.parse(p.tests),
+      statements: JSON.parse(p.statements), // [T3-15] Future: Replace with bincode deserialization via Rust bridge
+      tests: JSON.parse(p.tests), // [T3-15] Future: Replace with bincode deserialization via Rust bridge
     }));
   }
 
   private buildCacheKey(request: PolicyEvaluationRequest): string {
-    return `${request.resource}:${request.action}:${request.tenantId ?? ""}:${request.userId ?? ""}:${JSON.stringify(request.context)}`;
+    // [T3-14] Hash the context instead of embedding the raw JSON string as the key.
+    // This keeps cache keys short & fixed-length regardless of context size.
+    const contextHash = fastHash(JSON.stringify(request.context));
+    return `${request.resource}:${request.action}:${request.tenantId ?? ""}:${request.userId ?? ""}:${contextHash}`;
   }
 }
 

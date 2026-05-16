@@ -63,6 +63,26 @@ pub fn decode_raw<T: for<'de> Deserialize<'de>>(data: &[u8]) -> Result<T, ProtoE
     bincode::deserialize(data).map_err(|e| ProtoError::Deserialization(e.to_string()))
 }
 
+/// Serialize a value using rkyv for zero-copy transit.
+///
+/// Used for SharedMemoryBus, DAG context, and Policy hot path.
+/// rkyv provides O(1) access to archived data without deserialization.
+pub fn encode_rkyv<T>(val: &T) -> Result<Vec<u8>, ProtoError>
+where
+    T: rkyv::Archive,
+    for<'a> T: rkyv::Serialize<
+        rkyv::api::high::HighSerializer<
+            rkyv::util::AlignedVec,
+            rkyv::ser::allocator::ArenaHandle<'a>,
+            rkyv::rancor::Error,
+        >,
+    >,
+{
+    rkyv::to_bytes::<rkyv::rancor::Error>(val)
+        .map(|bytes| bytes.into_vec())
+        .map_err(|e| ProtoError::RkyvSerialization(format!("rkyv: {}", e)))
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------

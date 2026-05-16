@@ -13,6 +13,7 @@ members = [
     "zenic-bench",
     "zenic-tests",
     "zenic-subscription",
+    "zenic-memory",
 ]
 
 [workspace.package]
@@ -44,3 +45,4 @@ tracing = "0.1"
 # Internal crates
 zenic-proto = { path = "zenic-proto" }
 zenic-graph = { path = "zenic-graph" }
+zenic-memory = { path = "zenic-memory" }

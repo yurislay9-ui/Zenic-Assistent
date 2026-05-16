@@ -24,6 +24,10 @@ pub enum ProtoError {
     /// Invalid input was provided.
     #[error("invalid input: {0}")]
     InvalidInput(String),
+
+    /// rkyv serialization failed.
+    #[error("rkyv serialization error: {0}")]
+    RkyvSerialization(String),
 }
 
 impl From<bincode::Error> for ProtoError {

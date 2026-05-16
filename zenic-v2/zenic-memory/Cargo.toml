@@ -1,19 +1,20 @@
 [package]
-name = "zenic-policy"
+name = "zenic-memory"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
-description = "Policy engine with RBAC, safety veto, and criticality gates for Zenic-Agents"
+description = "Adaptive Binary Memory Chip — Semantic graph, DAG adapter, learning lifecycle for Zenic-Agents"
 
 [dependencies]
 zenic-proto = { workspace = true }
-zenic-graph = { workspace = true }
-zenic-memory = { workspace = true }
 serde = { workspace = true }
+bincode = { workspace = true }
 thiserror = { workspace = true }
 uuid = { workspace = true }
-indexmap = { workspace = true }
+rkyv = "0.8"
+rusqlite = { version = "0.31", features = ["bundled"] }
+blake3 = "1.5"
 tracing = { workspace = true }
-
-[dev-dependencies]
+serde_json = "1.0"
+base64 = "0.22"

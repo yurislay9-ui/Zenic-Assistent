@@ -25,6 +25,7 @@ from .chain import (
     ApprovalResult,
     ApprovalStatus,
     ApprovalPriority,
+    MemoryApprovalPayload,
     get_approval_chain,
     reset_approval_chain,
 )
@@ -141,6 +142,7 @@ __all__ = [
     "ApprovalResult",
     "ApprovalStatus",
     "ApprovalPriority",
+    "MemoryApprovalPayload",
     "get_approval_chain",
     "reset_approval_chain",
     # Workflows

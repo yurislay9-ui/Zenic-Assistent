@@ -15,6 +15,6 @@ pub mod serde_;
 // Convenience re-exports: allow `zenic_proto::NodeId` instead of `zenic_proto::ids::NodeId`.
 pub use domain::{BusinessDomain, DomainCapability};
 pub use errors::ProtoError;
-pub use ids::{ExecutionId, GraphId, NodeId, PaymentId, PolicyId, SessionId, SubGraphId, SubscriptionId, SuperNodeId, TenantId, TrialId, WorkflowId};
+pub use ids::{ExecutionId, GraphId, MappingId, NodeId, SessionId, SubGraphId, SubscriptionId, SuperNodeId, TenantId, PaymentId, PolicyId, TrialId, WorkflowId};
 pub use node_types::{LoadPolicy, NodeCategory, NodeCriticality};
-pub use serde_::{decode, decode_raw, encode, encode_raw};
+pub use serde_::{decode, decode_raw, encode, encode_raw, encode_rkyv};

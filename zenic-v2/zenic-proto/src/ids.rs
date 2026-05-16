@@ -73,6 +73,7 @@ define_id!(TenantId, "Unique identifier for a multi-tenant isolation boundary.")
 define_id!(SubscriptionId, "Unique identifier for a subscription instance.");
 define_id!(PaymentId, "Unique identifier for a payment transaction.");
 define_id!(TrialId, "Unique identifier for a trial period.");
+define_id!(MappingId, "Unique identifier for a semantic mapping in the Memory Chip.");
 
 // ---------------------------------------------------------------------------
 // Tests
