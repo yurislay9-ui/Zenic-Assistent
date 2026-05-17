@@ -514,9 +514,11 @@ async function loadPolicies(policyIds?: string[]): Promise<PolicyDocument[]> {
     ? { policyId: { in: policyIds }, isActive: true }
     : { isActive: true };
 
+  // BUG #6 FIX: Added take limit to prevent OOM on 500MB Termux host
   const policies = await db.declPolicy.findMany({
     where,
     orderBy: { updatedAt: "desc" },
+    take: 200,
   });
 
   return policies.map((p) => ({

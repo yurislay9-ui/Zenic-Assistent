@@ -350,11 +350,14 @@ class SLAService {
     return this.mapRecordToModel(record);
   }
 
-  /** Get the full escalation SLA history for a request */
-  async getEscalationHistory(requestId: string): Promise<EscalationSLA[]> {
+  /** Get the full escalation SLA history for a request
+   *  FIX #7: Añadido take con límite.
+   */
+  async getEscalationHistory(requestId: string, limit = 50): Promise<EscalationSLA[]> {
     const records = await db.hitlEscalationSLA.findMany({
       where: { requestId },
       orderBy: { createdAt: "asc" },
+      take: Math.min(limit, 200), // INVARIANT 3
     });
 
     return records.map((r) => this.mapRecordToModel(r));

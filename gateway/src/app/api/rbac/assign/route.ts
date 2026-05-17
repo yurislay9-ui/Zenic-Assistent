@@ -1,20 +1,32 @@
+// ─── Zenic-Agents v3 — RBAC Assign Role (Refactorizado FASE 9) ────────
+// CAMBIOS:
+// - Autenticación obligatoria (requireAuthAndPermission)
+// - Audit logging de la asignación
+// - Error genérico al cliente, detalles solo en server log
+
 import { NextRequest, NextResponse } from "next/server";
 import { assignRole } from "@/lib/mcp-gateway/services/rbac-service";
+import { recordAudit } from "@/lib/mcp-gateway/services/audit-service";
+import { requireAuthAndPermission } from "@/lib/rbac-auth";
 
 export async function POST(request: NextRequest) {
+  // ─── Auth + Permission Check ──────────────────────────────────────
+  const authResult = await requireAuthAndPermission(request, "role", "write");
+  if (authResult instanceof NextResponse) return authResult;
+  const { user } = authResult;
+
   try {
     const body = await request.json();
-    const { userId, roleId, grantedBy, expiresAt } = body as {
+    const { userId, roleId, expiresAt } = body as {
       userId: string;
       roleId: string;
-      grantedBy: string;
       expiresAt?: string;
     };
 
-    if (!userId || !roleId || !grantedBy) {
+    if (!userId || !roleId) {
       return NextResponse.json(
-        { success: false, error: "userId, roleId, and grantedBy are required", code: "VALIDATION_ERROR" },
-        { status: 400 }
+        { success: false, error: "userId y roleId son requeridos", code: "VALIDATION_ERROR" },
+        { status: 400 },
       );
     }
 
@@ -23,52 +35,64 @@ export async function POST(request: NextRequest) {
     const role = await db.role.findUnique({ where: { id: roleId } });
     if (!role) {
       return NextResponse.json(
-        { success: false, error: "Role not found", code: "NOT_FOUND" },
-        { status: 404 }
+        { success: false, error: "Rol no encontrado", code: "NOT_FOUND" },
+        { status: 404 },
       );
     }
 
-    // Verify user exists
-    const user = await db.user.findUnique({ where: { id: userId } });
-    if (!user) {
+    // Verify target user exists
+    const targetUser = await db.user.findUnique({ where: { id: userId } });
+    if (!targetUser) {
       return NextResponse.json(
-        { success: false, error: "User not found", code: "NOT_FOUND" },
-        { status: 404 }
+        { success: false, error: "Usuario no encontrado", code: "NOT_FOUND" },
+        { status: 404 },
       );
     }
 
-    // Check if already assigned
-    const existing = await db.userRole.findUnique({
-      where: { userId_roleId: { userId, roleId } },
-    });
-    if (existing) {
-      return NextResponse.json(
-        { success: false, error: "Role already assigned to this user", code: "DUPLICATE" },
-        { status: 409 }
-      );
-    }
-
+    // Validate expiry date
     const expiresAtDate = expiresAt ? new Date(expiresAt) : undefined;
-
-    // Validate expiry date is in the future
     if (expiresAtDate && expiresAtDate <= new Date()) {
       return NextResponse.json(
-        { success: false, error: "expiresAt must be a future date", code: "VALIDATION_ERROR" },
-        { status: 400 }
+        { success: false, error: "expiresAt debe ser una fecha futura", code: "VALIDATION_ERROR" },
+        { status: 400 },
       );
     }
 
-    const assignment = await assignRole(userId, roleId, grantedBy, expiresAtDate);
+    // Assign role (handles expired re-assignment internally)
+    const assignment = await assignRole(userId, roleId, user.userId, expiresAtDate);
+
+    // Audit logging
+    await recordAudit({
+      actorId: user.userId,
+      actorType: "user",
+      action: "role.assign",
+      resource: "role",
+      resourceId: roleId,
+      resourceName: role.name,
+      severity: "info",
+      details: {
+        targetUserId: userId,
+        targetUserName: targetUser.name,
+        roleName: role.name,
+        expiresAt: expiresAtDate?.toISOString(),
+      },
+    });
 
     return NextResponse.json({
       success: true,
       data: assignment,
     }, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith("DUPLICATE:")) {
+      return NextResponse.json(
+        { success: false, error: "Rol ya asignado a este usuario", code: "DUPLICATE" },
+        { status: 409 },
+      );
+    }
     console.error("[RBAC Assign POST]", error);
     return NextResponse.json(
-      { success: false, error: "Failed to assign role", code: "INTERNAL_ERROR" },
-      { status: 500 }
+      { success: false, error: "Error al asignar rol", code: "INTERNAL_ERROR" },
+      { status: 500 },
     );
   }
 }

@@ -2,11 +2,17 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  /* config options here */
+  reactStrictMode: true,
+  poweredByHeader: false,
   typescript: {
-    ignoreBuildErrors: true,
+    // Build debe fallar si hay errores de tipo.
+    // Si se necesita ignorar temporalmente, usar // @ts-expect-error con razón.
+    ignoreBuildErrors: false,
   },
-  reactStrictMode: false,
+  eslint: {
+    // Build debe fallar si hay errores de lint.
+    ignoreDuringBuilds: false,
+  },
 };
 
 export default nextConfig;

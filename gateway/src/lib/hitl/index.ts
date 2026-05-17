@@ -25,6 +25,7 @@ export {
   getDelegationService,
   getEscalationService,
   resetDelegationService,
+  resetEscalationService,
 } from "./delegation";
 
 // ─── Approval Audit Trail ─────────────────────────────────────────────

@@ -655,18 +655,34 @@ export class CompositionEngine {
       };
     }
 
-    // Load all referenced policies from DB
+    // BUG #8 FIX: Batch-load all policies in ONE query instead of N+1 findFirst calls.
+    // Before: N queries (one per policy in set). After: 1 query + in-memory version matching.
     const policyDocuments: PolicyDocument[] = [];
     const policyStatementArrays: PolicyStatement[][] = [];
 
+    const allPolicyIds = policySet.policies.map((e) => e.policyId);
+    const batchPolicies = await db.declPolicy.findMany({
+      where: {
+        isActive: true,
+        policyId: { in: allPolicyIds },
+      },
+    });
+
+    // Build lookup: policyId@version → record, and policyId → record (latest)
+    const policyLookup = new Map<string, (typeof batchPolicies)[0]>();
+    for (const p of batchPolicies) {
+      policyLookup.set(p.policyId, p);
+      policyLookup.set(`${p.policyId}@${p.version}`, p);
+    }
+
     for (const entry of policySet.policies) {
-      const declPolicy = await db.declPolicy.findFirst({
-        where: {
-          policyId: entry.policyId,
-          isActive: true,
-          ...(entry.version ? { version: entry.version } : {}),
-        },
-      });
+      const key = entry.version ? `${entry.policyId}@${entry.version}` : entry.policyId;
+      let declPolicy = policyLookup.get(key);
+
+      // Fallback: try just policyId (latest version)
+      if (!declPolicy && entry.version) {
+        declPolicy = policyLookup.get(entry.policyId);
+      }
 
       if (!declPolicy) {
         if (entry.required) {
@@ -674,7 +690,6 @@ export class CompositionEngine {
             `Required policy "${entry.policyId}"${entry.version ? ` version "${entry.version}"` : ""} not found in DB`,
           );
         }
-        // Non-required missing policy — skip
         continue;
       }
 

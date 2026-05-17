@@ -199,15 +199,20 @@ class DelegationService {
     }
   }
 
-  /** List delegation rules */
-  async listDelegationRules(options?: { fromUserId?: string; isActive?: boolean }): Promise<DelegationRule[]> {
+  /** List delegation rules
+   *  FIX #7: Añadido take con límite para evitar cargar todas las reglas.
+   */
+  async listDelegationRules(options?: { fromUserId?: string; isActive?: boolean; limit?: number }): Promise<DelegationRule[]> {
     const where: Record<string, unknown> = {};
     if (options?.fromUserId) where.fromUserId = options.fromUserId;
     if (options?.isActive !== undefined) where.isActive = options.isActive;
 
+    const limit = Math.min(options?.limit ?? 100, 200); // INVARIANT 3
+
     const rules = await db.hitlDelegationRule.findMany({
       where,
       orderBy: { createdAt: "desc" },
+      take: limit,
     });
 
     return rules.map((r) => this.mapDelegationRuleRecord(r));
@@ -416,7 +421,9 @@ class EscalationService {
     return this.mapEscalationRecord(escalation);
   }
 
-  /** Check for requests that need auto-escalation based on timeout */
+  /** Check for requests that need auto-escalation based on timeout
+   *  FIX #13: Añadido take con límite para evitar cargar todos los pendientes.
+   */
   async checkAutoEscalation(): Promise<number> {
     const now = new Date();
     let escalatedCount = 0;
@@ -427,6 +434,7 @@ class EscalationService {
         status: { in: [ApprovalRequestStatus.PENDING, ApprovalRequestStatus.ESCALATED] },
       },
       include: { escalations: true },
+      take: 100, // INVARIANT 3: max 100 por batch
     });
 
     for (const record of candidates) {
@@ -507,11 +515,14 @@ class EscalationService {
     return escalatedCount;
   }
 
-  /** Get escalation history for a request */
-  async getEscalationHistory(requestId: string): Promise<Escalation[]> {
+  /** Get escalation history for a request
+   *  FIX #7: Añadido take con límite.
+   */
+  async getEscalationHistory(requestId: string, limit = 50): Promise<Escalation[]> {
     const escalations = await db.hitlEscalation.findMany({
       where: { requestId },
       orderBy: { createdAt: "asc" },
+      take: Math.min(limit, 200), // INVARIANT 3
     });
 
     return escalations.map((e) => this.mapEscalationRecord(e));
@@ -565,5 +576,11 @@ export function getEscalationService(): EscalationService {
 
 export function resetDelegationService(): void {
   delegationServiceInstance = null;
+  // FIX #8: Solo resetea Delegación, NO Escalation.
+  // Nota: DelegationService.instance es private, se resetea indirectamente
+  // porque getInstance() crea nueva instancia cuando delegationServiceInstance = null
+}
+
+export function resetEscalationService(): void {
   escalationServiceInstance = null;
 }

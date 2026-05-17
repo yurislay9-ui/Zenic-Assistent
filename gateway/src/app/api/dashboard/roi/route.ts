@@ -8,13 +8,16 @@ export async function GET() {
     const last7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const last30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    // Get execution data for ROI calculations
+    // FIX: Todas las consultas en paralelo con Promise.all.
+    // Antes: N+1 query — 14 consultas en un bucle for.
+    // Ahora: 1 sola tanda paralela + weekly trend con 7 queries paralelas.
     const [
       completedToday,
       deniedToday,
       completed7d,
       completed30d,
       totalExecutions,
+      securityBlocksTotal,
     ] = await Promise.all([
       db.toolExecution.count({
         where: { status: "completed", createdAt: { gte: todayStart } },
@@ -29,6 +32,7 @@ export async function GET() {
         where: { status: "completed", createdAt: { gte: last30d } },
       }),
       db.toolExecution.count(),
+      db.toolExecution.count({ where: { verdict: "deny" } }),
     ]);
 
     // Estimate value: each automated action saves ~15 min of manual work
@@ -42,34 +46,33 @@ export async function GET() {
     const value7d = Math.round(hoursSaved7d * 25);
     const value30d = Math.round(hoursSaved30d * 25);
 
-    // Actions blocked (security value)
-    const securityBlocksTotal = await db.toolExecution.count({
-      where: { verdict: "deny" },
-    });
-
-    // Weekly trend (last 7 days)
-    const weeklyTrend: Array<{ day: string; exitosas: number; bloqueadas: number }> = [];
-    for (let d = 6; d >= 0; d--) {
+    // FIX: Weekly trend con 7 queries EN PARALELO (antes era un bucle secuencial N+1)
+    const weeklyPromises = Array.from({ length: 7 }, (_, i) => {
+      const d = 6 - i;
       const dayStart = new Date(now);
       dayStart.setDate(dayStart.getDate() - d);
       dayStart.setHours(0, 0, 0, 0);
       const dayEnd = new Date(dayStart);
       dayEnd.setDate(dayEnd.getDate() + 1);
 
-      const dayCompleted = await db.toolExecution.count({
-        where: { status: "completed", createdAt: { gte: dayStart, lt: dayEnd } },
-      });
-      const dayDenied = await db.toolExecution.count({
-        where: { verdict: "deny", createdAt: { gte: dayStart, lt: dayEnd } },
-      });
+      return Promise.all([
+        dayStart,
+        db.toolExecution.count({
+          where: { status: "completed", createdAt: { gte: dayStart, lt: dayEnd } },
+        }),
+        db.toolExecution.count({
+          where: { verdict: "deny", createdAt: { gte: dayStart, lt: dayEnd } },
+        }),
+      ]);
+    });
 
-      const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-      weeklyTrend.push({
-        day: dayNames[dayStart.getDay()],
-        exitosas: dayCompleted,
-        bloqueadas: dayDenied,
-      });
-    }
+    const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const weeklyResults = await Promise.all(weeklyPromises);
+    const weeklyTrend = weeklyResults.map(([dayStart, dayCompleted, dayDenied]) => ({
+      day: dayNames[(dayStart as Date).getDay()],
+      exitosas: dayCompleted as number,
+      bloqueadas: dayDenied as number,
+    }));
 
     return NextResponse.json({
       valueToday,
@@ -83,7 +86,7 @@ export async function GET() {
       securityBlocksTotal,
       totalAutomations: totalExecutions,
       weeklyTrend,
-      planLimit: "1000/1000", // Business plan example
+      planLimit: "1000/1000",
     });
   } catch (error) {
     console.error("[/api/dashboard/roi GET]", error);

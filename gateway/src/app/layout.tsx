@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ThemeProvider } from "next-themes";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -14,13 +15,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Zenic-Agents v3.0.0 — Enterprise Dashboard",
-  description: "IA enjaulada. Seguridad por diseño. Determinismo garantizado. La única plataforma empresarial donde la IA nunca genera — solo arbitra SÍ/NO.",
+  title: "Zenic-Agents v3.0 — Dashboard",
+  description:
+    "IA enjaulada. Seguridad por diseño. Determinismo garantizado. La plataforma donde la IA nunca genera — solo arbitra SÍ/NO.",
   keywords: ["Zenic-Agents", "Enterprise AI", "Safety Gate", "HITL", "Merkle Ledger"],
   authors: [{ name: "Zenic Logic" }],
-  icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
-  },
 };
 
 export default function RootLayout({
@@ -33,8 +32,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

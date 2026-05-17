@@ -979,6 +979,9 @@ export default function PaginaDashboard() {
 
   // ─── Carga de datos ─────────────────────────────────────────────────────
   const cargarTodo = useCallback(async () => {
+    const controller = new AbortController();
+    const signal = controller.signal;
+
     const urls = [
       "/api/dashboard/metrics",
       "/api/dashboard/memory-proposals",
@@ -993,7 +996,10 @@ export default function PaginaDashboard() {
     ];
 
     // Usar allSettled para que un fetch fallido no rompa los demás
-    const resultados = await Promise.allSettled(urls.map((url) => fetch(url)));
+    // AbortController previene memory leaks en desmontaje o peticiones solapadas
+    const resultados = await Promise.allSettled(
+      urls.map((url) => fetch(url, { signal }).catch(() => null))
+    );
 
     // Procesar cada resultado de forma segura
     const [resMetricas, resPropuestas, resSNA, resLedger, resPipeline, resCapas, resReglas, resROI, resNichos, resActividad] = resultados;
@@ -1060,7 +1066,9 @@ export default function PaginaDashboard() {
     const intervalo = setInterval(() => {
       cargarTodo();
     }, 15000);
-    return () => clearInterval(intervalo);
+    return () => {
+      clearInterval(intervalo);
+    };
   }, [cargarTodo]);
 
   // ─── Cargar plantillas cuando se selecciona un nicho ────────────────
@@ -1194,27 +1202,34 @@ export default function PaginaDashboard() {
     setCheckEvidencia(false);
     setJustificacion("");
     setCheckRiesgo(false);
+    const controller = new AbortController();
     try {
       const res = await fetch(
-        `/api/dashboard/hitl-evidence?requestId=${requestId}`
+        `/api/dashboard/hitl-evidence?requestId=${requestId}`,
+        { signal: controller.signal }
       );
       if (res.ok) {
         setEvidencia(await res.json());
       }
     } catch (err) {
+      // Ignorar errores de abort — son esperados al cambiar de propuesta rápidamente
+      if (err instanceof DOMException && err.name === "AbortError") return;
       console.error("Error cargando evidencia:", err);
     } finally {
       setCargandoEvidencia(false);
     }
+    return () => controller.abort();
   }, []);
 
   // ─── Acciones HITL ──────────────────────────────────────────────────
-  const manejarAccionHITL = async (
+  // useCallback para evitar stale closures y re-renders en cascada
+  const manejarAccionHITL = useCallback(async (
     requestId: string,
     accion: "approve" | "reject"
   ) => {
     setEnviando(true);
     try {
+      const controller = new AbortController();
       const res = await fetch(`/api/v1/hitl/${requestId}/${accion}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1223,6 +1238,7 @@ export default function PaginaDashboard() {
           admin_evidence_review: checkEvidencia,
           risk_acknowledgment: checkRiesgo,
         }),
+        signal: controller.signal,
       });
       if (res.ok) {
         setPropuestas((prev) =>
@@ -1235,12 +1251,14 @@ export default function PaginaDashboard() {
         setCheckRiesgo(false);
       }
     } catch (err) {
+      // Ignorar errores de abort — son esperados al desmontar
+      if (err instanceof DOMException && err.name === "AbortError") return;
       console.error("Error en acción HITL:", err);
     } finally {
       setEnviando(false);
       setSosteniendoBoton(false);
     }
-  };
+  }, [justificacion, checkEvidencia, checkRiesgo]);
 
   // ─── Botón Maestro (mantener presionado) ─────────────────────────────
   const botonHabilitado =
@@ -1277,6 +1295,8 @@ export default function PaginaDashboard() {
     else if (label === "BÓVEDA DE SEGURIDAD") setPlacaActiva("boveda");
     else if (label === "NICHOS Y PLANTILLAS") setPlacaActiva("nichos");
     else if (label === "APIS & MCP") setPlacaActiva("apis");
+    else if (label === "POLÍTICAS") setPlacaActiva("comando"); // Políticas muestra centro de comando
+    else if (label === "INTEGRACIONES") setPlacaActiva("apis"); // Integraciones muestra APIs & MCP
     setNavActivo(label);
   };
 

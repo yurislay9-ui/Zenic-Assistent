@@ -775,14 +775,28 @@ export class ConflictDetector {
 
   /**
    * Analyze all statement pairs for conflicts.
+   * BUG #7 FIX: Added MAX_STATEMENT_PAIRS limit and early termination
+   * to prevent O(N²) explosion on large policy sets.
    * Uses a Visitor-like traversal pattern.
    */
   private analyzeStatementPairs(statements: LoadedStatement[]): PolicyConflict[] {
     const conflicts: PolicyConflict[] = [];
     const seen = new Set<string>();
+    const MAX_PAIRS = 50_000; // Safety limit for pair enumeration
+    let pairCount = 0;
 
     for (let i = 0; i < statements.length; i++) {
       for (let j = i + 1; j < statements.length; j++) {
+        // BUG #7 FIX: Early termination when pair count exceeds safe limit
+        if (++pairCount > MAX_PAIRS) {
+          console.warn(
+            `[ConflictDetector] Statement pair limit (${MAX_PAIRS}) reached. ` +
+            `Analyzed ${i + 1}/${statements.length} statements. ` +
+            `Some conflicts may be missed.`
+          );
+          return conflicts;
+        }
+
         const a = statements[i]!;
         const b = statements[j]!;
 

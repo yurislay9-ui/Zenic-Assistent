@@ -1,10 +1,47 @@
-:81 {
-	@transform_port_query {
-		query XTransformPort=*
+# ─── Zenic-Agents Gateway — Caddy Reverse Proxy ────────────────────
+# Escucha en :80 con auto-HTTPS (Caddy lo maneja si hay dominio).
+# Para desarrollo local sin HTTPS, usar: caddy run --config Caddyfile
+#
+# NOTA: rate_limit requiere el plugin caddy-ratelimit.
+# Instalar: https://github.com/mholt/caddy-ratelimit
+# Si no se usa el plugin, mantener los bloques rate_limit comentados.
+
+:80 {
+	# ─── Headers de seguridad obligatorios ────────────────────────
+	header {
+		X-Content-Type-Options    "nosniff"
+		X-Frame-Options           "DENY"
+		Referrer-Policy           "strict-origin-when-cross-origin"
+		Permissions-Policy        "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy   "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https:; connect-src 'self' https:;"
+		-Server
 	}
 
-	handle @transform_port_query {
-		reverse_proxy localhost:{query.XTransformPort} {
+	# ─── Rate limiting (REQUIERE PLUGIN caddy-ratelimit) ─────────
+	# Descomentar SOLO si el plugin está instalado:
+	# rate_limit {
+	#     zone static_zone 10r/s
+	#     zone api_zone    30r/s
+	# }
+
+	# ─── Archivos estáticos de Next.js ────────────────────────────
+	@static path /_next/static/* /favicon.ico /logo.svg /robots.txt
+	handle @static {
+		# rate_limit static_zone
+		reverse_proxy localhost:3000 {
+			header_up Host {host}
+			header_up X-Forwarded-For {remote_host}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote_host}
+		}
+		header Cache-Control "public, max-age=31536000, immutable"
+	}
+
+	# ─── API routes ──────────────────────────────────────────────
+	@api path /api/*
+	handle @api {
+		# rate_limit api_zone
+		reverse_proxy localhost:3000 {
 			header_up Host {host}
 			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
@@ -12,6 +49,7 @@
 		}
 	}
 
+	# ─── Todo lo demás (páginas del dashboard) ──────────────────
 	handle {
 		reverse_proxy localhost:3000 {
 			header_up Host {host}

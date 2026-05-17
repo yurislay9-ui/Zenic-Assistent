@@ -7,9 +7,22 @@
 import { createHash } from "crypto";
 import { AuditEntry, MerkleVerificationResult, AuditQueryParams } from "./types";
 
+/** Maximum entries in the in-memory chain before flush is required (INVARIANT 3) */
+const MAX_CHAIN_SIZE = 500;
+
 export class MerkleAuditService {
   private chain: AuditEntry[] = [];
   private genesisHash = "0000000000000000000000000000000000000000000000000000000000000000";
+  private _flushCallback: ((entries: AuditEntry[]) => Promise<void>) | null = null;
+
+  /** Set a callback to persist entries when the chain reaches MAX_CHAIN_SIZE.
+   *  The callback receives the entries to persist and should clear them
+   *  from its own storage after successful persistence.
+   *  FIX #9: Permite flush periódico para evitar crecimiento infinito en memoria.
+   */
+  onFlush(callback: (entries: AuditEntry[]) => Promise<void>): void {
+    this._flushCallback = callback;
+  }
 
   /** Record an audit entry in the Merkle chain */
   record(params: Omit<AuditEntry, "id" | "hash" | "previousHash" | "timestamp">): AuditEntry {
@@ -28,6 +41,19 @@ export class MerkleAuditService {
     entry.hash = this.computeHash(entry);
 
     this.chain.push(entry);
+
+    // FIX #9: Si la cadena excede MAX_CHAIN_SIZE, ejecutar flush callback
+    if (this.chain.length >= MAX_CHAIN_SIZE && this._flushCallback) {
+      // Flush sin bloquear el return — fire-and-forget con manejo de errores
+      const entriesToFlush = [...this.chain];
+      this.chain = []; // Reset — la cadena empieza de nuevo con el último hash como genesis
+      this._flushCallback(entriesToFlush).catch((err) => {
+        console.error("[MerkleAudit] Flush callback failed:", err);
+        // Re-insertar las entradas fallidas al inicio de la cadena
+        this.chain = [...entriesToFlush, ...this.chain];
+      });
+    }
+
     return entry;
   }
 

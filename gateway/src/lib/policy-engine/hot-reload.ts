@@ -200,13 +200,15 @@ export class PolicyHotReloader {
       select: { policyId: true, contentHash: true, version: true },
     });
 
-    const currentIds = new Set(policies.map((p) => p.policyId));
+    // BUG #9 FIX: Build a Map for O(1) lookups instead of O(N) Array.find
+    const policyMap = new Map(policies.map((p) => [p.policyId, p]));
+    const currentIds = new Set(policyMap.keys());
     const cachedIds = new Set(this.contentHashCache.keys());
 
     // New policies
     for (const id of currentIds) {
       if (!cachedIds.has(id)) {
-        const policy = policies.find((p) => p.policyId === id)!;
+        const policy = policyMap.get(id)!;
         this.emit({
           type: "policy_added",
           policyId: id,

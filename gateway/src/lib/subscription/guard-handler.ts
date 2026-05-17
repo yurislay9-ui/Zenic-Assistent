@@ -5,6 +5,10 @@
  * Returns 403 with upgrade info if the feature is not available
  * for the tenant's current subscription tier.
  *
+ * BUG #8 FIX: INVARIANT 4 — Deny-by-default when DB is unavailable.
+ * Previously defaulted to tier='starter' + status='active' on DB failure,
+ * which is a fail-open vulnerability. Now returns 503 (fail-closed).
+ *
  * Usage in route.ts:
  * ```typescript
  * import { withSubscriptionGuard } from '@/lib/subscription/guard-handler';
@@ -42,6 +46,52 @@ export type GuardedHandler = (
   ctx: SubscriptionContext
 ) => Promise<NextResponse> | NextResponse;
 
+// ─── Subscription Lookup (centralized, fail-closed) ───
+
+interface SubscriptionLookupResult {
+  tier: SubscriptionTierName;
+  addOns: string[];
+  subscriptionId: string;
+  status: string;
+  dbAvailable: boolean;
+}
+
+/**
+ * Look up a tenant's subscription from the database.
+ * INVARIANT 4: If DB is unavailable, returns dbAvailable=false
+ * so the caller can deny access (fail-closed).
+ */
+async function lookupSubscriptionFromDb(tenantId: string): Promise<SubscriptionLookupResult> {
+  let tier: SubscriptionTierName = 'starter';
+  let addOns: string[] = [];
+  let subscriptionId = '';
+  let status = 'unknown'; // No subscription found = unknown, NOT 'active'
+  let dbAvailable = true;
+
+  try {
+    const subscription = await db.tenantSubscription.findUnique({
+      where: { tenantId },
+    });
+
+    if (subscription) {
+      tier = subscription.tier as SubscriptionTierName;
+      try {
+        addOns = JSON.parse(subscription.addOns);
+      } catch {
+        addOns = [];
+      }
+      subscriptionId = subscription.id;
+      status = subscription.status;
+    }
+    // If no subscription found, tier stays 'starter', status stays 'unknown'
+  } catch {
+    // INVARIANT 4: DB unavailable — flag as unavailable, do NOT default to 'active'
+    dbAvailable = false;
+  }
+
+  return { tier, addOns, subscriptionId, status, dbAvailable };
+}
+
 // ─── Guard Handler ───
 
 /**
@@ -52,10 +102,11 @@ export type GuardedHandler = (
  * 2. Looks up the route guard for the current path and method.
  * 3. If no guard is defined, passes through to the handler.
  * 4. If a guard exists, looks up the tenant's subscription from the database.
- * 5. Checks if the subscription is active (trial or active status).
- * 6. Checks if the required feature is available for the tenant's tier + add-ons.
- * 7. If all checks pass, calls the handler with the subscription context.
- * 8. If any check fails, returns 403 with detailed upgrade information.
+ * 5. INVARIANT 4: If DB is unavailable, DENIES access (fail-closed).
+ * 6. Checks if the subscription is active (trial or active status).
+ * 7. Checks if the required feature is available for the tenant's tier + add-ons.
+ * 8. If all checks pass, calls the handler with the subscription context.
+ * 9. If any check fails, returns 403/503 with detailed information.
  */
 export function withSubscriptionGuard(
   handler: GuardedHandler
@@ -82,30 +133,20 @@ export function withSubscriptionGuard(
     }
 
     // Look up subscription from database
-    let tier: SubscriptionTierName = 'starter';
-    let addOns: string[] = [];
-    let subscriptionId = '';
-    let status = 'active';
+    const lookup = await lookupSubscriptionFromDb(tenantId);
 
-    try {
-      const subscription = await db.tenantSubscription.findUnique({
-        where: { tenantId },
-      });
-
-      if (subscription) {
-        tier = subscription.tier as SubscriptionTierName;
-        try {
-          addOns = JSON.parse(subscription.addOns);
-        } catch {
-          addOns = [];
-        }
-        subscriptionId = subscription.id;
-        status = subscription.status;
-      }
-    } catch {
-      // Database not available — default to starter
-      // This allows the system to gracefully degrade when DB is unreachable
+    // INVARIANT 4: Fail-closed when DB is unavailable
+    if (!lookup.dbAvailable) {
+      return NextResponse.json(
+        {
+          error: 'ServiceUnavailable',
+          message: 'Unable to verify subscription. Access denied for security.',
+        },
+        { status: 503 }
+      );
     }
+
+    const { tier, addOns, subscriptionId, status } = lookup;
 
     // Check if subscription is active
     if (!['trial', 'active'].includes(status)) {
@@ -152,6 +193,8 @@ export function withSubscriptionGuard(
  * Checks a specific feature gate without wrapping a handler.
  * Useful for conditional logic inside route handlers.
  *
+ * INVARIANT 4: If DB is unavailable, returns allowed=false.
+ *
  * @param tenantId - The tenant ID to check
  * @param feature  - The feature gate identifier (e.g. 'mcp_gateway')
  * @returns Object with allowed status, tier info, and optional reason
@@ -160,26 +203,19 @@ export async function checkFeature(
   tenantId: string,
   feature: string
 ): Promise<{ allowed: boolean; tier: SubscriptionTierName; addOns: string[]; reason?: string }> {
-  let tier: SubscriptionTierName = 'starter';
-  let addOns: string[] = [];
+  const lookup = await lookupSubscriptionFromDb(tenantId);
 
-  try {
-    const subscription = await db.tenantSubscription.findUnique({
-      where: { tenantId },
-    });
-
-    if (subscription) {
-      tier = subscription.tier as SubscriptionTierName;
-      try {
-        addOns = JSON.parse(subscription.addOns);
-      } catch {
-        addOns = [];
-      }
-    }
-  } catch {
-    // Database not available — default to starter
+  // INVARIANT 4: DB unavailable = deny
+  if (!lookup.dbAvailable) {
+    return {
+      allowed: false,
+      tier: 'starter',
+      addOns: [],
+      reason: 'Unable to verify subscription — access denied by default',
+    };
   }
 
+  const { tier, addOns } = lookup;
   const allowed = isFeatureAvailable(feature, tier, addOns);
 
   return {
@@ -194,33 +230,29 @@ export async function checkFeature(
  * Gets the full subscription context for a tenant.
  * Useful for routes that need tier/addon info without a specific feature check.
  *
+ * INVARIANT 4: If DB is unavailable, returns status='db_unavailable'.
+ *
  * @param tenantId - The tenant ID to look up
  * @returns SubscriptionContext with tier, addOns, status, etc.
  */
 export async function getSubscriptionContext(tenantId: string): Promise<SubscriptionContext> {
-  let tier: SubscriptionTierName = 'starter';
-  let addOns: string[] = [];
-  let subscriptionId = '';
-  let status = 'unknown';
+  const lookup = await lookupSubscriptionFromDb(tenantId);
 
-  try {
-    const subscription = await db.tenantSubscription.findUnique({
-      where: { tenantId },
-    });
-
-    if (subscription) {
-      tier = subscription.tier as SubscriptionTierName;
-      try {
-        addOns = JSON.parse(subscription.addOns);
-      } catch {
-        addOns = [];
-      }
-      subscriptionId = subscription.id;
-      status = subscription.status;
-    }
-  } catch {
-    // Database not available
+  if (!lookup.dbAvailable) {
+    return {
+      tenantId,
+      tier: 'starter',
+      addOns: [],
+      subscriptionId: '',
+      status: 'db_unavailable',
+    };
   }
 
-  return { tenantId, tier, addOns, subscriptionId, status };
+  return {
+    tenantId,
+    tier: lookup.tier,
+    addOns: lookup.addOns,
+    subscriptionId: lookup.subscriptionId,
+    status: lookup.status,
+  };
 }

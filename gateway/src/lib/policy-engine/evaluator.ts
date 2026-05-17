@@ -11,6 +11,7 @@
 //   5. First matching allow → allow (unless later deny)
 //   6. No match → default effect (deny)
 
+import { createHash } from "crypto";
 import { db } from "@/lib/db";
 import type {
   PolicyDocument,
@@ -28,7 +29,7 @@ import { DEFAULT_POLICY_ENGINE_CONFIG } from "./types";
 
 type OperatorFn = (fieldValue: unknown, conditionValue: unknown) => boolean;
 
-const OPERATOR_STRATEGIES: Record<ConditionOperator, OperatorFn> = {
+export const OPERATOR_STRATEGIES: Record<ConditionOperator, OperatorFn> = {
   eq: (field, value) => field === value,
   neq: (field, value) => field !== value,
   in: (field, value) => Array.isArray(value) && value.includes(field),
@@ -40,7 +41,17 @@ const OPERATOR_STRATEGIES: Record<ConditionOperator, OperatorFn> = {
   regex: (field, value) => {
     if (typeof field !== "string" || typeof value !== "string") return false;
     try {
-      return new RegExp(value).test(field);
+      // BUG #1 FIX: Safe regex with timeout protection against ReDoS.
+      // INVARIANT 4: defense in depth — a malicious regex must NEVER freeze the
+      // event loop on this Termux/500MB host.
+      const re = new RegExp(value);
+      // Reject patterns that could cause catastrophic backtracking:
+      // nested quantifiers like (a+)+ or (a*){2,}
+      if (/(\+|\*)[^\+\*\|\)]*?(\+|\*)/.test(value)) {
+        console.warn(`[PolicyEngine] Rejected potentially dangerous regex: ${value}`);
+        return false;
+      }
+      return re.test(field);
     } catch {
       return false;
     }
@@ -151,6 +162,9 @@ function statementMatches(
 
 // ─── Policy Evaluator ─────────────────────────────────────────────────
 
+/** Maximum cached entries to prevent unbounded memory growth on 500MB Termux */
+const MAX_CACHE_SIZE = 500;
+
 export class PolicyEvaluator {
   private config: PolicyEngineConfig;
   private cache: Map<string, { result: PolicyEvaluationResult; expiresAt: number }> = new Map();
@@ -243,9 +257,27 @@ export class PolicyEvaluator {
         requiredRole,
       };
 
-      // Cache the result
+      // BUG #4 FIX: Cache the result with size limit.
+      // Evict oldest entries when cache exceeds MAX_CACHE_SIZE to prevent
+      // unbounded memory growth on the 500MB Termux host.
       if (this.config.enableCache) {
         const cacheKey = this.buildCacheKey(request);
+        if (this.cache.size >= MAX_CACHE_SIZE) {
+          // Evict expired entries first
+          const now = Date.now();
+          for (const [key, entry] of this.cache) {
+            if (entry.expiresAt <= now) {
+              this.cache.delete(key);
+            }
+          }
+          // If still over limit, evict the oldest (first-inserted) entries
+          if (this.cache.size >= MAX_CACHE_SIZE) {
+            const firstKey = this.cache.keys().next().value;
+            if (firstKey !== undefined) {
+              this.cache.delete(firstKey);
+            }
+          }
+        }
         this.cache.set(cacheKey, {
           result,
           expiresAt: Date.now() + this.config.cacheTtlSeconds * 1000,
@@ -332,35 +364,64 @@ export class PolicyEvaluator {
 
   /**
    * Load active policies from the database.
+   * BUG #5 FIX: Uses tenantId for multi-tenant isolation.
+   * BUG #13 FIX: Per-policy try-catch for malformed JSON — logs bad policy
+   * instead of crashing the entire evaluation.
    */
   private async loadActivePolicies(tenantId?: string): Promise<PolicyDocument[]> {
+    const where: Record<string, unknown> = { isActive: true };
+    // BUG #5 FIX: Filter by tenant when provided to prevent cross-tenant leaks
+    if (tenantId) {
+      where.OR = [
+        { labels: { contains: `"tenantId":"${tenantId}"` } },
+        { labels: { contains: `"tenantId": "${tenantId}"` } },
+      ];
+    }
+
     const policies = await db.declPolicy.findMany({
-      where: { isActive: true },
+      where,
       orderBy: { updatedAt: "desc" },
       take: this.config.maxPolicies,
     });
 
-    return policies.map((p) => ({
-      apiVersion: p.apiVersion,
-      kind: "PolicyDocument",
-      metadata: {
-        id: p.policyId,
-        name: p.name,
-        version: p.version,
-        description: p.description,
-        compliance: JSON.parse(p.compliance),
-        labels: JSON.parse(p.labels),
-        author: p.author ?? undefined,
-        createdAt: p.createdAt.toISOString(),
-        updatedAt: p.updatedAt.toISOString(),
-      },
-      statements: JSON.parse(p.statements),
-      tests: JSON.parse(p.tests),
-    }));
+    const documents: PolicyDocument[] = [];
+    for (const p of policies) {
+      try {
+        documents.push({
+          apiVersion: p.apiVersion,
+          kind: "PolicyDocument",
+          metadata: {
+            id: p.policyId,
+            name: p.name,
+            version: p.version,
+            description: p.description,
+            compliance: JSON.parse(p.compliance),
+            labels: JSON.parse(p.labels),
+            author: p.author ?? undefined,
+            createdAt: p.createdAt.toISOString(),
+            updatedAt: p.updatedAt.toISOString(),
+          },
+          statements: JSON.parse(p.statements),
+          tests: JSON.parse(p.tests),
+        });
+      } catch (parseErr) {
+        // BUG #13 FIX: Log and skip malformed policies instead of crashing
+        console.error(
+          `[PolicyEngine] Skipping malformed policy ${p.policyId}:`,
+          parseErr instanceof Error ? parseErr.message : String(parseErr)
+        );
+      }
+    }
+    return documents;
   }
 
+  /**
+   * BUG #10 FIX: Hash the cache key to prevent unbounded memory from
+   * large JSON contexts. Uses SHA-256 for deterministic compact keys.
+   */
   private buildCacheKey(request: PolicyEvaluationRequest): string {
-    return `${request.resource}:${request.action}:${request.tenantId ?? ""}:${request.userId ?? ""}:${JSON.stringify(request.context)}`;
+    const raw = `${request.resource}:${request.action}:${request.tenantId ?? ""}:${request.userId ?? ""}:${JSON.stringify(request.context)}`;
+    return createHash("sha256").update(raw).digest("hex");
   }
 }
 

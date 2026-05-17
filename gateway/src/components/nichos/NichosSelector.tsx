@@ -15,8 +15,6 @@ import {
   Truck,
   ShoppingCart,
   Megaphone,
-  Newspaper,
-  Hotel,
   Plane,
   TreePine,
   Zap,
@@ -33,9 +31,9 @@ import {
   Sparkles,
   FolderOpen,
   RefreshCw,
-  Clock,
   XCircle,
   AlertTriangle,
+  Clock,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -684,31 +682,35 @@ export const NICHOS_INDUSTRIALES: NichoIndustrial[] = [
 // MAPEO DE ICONOS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const ICONO_MAP: Record<string, React.ReactNode> = {
-  Heart: <Heart className="h-4 w-4" />,
-  Landmark: <Landmark className="h-4 w-4" />,
-  GraduationCap: <GraduationCap className="h-4 w-4" />,
-  Scale: <Scale className="h-4 w-4" />,
-  Factory: <Factory className="h-4 w-4" />,
-  Building2: <Building2 className="h-4 w-4" />,
-  Pill: <Pill className="h-4 w-4" />,
-  Microscope: <Microscope className="h-4 w-4" />,
-  Stethoscope: <Stethoscope className="h-4 w-4" />,
-  ShieldCheck: <ShieldCheck className="h-4 w-4" />,
-  Truck: <Truck className="h-4 w-4" />,
-  ShoppingCart: <ShoppingCart className="h-4 w-4" />,
-  Megaphone: <Megaphone className="h-4 w-4" />,
-  Plane: <Plane className="h-4 w-4" />,
-  Zap: <Zap className="h-4 w-4" />,
-  Cpu: <Cpu className="h-4 w-4" />,
-  Smartphone: <Smartphone className="h-4 w-4" />,
-  Workflow: <Workflow className="h-4 w-4" />,
-  Lock: <Lock className="h-4 w-4" />,
-  Waves: <Waves className="h-4 w-4" />,
-  TreePine: <TreePine className="h-4 w-4" />,
-  Newspaper: <Newspaper className="h-4 w-4" />,
-  Hotel: <Hotel className="h-4 w-4" />,
+const ICONO_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  Heart,
+  Landmark,
+  GraduationCap,
+  Scale,
+  Factory,
+  Building2,
+  Pill,
+  Microscope,
+  Stethoscope,
+  ShieldCheck,
+  Truck,
+  ShoppingCart,
+  Megaphone,
+  Plane,
+  Zap,
+  Cpu,
+  Smartphone,
+  Workflow,
+  Lock,
+  Waves,
+  TreePine,
 };
+
+/** Renderiza el icono de un nicho por su nombre — lazy, sin crear elementos al nivel del módulo */
+function getIcono(nombre: string, className = "h-4 w-4") {
+  const Icon = ICONO_MAP[nombre];
+  return Icon ? <Icon className={className} /> : null;
+}
 
 // Colores por categoría para los badges de categoría
 const COLOR_CATEGORIA: Record<string, { bg: string; text: string }> = {

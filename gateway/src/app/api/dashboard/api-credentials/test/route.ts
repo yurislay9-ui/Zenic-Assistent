@@ -1,9 +1,20 @@
-// ─── API Credentials Test — Verify an API credential ──────────────────
+// ─── API Credentials Test — Validación de formato + conectividad ──────
+// SECURITY: Ya NO simula verificación. Realiza validación de formato
+// y prueba de conectividad real cuando es posible.
+// Si no se puede verificar realmente, lo indica explícitamente.
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { decrypt } from "@/lib/crypto";
 
-/** POST /api/dashboard/api-credentials/test — Test/verify an API credential */
+/** Prefijos esperados por plataforma */
+const PLATFORM_PREFIXES: Record<string, string[]> = {
+  openai: ["sk-"],
+  anthropic: ["sk-ant-"],
+  google: [], // No hay prefijo estándar, solo validación de longitud
+};
+
+/** POST /api/dashboard/api-credentials/test — Validar credencial */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -23,55 +34,148 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Simulate a connection test based on platform
-    const startTime = Date.now();
-    let verifyStatus: string;
-    let verifyMessage: string;
-
+    // Descifrar campos sensibles
+    let apiKey = "";
     try {
-      // Simulated test — in production, this would make actual API calls
-      // to verify the credential works with the target platform
-      const platform = credential.platform;
-
-      // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 500 + Math.random() * 1000));
-
-      // Simulated validation logic
-      const keyLength = credential.apiKey.length;
-      const hasValidPrefix =
-        platform === "openai" ? credential.apiKey.startsWith("sk-") :
-        platform === "anthropic" ? credential.apiKey.startsWith("sk-ant-") :
-        platform === "google" ? credential.apiKey.length > 10 :
-        true; // custom platforms always "pass" the format check
-
-      if (keyLength < 8) {
-        verifyStatus = "invalid";
-        verifyMessage = `Formato de clave inválido para ${platform} (muy corta)`;
-      } else if (!hasValidPrefix && ["openai", "anthropic"].includes(platform)) {
-        verifyStatus = "invalid";
-        verifyMessage = `Prefijo de clave no reconocido para ${platform}`;
-      } else {
-        verifyStatus = "valid";
-        verifyMessage = `Conexión exitosa con ${platform} (${Date.now() - startTime}ms)`;
-      }
+      const sensitive = decrypt({
+        encryptedData: credential.encryptedData,
+        iv: credential.iv,
+        authTag: credential.authTag,
+      }) as Record<string, string>;
+      apiKey = sensitive.apiKey || "";
     } catch {
-      verifyStatus = "error";
-      verifyMessage = "Error de conexión al verificar la credencial";
+      await db.apiCredential.update({
+        where: { id: body.id },
+        data: {
+          lastVerified: new Date(),
+          verifyStatus: "error",
+          verifyMessage: "No se pudo descifrar la credencial — clave de cifrado cambiada",
+        },
+      });
+      return NextResponse.json({
+        success: true,
+        verifyStatus: "error",
+        verifyMessage: "No se pudo descifrar la credencial — posible cambio de clave de cifrado",
+        lastVerified: new Date().toISOString(),
+      });
     }
 
-    // Update the credential with test results
+    // Fase 1: Validación de formato
+    const formatErrors: string[] = [];
+    const platform = credential.platform;
+    const expectedPrefixes = PLATFORM_PREFIXES[platform];
+
+    if (apiKey.length < 8) {
+      formatErrors.push(`Clave muy corta (${apiKey.length} caracteres, mínimo 8)`);
+    }
+
+    if (expectedPrefixes && expectedPrefixes.length > 0) {
+      const hasValidPrefix = expectedPrefixes.some((p) => apiKey.startsWith(p));
+      if (!hasValidPrefix) {
+        formatErrors.push(
+          `Prefijo no reconocido para ${platform}. Se esperaba: ${expectedPrefixes.join(" o ")}`
+        );
+      }
+    }
+
+    if (formatErrors.length > 0) {
+      await db.apiCredential.update({
+        where: { id: body.id },
+        data: {
+          lastVerified: new Date(),
+          verifyStatus: "invalid",
+          verifyMessage: `Formato inválido: ${formatErrors.join("; ")}`,
+        },
+      });
+
+      return NextResponse.json({
+        success: true,
+        verifyStatus: "invalid",
+        verifyMessage: `Formato inválido: ${formatErrors.join("; ")}`,
+        lastVerified: new Date().toISOString(),
+      });
+    }
+
+    // Fase 2: Prueba de conectividad real (si hay endpoint)
+    const endpoint = credential.endpoint;
+    if (endpoint && URL.canParse(endpoint)) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+        const startTime = Date.now();
+        const response = await fetch(endpoint, {
+          method: "HEAD",
+          signal: controller.signal,
+          headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+        });
+        const elapsed = Date.now() - startTime;
+
+        clearTimeout(timeoutId);
+
+        const verifyStatus = response.ok || response.status === 401 || response.status === 403
+          ? "valid" // El servidor respondió — la credencial tiene formato válido
+          : "invalid";
+
+        const verifyMessage = response.ok
+          ? `Conectividad confirmada con ${platform} (${elapsed}ms, status ${response.status})`
+          : response.status === 401 || response.status === 403
+            ? `Servidor accesible pero credencial rechazada (status ${response.status})`
+            : `Respuesta inesperada del servidor (status ${response.status})`;
+
+        await db.apiCredential.update({
+          where: { id: body.id },
+          data: {
+            lastVerified: new Date(),
+            verifyStatus,
+            verifyMessage,
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          verifyStatus,
+          verifyMessage,
+          lastVerified: new Date().toISOString(),
+        });
+      } catch (fetchError) {
+        // No se pudo conectar, pero el formato es válido
+        const verifyMessage = fetchError instanceof Error && fetchError.name === "AbortError"
+          ? `Timeout conectando a ${platform} (>5s). Formato válido.`
+          : `No se pudo conectar a ${platform}. Formato válido.`;
+
+        await db.apiCredential.update({
+          where: { id: body.id },
+          data: {
+            lastVerified: new Date(),
+            verifyStatus: "valid",
+            verifyMessage,
+          },
+        });
+
+        return NextResponse.json({
+          success: true,
+          verifyStatus: "valid",
+          verifyMessage,
+          lastVerified: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Sin endpoint — solo validación de formato
+    const verifyMessage = `Formato válido para ${platform}. No se probó conectividad (sin endpoint configurado).`;
     await db.apiCredential.update({
       where: { id: body.id },
       data: {
         lastVerified: new Date(),
-        verifyStatus,
+        verifyStatus: "valid",
         verifyMessage,
       },
     });
 
     return NextResponse.json({
       success: true,
-      verifyStatus,
+      verifyStatus: "valid",
       verifyMessage,
       lastVerified: new Date().toISOString(),
     });

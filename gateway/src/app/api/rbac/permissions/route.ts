@@ -1,8 +1,19 @@
+// ─── Zenic-Agents v3 — RBAC Permissions List (Refactorizado FASE 9) ──
+// CAMBIOS:
+// - Autenticación obligatoria
+// - Eliminada doble-query innecesaria (bug de rendimiento)
+// - Paginación consistente siempre
+
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireAuthAndPermission } from "@/lib/rbac-auth";
 import type { PaginatedResponse } from "@/lib/mcp-gateway/types";
 
 export async function GET(request: NextRequest) {
+  // ─── Auth + Permission Check ──────────────────────────────────────
+  const authResult = await requireAuthAndPermission(request, "permission", "read");
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const { searchParams } = new URL(request.url);
     const resource = searchParams.get("resource") || undefined;
@@ -14,6 +25,7 @@ export async function GET(request: NextRequest) {
     if (resource) where.resource = resource;
     if (action) where.action = action;
 
+    // Single unified query — siempre paginada
     const [permissions, total] = await Promise.all([
       db.permission.findMany({
         where,
@@ -23,21 +35,6 @@ export async function GET(request: NextRequest) {
       }),
       db.permission.count({ where }),
     ]);
-
-    // If no specific filter, return all without pagination (small dataset)
-    if (!resource && !action) {
-      const allPermissions = await db.permission.findMany({
-        orderBy: [{ resource: "asc" }, { action: "asc" }],
-      });
-      return NextResponse.json({
-        success: true,
-        data: allPermissions,
-        total: allPermissions.length,
-        page: 1,
-        pageSize: allPermissions.length,
-        totalPages: 1,
-      } satisfies PaginatedResponse<typeof allPermissions[number]>);
-    }
 
     const response: PaginatedResponse<typeof permissions[number]> = {
       success: true,
@@ -52,8 +49,8 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error("[RBAC Permissions GET]", error);
     return NextResponse.json(
-      { success: false, error: "Failed to fetch permissions", code: "INTERNAL_ERROR" },
-      { status: 500 }
+      { success: false, error: "Error al obtener permisos", code: "INTERNAL_ERROR" },
+      { status: 500 },
     );
   }
 }

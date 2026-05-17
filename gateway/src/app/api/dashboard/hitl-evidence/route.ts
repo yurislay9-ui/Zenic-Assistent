@@ -1,3 +1,11 @@
+// ─── HITL Evidence — Evidencia HISTÓRICA desde DB ───────────────────
+// FIX: Antes la evidencia era determinista por string matching — toda
+// solicitud "schema_drift" recibía el mismo texto sin importar el contexto.
+// Ahora: consulta historial de acciones similares + denegaciones previas
+// del gateway para generar evidencia basada en datos REALES.
+// Las heurísticas se mantienen solo para hechos objetivos (reversibilidad,
+// prioridad) — nunca para suposiciones sobre el contenido de la acción.
+
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
@@ -13,7 +21,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch the HITL approval request
+    // ── Obtener la solicitud HITL ────────────────────────────────────
     const hitlRequest = await db.hitlApprovalRequest.findUnique({
       where: { requestId },
     });
@@ -25,33 +33,42 @@ export async function GET(request: Request) {
       );
     }
 
-    // Fetch decisions for this request
+    // ── Obtener decisiones previas para esta solicitud ───────────────
     const decisions = await db.hitlApprovalDecision.findMany({
       where: { requestId },
       orderBy: { decidedAt: "desc" },
     });
 
-    // Parse action payload for evidence
+    // ── Parsear payloads ─────────────────────────────────────────────
     let payload: Record<string, unknown> = {};
     try {
       payload = JSON.parse(hitlRequest.actionPayload);
     } catch {
-      // ignore
+      // ignore parse errors
     }
 
-    // Parse metadata for LLM verdict and evidence
     let metadata: Record<string, unknown> = {};
     try {
       metadata = JSON.parse(hitlRequest.metadata);
     } catch {
-      // ignore
+      // ignore parse errors
     }
 
-    // Build evidence for and against
-    const evidenceFor: Array<{ point: string; weight: number; source: string }> = [];
-    const evidenceAgainst: Array<{ point: string; weight: number; source: string }> = [];
+    // ── Construir evidencia ──────────────────────────────────────────
+    const evidenceFor: Array<{
+      point: string;
+      weight: number;
+      source: string;
+    }> = [];
+    const evidenceAgainst: Array<{
+      point: string;
+      weight: number;
+      source: string;
+    }> = [];
 
-    // Add LLM verdict as evidence
+    // ── Evidencia #1: Veredicto LLM ──────────────────────────────────
+    // Este viene del metadata de la solicitud — es un dato que el sistema
+    // ya calculó, no una heurística nueva.
     const llmVerdict = (metadata?.llmVerdict as boolean) ?? false;
     if (llmVerdict) {
       evidenceFor.push({
@@ -67,37 +84,58 @@ export async function GET(request: Request) {
       });
     }
 
-    // Add policy check evidence
-    if (hitlRequest.targetAction === "schema_drift") {
-      evidenceFor.push({
-        point: "El cambio detectado es consistente con patrones previos aprobados",
-        weight: 0.5,
-        source: "Memoria Adaptativa",
-      });
-    } else if (hitlRequest.targetAction === "intent_routing") {
-      evidenceFor.push({
-        point: "La ruta de intención sugerida tiene alta coincidencia semántica",
-        weight: 0.6,
-        source: "Enrutador de Intenciones",
-      });
+    // ── Evidencia #2: Historial de acciones similares ────────────────
+    // CUÁNTAS acciones del mismo tipo se aprobaron/rechazaron antes.
+    // Esto es evidencia REAL basada en decisiones documentadas, no heurística.
+    const [similarApproved, similarRejected, similarTotal] =
+      await Promise.all([
+        db.hitlApprovalRequest.count({
+          where: {
+            targetAction: hitlRequest.targetAction,
+            status: "approved",
+            id: { not: hitlRequest.id }, // excluir la solicitud actual
+          },
+        }),
+        db.hitlApprovalRequest.count({
+          where: {
+            targetAction: hitlRequest.targetAction,
+            status: "rejected",
+            id: { not: hitlRequest.id },
+          },
+        }),
+        db.hitlApprovalRequest.count({
+          where: {
+            targetAction: hitlRequest.targetAction,
+            id: { not: hitlRequest.id },
+          },
+        }),
+      ]);
+
+    if (similarTotal > 0) {
+      const approvalRate = similarApproved / similarTotal;
+      if (approvalRate >= 0.8) {
+        evidenceFor.push({
+          point: `${similarApproved} de ${similarTotal} acciones "${hitlRequest.targetAction}" fueron aprobadas previamente (${Math.round(approvalRate * 100)}%)`,
+          weight: Math.min(0.3 + approvalRate * 0.4, 0.7), // 0.3–0.7 según tasa
+          source: "Historial de Decisiones",
+        });
+      } else if (approvalRate <= 0.3) {
+        evidenceAgainst.push({
+          point: `Solo ${similarApproved} de ${similarTotal} acciones "${hitlRequest.targetAction}" fueron aprobadas (${Math.round(approvalRate * 100)}%)`,
+          weight: Math.min(0.4 + (1 - approvalRate) * 0.4, 0.8),
+          source: "Historial de Decisiones",
+        });
+      } else {
+        evidenceFor.push({
+          point: `Historial mixto para "${hitlRequest.targetAction}": ${similarApproved} aprobadas, ${similarRejected} rechazadas`,
+          weight: 0.2,
+          source: "Historial de Decisiones",
+        });
+      }
     }
 
-    // Add priority-based evidence
-    if (hitlRequest.priority === "low") {
-      evidenceFor.push({
-        point: "La solicitud tiene prioridad baja — impacto limitado",
-        weight: 0.3,
-        source: "Evaluador de Riesgo",
-      });
-    } else if (hitlRequest.priority === "high" || hitlRequest.priority === "critical") {
-      evidenceAgainst.push({
-        point: `La solicitud tiene prioridad ${hitlRequest.priority} — requiere atención especial`,
-        weight: 0.6,
-        source: "Evaluador de Riesgo",
-      });
-    }
-
-    // Add reversibility evidence
+    // ── Evidencia #3: Reversibilidad ─────────────────────────────────
+    // Hecho objetivo del sistema — no es una suposición.
     if (hitlRequest.isReversible) {
       evidenceFor.push({
         point: "La acción es reversible — se puede deshacer si es necesario",
@@ -112,21 +150,56 @@ export async function GET(request: Request) {
       });
     }
 
-    // Determine action category for color coding
-    let actionCategory = "safe"; // grey
+    // ── Evidencia #4: Bloqueos previos del gateway ───────────────────
+    // Cuántas veces el gateway denegó acceso a este recurso antes.
+    // Esto es un indicador objetivo del riesgo histórico del recurso.
+    const priorDenials = await db.toolExecution.count({
+      where: {
+        verdict: "deny",
+        verdictReason: { contains: hitlRequest.targetResource },
+        createdAt: {
+          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // últimos 30 días
+        },
+      },
+    });
+
+    if (priorDenials > 0) {
+      evidenceAgainst.push({
+        point: `El gateway bloqueó ${priorDenials} acceso${priorDenials > 1 ? "s" : ""} a "${hitlRequest.targetResource}" en los últimos 30 días`,
+        weight: Math.min(0.3 + priorDenials * 0.1, 0.8),
+        source: "Security Gate",
+      });
+    }
+
+    // ── Evidencia #5: Prioridad ──────────────────────────────────────
+    // Hecho objetivo — la prioridad la asigna el sistema, no es heurística.
+    if (
+      hitlRequest.priority === "high" ||
+      hitlRequest.priority === "critical"
+    ) {
+      evidenceAgainst.push({
+        point: `Prioridad ${hitlRequest.priority} — impacto potencial alto`,
+        weight: hitlRequest.priority === "critical" ? 0.7 : 0.5,
+        source: "Evaluador de Riesgo",
+      });
+    }
+
+    // ── Categoría de acción para color coding ────────────────────────
+    let actionCategory = "safe";
     if (
       hitlRequest.targetAction?.includes("financial") ||
       hitlRequest.targetAction?.includes("payment") ||
-      hitlRequest.type === "data_access" && hitlRequest.targetResource?.includes("financial")
+      (hitlRequest.type === "data_access" &&
+        hitlRequest.targetResource?.includes("financial"))
     ) {
-      actionCategory = "financial"; // amber
+      actionCategory = "financial";
     }
     if (
       hitlRequest.targetAction?.includes("delete") ||
       hitlRequest.targetAction?.includes("destructive") ||
       hitlRequest.priority === "critical"
     ) {
-      actionCategory = "destructive"; // red
+      actionCategory = "destructive";
     }
 
     return NextResponse.json({
@@ -146,6 +219,16 @@ export async function GET(request: Request) {
       llmVerdict,
       evidenceFor,
       evidenceAgainst,
+      // Contexto estadístico nuevo — para que el frontend pueda mostrar
+      // "3 de 5 acciones similares fueron aprobadas" con datos reales
+      similarActionsContext:
+        similarTotal > 0
+          ? {
+              total: similarTotal,
+              approved: similarApproved,
+              rejected: similarRejected,
+            }
+          : null,
       decisions: decisions.map((d) => ({
         decision: d.decision,
         decisionByName: d.decisionByName,

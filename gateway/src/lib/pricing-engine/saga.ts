@@ -10,6 +10,7 @@
 // 5. Resumes paused sagas when external input arrives
 
 import { db } from "@/lib/db";
+import { randomUUID } from "crypto";
 import type { FeatureName } from "./types";
 import { checkFeature, validateTrc20Address, calculatePricing, validateUpgradePath, validateDowngradePath, calculateProration } from "./wasm-bridge";
 
@@ -224,7 +225,7 @@ const stepHandlers: Record<string, StepHandler> = {
 
     const subscription = await db.subscription.create({
       data: {
-        subscriptionId: `sub_${tier}_${Date.now()}`,
+        subscriptionId: `sub_${tier}_${randomUUID().slice(0, 8)}`,
         tenantId,
         tier,
         status: tier === "trial" ? "trial" : "pending_payment",
@@ -557,8 +558,110 @@ const stepHandlers: Record<string, StepHandler> = {
   },
 };
 
-// Compensation handlers
-const compensationHandlers: Record<string, CompensationHandler> = {};
+// BUG #7 FIX: Compensation handlers — previously empty, now properly defined
+const compensationHandlers: Record<string, CompensationHandler> = {
+  // ─── Validation steps: no-op (pure checks, no state to revert) ───
+  validate_email_uniqueness: async () => {},
+  validate_trc20_address: async () => {},
+  validate_subscription_status: async () => {},
+  validate_trc20_tx_hash: async () => {},
+  check_tx_hash_uniqueness: async () => {},
+  validate_subscription_cancellable: async () => {},
+  validate_subscription_renewable: async () => {},
+  validate_upgrade_path: async () => {},
+  validate_downgrade_path: async () => {},
+  validate_subscription_reactivatable: async () => {},
+  identify_features_to_revoke: async () => {},
+
+  // ─── Pricing steps: no-op (pure computation) ───
+  calculate_subscription_pricing: async () => {},
+  calculate_proration_amount: async () => {},
+  calculate_proration_credit: async () => {},
+
+  // ─── DB mutation steps: REVERT the changes ───
+  async db_create_subscription(_input, stepOutput) {
+    const dbId = stepOutput.dbId as string;
+    if (dbId) {
+      await db.subscription.delete({ where: { id: dbId } }).catch(() => {});
+    }
+  },
+
+  async db_create_payment_request(_input, stepOutput) {
+    const dbId = stepOutput.dbId as string;
+    if (dbId) {
+      await db.subscriptionPayment.delete({ where: { id: dbId } }).catch(() => {});
+    }
+  },
+
+  async db_update_subscription(input, _stepOutput) {
+    const { tenantId } = input as { tenantId: string; previousTier?: string; previousStatus?: string };
+    const previousTier = input.previousTier as string | undefined;
+    const previousStatus = input.previousStatus as string | undefined;
+    if (previousTier || previousStatus) {
+      await db.subscription.update({
+        where: { tenantId },
+        data: {
+          ...(previousTier ? { tier: previousTier } : {}),
+          ...(previousStatus ? { status: previousStatus } : {}),
+          updatedAt: new Date(),
+        },
+      }).catch(() => {});
+    }
+  },
+
+  async db_cancel_subscription(input, _stepOutput) {
+    const { tenantId } = input as { tenantId: string };
+    await db.subscription.update({
+      where: { tenantId },
+      data: { status: 'active', cancelledAt: null, cancellationReason: null, updatedAt: new Date() },
+    }).catch(() => {});
+  },
+
+  async db_create_payment(_input, stepOutput) {
+    const dbId = stepOutput.dbId as string;
+    if (dbId) {
+      await db.subscriptionPayment.delete({ where: { id: dbId } }).catch(() => {});
+    }
+  },
+
+  async db_update_subscription_status(input, _stepOutput) {
+    const { tenantId, previousStatus } = input as { tenantId: string; previousStatus?: string };
+    if (previousStatus) {
+      await db.subscription.update({
+        where: { tenantId },
+        data: { status: previousStatus, updatedAt: new Date() },
+      }).catch(() => {});
+    }
+  },
+
+  // Feature gate steps: informational, no compensation needed
+  initialize_feature_gates: async () => {},
+  revoke_feature_gates: async () => {},
+  update_feature_gates_for_tier: async () => {},
+  revert_feature_gates_to_trial: async () => {},
+  revert_feature_gates_to_previous_tier: async () => {},
+  revoke_all_feature_gates: async () => {},
+  restore_feature_gates: async () => {},
+  revoke_features_for_downgrade: async () => {},
+  restore_revoked_features: async () => {},
+
+  // Audit steps: no compensation needed (audit log is append-only)
+  create_audit_entry: async () => {},
+  mark_audit_as_rolled_back: async () => {},
+
+  // Payment steps
+  async finalize_payment_confirmation(_input, stepOutput) {
+    const { paymentDbId } = _input as { paymentDbId?: string };
+    if (paymentDbId) {
+      await db.subscriptionPayment.update({
+        where: { id: paymentDbId },
+        data: { status: 'pending', confirmedAt: null, adminConfirmedAt: null },
+      }).catch(() => {});
+    }
+  },
+
+  initiate_refund_process: async () => {},
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Saga Orchestrator
@@ -591,7 +694,8 @@ export async function executeSaga(
   }
 
   const steps = definition.steps;
-  const executionId = `saga_${sagaType}_${Date.now()}`;
+  // BUG #13 FIX: Use crypto.randomUUID() instead of Date.now() for unique IDs
+  const executionId = `saga_${sagaType}_${randomUUID().slice(0, 8)}`;
 
   // Persist saga execution
   const sagaExecution = await db.sagaExecution.create({
@@ -850,10 +954,11 @@ export async function resumeSaga(
     include: { steps: { orderBy: { stepIndex: "asc" } } },
   });
 
+  // BUG #10 FIX: Don't access sagaExecution after null check
   if (!sagaExecution) {
     return {
       executionId,
-      sagaType: sagaExecution?.sagaType as SagaTypeName || "trial_creation",
+      sagaType: "trial_creation" as SagaTypeName, // Safe default, not null dereference
       status: "failed",
       currentStepIndex: 0,
       totalSteps: 0,

@@ -130,11 +130,14 @@ class EvidenceService {
     return this.mapRecordToModel(record);
   }
 
-  /** Get all evidence for an approval request */
-  async getEvidence(requestId: string): Promise<ApprovalEvidence[]> {
+  /** Get all evidence for an approval request
+   *  FIX #7: Añadido take con límite.
+   */
+  async getEvidence(requestId: string, limit = 100): Promise<ApprovalEvidence[]> {
     const records = await db.hitlEvidence.findMany({
       where: { requestId },
       orderBy: { createdAt: "asc" },
+      take: Math.min(limit, 200), // INVARIANT 3
     });
 
     return records.map((r) => this.mapRecordToModel(r));

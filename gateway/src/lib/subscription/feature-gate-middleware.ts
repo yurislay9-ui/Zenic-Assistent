@@ -3,6 +3,10 @@
  *
  * Checks subscription tier before allowing access to features.
  * Returns 403 if the feature is not available for the tenant's tier.
+ *
+ * BUG #6 FIX: Removed in-memory cache that was never populated.
+ * All checks now read from the database for consistency.
+ * INVARIANT 4: Deny-by-default if DB is unavailable.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -15,8 +19,9 @@ import {
   MemoryTierConfig,
   FEATURE_GATES,
 } from './types';
+import { db } from '@/lib/db';
 
-// ─── Tenant Subscription Cache ───
+// ─── DB-backed Subscription Lookup ───
 
 interface TenantSubscriptionInfo {
   tier: SubscriptionTierName;
@@ -25,26 +30,37 @@ interface TenantSubscriptionInfo {
   expiresAt?: string;
 }
 
-// In-memory cache (in production, this would be from DB/API)
-const tenantCache = new Map<string, TenantSubscriptionInfo>();
+/**
+ * Look up a tenant's subscription from the database.
+ * This replaces the in-memory cache that was never populated.
+ */
+async function lookupSubscription(tenantId: string): Promise<TenantSubscriptionInfo | null> {
+  try {
+    const subscription = await db.tenantSubscription.findUnique({
+      where: { tenantId },
+    });
 
-export function setTenantSubscription(tenantId: string, info: TenantSubscriptionInfo): void {
-  tenantCache.set(tenantId, info);
+    if (!subscription) return null;
+
+    let addOns: string[] = [];
+    try {
+      addOns = JSON.parse(subscription.addOns as string);
+    } catch {
+      addOns = [];
+    }
+
+    return {
+      tier: subscription.tier as SubscriptionTierName,
+      addOns,
+      status: subscription.status,
+    };
+  } catch {
+    // DB unavailable — return null (INVARIANT 4: deny by default)
+    return null;
+  }
 }
 
-export function getTenantSubscription(tenantId: string): TenantSubscriptionInfo | undefined {
-  return tenantCache.get(tenantId);
-}
-
-export function clearTenantSubscription(tenantId: string): boolean {
-  return tenantCache.delete(tenantId);
-}
-
-export function clearAllTenantSubscriptions(): void {
-  tenantCache.clear();
-}
-
-// ─── Feature Gate Check ───
+// ─── Feature Gate Check (async, DB-backed) ───
 
 export interface FeatureGateResult {
   allowed: boolean;
@@ -54,11 +70,15 @@ export interface FeatureGateResult {
   upgradeUrl?: string;
 }
 
-export function checkFeatureGate(
+/**
+ * Check feature gate using the database as the source of truth.
+ * No in-memory cache — every check reads the latest subscription state.
+ */
+export async function checkFeatureGate(
   tenantId: string,
   feature: string
-): FeatureGateResult {
-  const subscription = tenantCache.get(tenantId);
+): Promise<FeatureGateResult> {
+  const subscription = await lookupSubscription(tenantId);
 
   if (!subscription) {
     return {
@@ -79,7 +99,6 @@ export function checkFeatureGate(
   const allowed = isFeatureAvailable(feature, subscription.tier, subscription.addOns);
 
   if (!allowed) {
-    // Find the minimum tier required
     const gate = FEATURE_GATES.find(g => g.feature === feature);
     return {
       allowed: false,
@@ -93,15 +112,15 @@ export function checkFeatureGate(
   return { allowed: true };
 }
 
-// ─── Usage Limit Check ───
+// ─── Usage Limit Check (async, DB-backed) ───
 
-export function checkUsageLimit(
+export async function checkUsageLimit(
   tenantId: string,
   usageType: keyof TierLimits,
   currentUsage: number,
   requestedAmount: number = 1
-): FeatureGateResult {
-  const subscription = tenantCache.get(tenantId);
+): Promise<FeatureGateResult> {
+  const subscription = await lookupSubscription(tenantId);
 
   if (!subscription) {
     return {
@@ -135,13 +154,13 @@ export function checkUsageLimit(
   return { allowed: true };
 }
 
-// ─── Memory Tier Check ───
+// ─── Memory Tier Check (async, DB-backed) ───
 
-export function checkMemoryMechanism(
+export async function checkMemoryMechanism(
   tenantId: string,
   mechanism: string
-): FeatureGateResult {
-  const subscription = tenantCache.get(tenantId);
+): Promise<FeatureGateResult> {
+  const subscription = await lookupSubscription(tenantId);
 
   if (!subscription) {
     return { allowed: false, reason: 'No subscription found for tenant' };
@@ -160,14 +179,14 @@ export function checkMemoryMechanism(
   return { allowed: true };
 }
 
-// ─── Memory Mapping Limit Check ───
+// ─── Memory Mapping Limit Check (async, DB-backed) ───
 
-export function checkMemoryMappingLimit(
+export async function checkMemoryMappingLimit(
   tenantId: string,
   currentMappings: number,
   requestedMappings: number = 1
-): FeatureGateResult {
-  const subscription = tenantCache.get(tenantId);
+): Promise<FeatureGateResult> {
+  const subscription = await lookupSubscription(tenantId);
 
   if (!subscription) {
     return { allowed: false, reason: 'No subscription found for tenant' };
@@ -197,10 +216,8 @@ export function withFeatureGate(
   handler: (req: NextRequest, ctx: { tenantId: string; tier: SubscriptionTierName }) => Promise<NextResponse>
 ) {
   return async (req: NextRequest): Promise<NextResponse> => {
-    // Extract tenant ID from header or default
     const tenantId = req.headers.get('x-tenant-id') || 'default';
-
-    const result = checkFeatureGate(tenantId, feature);
+    const result = await checkFeatureGate(tenantId, feature);
 
     if (!result.allowed) {
       return NextResponse.json(
@@ -215,7 +232,10 @@ export function withFeatureGate(
       );
     }
 
-    const subscription = getTenantSubscription(tenantId)!;
-    return handler(req, { tenantId, tier: subscription.tier });
+    // Fetch fresh subscription info for handler context
+    const subscription = await lookupSubscription(tenantId);
+    const tier = subscription?.tier ?? 'starter';
+
+    return handler(req, { tenantId, tier });
   };
 }

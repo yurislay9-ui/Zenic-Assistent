@@ -1,17 +1,34 @@
 // ─── Zenic-Agents v3 — Subscription API: Create Payment ──────────────
 // POST /api/v1/subscription/payment — Create a USDT TRC20 payment
+// INVARIANT 4: Platform wallet must be configured — fail-closed if missing.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import {
-  TIER_PRICES,
-  ADD_ONS,
-  SubscriptionTierName,
-} from '@/lib/subscription/types';
+import { calculatePricing, PAID_TIER_NAMES, SubscriptionTierName as PricingTierName } from '@/lib/pricing-engine';
+import { requireTenantAuth, verifyTenantOwnership } from '@/lib/subscription/auth-helpers';
 
-const COMPANY_WALLET = process.env.USDT_TRC20_COMPANY_WALLET || 'TN7gR3kfdEkdk5dKz9PfeXf3qGxBfKs2Qy';
+/**
+ * Get the company wallet from environment variable.
+ * INVARIANT 4: Fail-closed — never use a hardcoded fallback wallet.
+ */
+function getCompanyWallet(): string {
+  const wallet = process.env.USDT_TRC20_COMPANY_WALLET;
+  if (!wallet) {
+    throw new Error('USDT_TRC20_COMPANY_WALLET env var is required. Payment creation denied.');
+  }
+  if (!wallet.startsWith('T') || wallet.length !== 34) {
+    throw new Error('USDT_TRC20_COMPANY_WALLET is not a valid TRC20 address.');
+  }
+  return wallet;
+}
+
+const VALID_TIERS = ['starter', 'business', 'enterprise', 'on_premise_enterprise'] as const;
 
 export async function POST(req: NextRequest) {
+  // Verify tenant identity
+  const auth = requireTenantAuth(req);
+  if (auth instanceof Response) return auth;
+
   try {
     const body = await req.json() as {
       tenantId?: string;
@@ -28,15 +45,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const validTiers: SubscriptionTierName[] = ['starter', 'business', 'enterprise', 'on_premise_enterprise'];
-    if (!validTiers.includes(body.tier as SubscriptionTierName)) {
+    // Verify tenant ownership: caller can only create payments for their own tenant
+    if (!verifyTenantOwnership(auth, body.tenantId)) {
       return NextResponse.json(
-        { error: `Invalid tier. Must be one of: ${validTiers.join(', ')}` },
+        { error: 'Access denied' },
+        { status: 403 },
+      );
+    }
+
+    if (!VALID_TIERS.includes(body.tier as typeof VALID_TIERS[number])) {
+      return NextResponse.json(
+        { error: `Invalid tier. Must be one of: ${VALID_TIERS.join(', ')}` },
         { status: 400 },
       );
     }
 
-    const tier = body.tier as SubscriptionTierName;
+    const tier = body.tier as typeof VALID_TIERS[number];
     const addOnIds = body.addOnIds ?? [];
     const billingCycle = body.billingCycle ?? 'monthly';
 
@@ -52,17 +76,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Calculate amount
-    const tierPrice = TIER_PRICES[tier];
-    const baseAmount = billingCycle === 'annual' ? tierPrice.annual : tierPrice.monthly;
-    const addOnCost = ADD_ONS
-      .filter(a => addOnIds.includes(a.id))
-      .reduce((sum, a) => sum + a.monthlyPriceUsdt, 0);
+    // Calculate amount using the canonical pricing engine (WASM-first, TS fallback)
+    const pricing = calculatePricing(tier, addOnIds);
+    const baseAmount = billingCycle === 'annual' ? pricing.annual_price_usdt : pricing.monthly_price_usdt;
+    const addOnCost = pricing.add_ons_monthly_usdt;
 
     const includesSetupFee = body.includesSetupFee ?? false;
-    const setupFeeAmount = includesSetupFee ? tierPrice.setup : 0;
+    const setupFeeAmount = includesSetupFee ? pricing.setup_fee_usdt : 0;
 
     const totalAmount = baseAmount + addOnCost + setupFeeAmount;
+
+    // Get company wallet — fail-closed if not configured (BUG #2 FIX)
+    let companyWallet: string;
+    try {
+      companyWallet = getCompanyWallet();
+    } catch {
+      return NextResponse.json(
+        { error: 'Payment processing unavailable', message: 'Platform wallet not configured' },
+        { status: 503 },
+      );
+    }
 
     // Payment expires in 24 hours
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
@@ -73,7 +106,7 @@ export async function POST(req: NextRequest) {
         tenantId: body.tenantId,
         amountUsdt: totalAmount,
         method: 'manual',
-        companyWallet: COMPANY_WALLET,
+        companyWallet,
         status: 'pending',
         includesSetupFee,
         setupFeeAmountUsdt: setupFeeAmount,
@@ -90,7 +123,7 @@ export async function POST(req: NextRequest) {
           paymentInfo: {
             network: 'TRC20',
             token: 'USDT',
-            walletAddress: COMPANY_WALLET,
+            walletAddress: companyWallet,
             amount: totalAmount,
             expiresAt,
           },
@@ -100,8 +133,9 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error('[Subscription Payment POST]', error);
+    // BUG #9 FIX: Never expose String(error) to client
     return NextResponse.json(
-      { error: 'Internal server error', details: String(error) },
+      { error: 'Internal server error' },
       { status: 500 },
     );
   }

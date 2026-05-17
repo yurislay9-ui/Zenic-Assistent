@@ -135,23 +135,11 @@ class PipelineIntegration {
     sla: EscalationSLA;
   } | null> {
     // If verdict is DENY, return null — DENY is invariant
+    // FIX #4: Antes intentaba grabar audit con requestId inventado
+    // ("denied_XXX") que violaba FK en HitlApprovalAudit.requestId.
+    // DENY es absoluto — no crea solicitud HITL ni registro de auditoría HITL.
+    // El deny ya se registra en AuditLog (tabla general) por el SafetyGate.
     if (verdict.verdict === "deny") {
-      // Record audit event for denied action
-      await recordAuditEvent({
-        requestId: `denied_${verdict.actionId}`,
-        eventType: HitlEventType.CREATED,
-        actorId: "safety_gate",
-        actorName: "Safety Gate",
-        details: {
-          action: "safety_gate_deny",
-          actionId: verdict.actionId,
-          actionType: verdict.actionType,
-          category: verdict.category,
-          riskLevel: verdict.riskLevel,
-          reason: verdict.reason,
-          outcome: "denied_no_hitl_request",
-        },
-      });
       return null;
     }
 
@@ -350,4 +338,5 @@ export function getPipelineIntegration(): PipelineIntegration {
 
 export function resetPipelineIntegration(): void {
   integrationInstance = null;
+  PipelineIntegration.instance = null; // FIX #5
 }

@@ -168,46 +168,54 @@ function mapRecordToPolicyNamespace(rec: NamespaceDbRecord): PolicyNamespace {
 
 // ─── Helper: Load policies for a namespace ────────────────────────────
 
+/** Maximum policies to load per namespace to prevent OOM on 500MB Termux */
+const MAX_POLICIES_PER_NAMESPACE = 200;
+
 /**
  * Load all PolicyDocuments associated with a namespace.
- * Policies are associated via:
- *   - DeclPolicy labels containing "namespace": "namespaceId"
- *   - PolicySet.namespace field
- *   - Direct association through tenant resolution
+ * BUG #3 FIX: Added take limits to all queries to prevent OOM.
+ * BUG #11 FIX: Uses SQL-side filtering where possible instead of
+ * loading all policies and filtering in JS.
  */
 async function loadNamespacePolicies(namespaceId: string, tenantId: string): Promise<PolicyDocument[]> {
   const policies: PolicyDocument[] = [];
   const seenPolicyIds = new Set<string>();
 
   // 1. Load policies via DeclPolicy labels containing namespace reference
+  // BUG #11 FIX: Use contains filter at SQL level instead of full table scan
   const labeledPolicies = await db.declPolicy.findMany({
-    where: { isActive: true },
+    where: {
+      isActive: true,
+      OR: [
+        { labels: { contains: `"namespace":"${namespaceId}"` } },
+        { labels: { contains: `"zenic.dev/namespace":"${namespaceId}"` } },
+      ],
+    },
+    take: MAX_POLICIES_PER_NAMESPACE,
   });
 
   for (const p of labeledPolicies) {
     if (seenPolicyIds.has(p.policyId)) continue;
     try {
       const labels = JSON.parse(p.labels) as Record<string, string>;
-      if (labels.namespace === namespaceId || labels["zenic.dev/namespace"] === namespaceId) {
-        seenPolicyIds.add(p.policyId);
-        policies.push({
-          apiVersion: p.apiVersion,
-          kind: "PolicyDocument" as const,
-          metadata: {
-            id: p.policyId,
-            name: p.name,
-            version: p.version,
-            description: p.description,
-            compliance: JSON.parse(p.compliance),
-            labels,
-            author: p.author ?? undefined,
-            createdAt: p.createdAt.toISOString(),
-            updatedAt: p.updatedAt.toISOString(),
-          },
-          statements: JSON.parse(p.statements),
-          tests: JSON.parse(p.tests),
-        });
-      }
+      seenPolicyIds.add(p.policyId);
+      policies.push({
+        apiVersion: p.apiVersion,
+        kind: "PolicyDocument" as const,
+        metadata: {
+          id: p.policyId,
+          name: p.name,
+          version: p.version,
+          description: p.description,
+          compliance: JSON.parse(p.compliance),
+          labels,
+          author: p.author ?? undefined,
+          createdAt: p.createdAt.toISOString(),
+          updatedAt: p.updatedAt.toISOString(),
+        },
+        statements: JSON.parse(p.statements),
+        tests: JSON.parse(p.tests),
+      });
     } catch {
       // Skip policies with malformed labels
     }
@@ -224,18 +232,22 @@ async function loadNamespacePolicies(namespaceId: string, tenantId: string): Pro
   for (const set of policySets) {
     try {
       const entries = JSON.parse(set.policies) as Array<{ policyId: string; version?: string; required?: boolean }>;
-      for (const entry of entries) {
-        if (seenPolicyIds.has(entry.policyId)) continue;
+      // BUG #3 FIX: Batch-load all referenced policies in ONE query instead of N+1
+      const policyIds = entries
+        .map((e) => e.policyId)
+        .filter((id) => !seenPolicyIds.has(id));
 
-        const policy = await db.declPolicy.findFirst({
+      if (policyIds.length > 0) {
+        const batchPolicies = await db.declPolicy.findMany({
           where: {
-            policyId: entry.policyId,
+            policyId: { in: policyIds },
             isActive: true,
-            ...(entry.version ? { version: entry.version } : {}),
           },
+          take: MAX_POLICIES_PER_NAMESPACE - policies.length,
         });
 
-        if (policy) {
+        for (const policy of batchPolicies) {
+          if (seenPolicyIds.has(policy.policyId)) continue;
           seenPolicyIds.add(policy.policyId);
           policies.push({
             apiVersion: policy.apiVersion,
@@ -261,21 +273,23 @@ async function loadNamespacePolicies(namespaceId: string, tenantId: string): Pro
     }
   }
 
-  // 3. Load policies via tenant resolution (tenant-scoped policies without explicit namespace)
-  const tenantPolicies = await db.declPolicy.findMany({
-    where: { isActive: true },
-  });
+  // 3. Load tenant-scoped policies without explicit namespace (only if room remains)
+  // BUG #3 FIX: Use SQL filtering + take limit
+  if (policies.length < MAX_POLICIES_PER_NAMESPACE) {
+    const tenantPolicies = await db.declPolicy.findMany({
+      where: {
+        isActive: true,
+        labels: { contains: `"tenantId":"${tenantId}"` },
+      },
+      take: MAX_POLICIES_PER_NAMESPACE - policies.length,
+    });
 
-  for (const p of tenantPolicies) {
-    if (seenPolicyIds.has(p.policyId)) continue;
-    try {
-      const labels = JSON.parse(p.labels) as Record<string, string>;
-      // Include policies that have matching tenantId in labels and no explicit namespace
-      if (
-        labels.tenantId === tenantId &&
-        !labels.namespace &&
-        !labels["zenic.dev/namespace"]
-      ) {
+    for (const p of tenantPolicies) {
+      if (seenPolicyIds.has(p.policyId)) continue;
+      try {
+        const labels = JSON.parse(p.labels) as Record<string, string>;
+        // Only include policies without explicit namespace
+        if (labels.namespace || labels["zenic.dev/namespace"]) continue;
         seenPolicyIds.add(p.policyId);
         policies.push({
           apiVersion: p.apiVersion,
@@ -294,9 +308,9 @@ async function loadNamespacePolicies(namespaceId: string, tenantId: string): Pro
           statements: JSON.parse(p.statements),
           tests: JSON.parse(p.tests),
         });
+      } catch {
+        // Skip policies with malformed labels
       }
-    } catch {
-      // Skip policies with malformed labels
     }
   }
 
@@ -842,6 +856,20 @@ async function evaluateMostRestrictive(
 }
 
 // ─── Helper: Check if a statement matches a request ───────────────────
+// BUG #2 FIX: Import shared evaluation functions from evaluator instead of
+// duplicating them. This ensures security fixes (e.g. ReDoS in regex) are
+// applied everywhere. INVARIANT 4: defense in depth requires consistency.
+
+// Re-export operator strategies and helpers from evaluator (single source of truth)
+// We use dynamic import via require-style to avoid circular deps at module level.
+// The evaluator exports these as module-level constants, so we reference them lazily.
+
+// Lazy accessor: avoids circular import issues at module initialization
+function getOperatorStrategies(): Record<string, (fieldValue: unknown, conditionValue: unknown) => boolean> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const evaluator = require("./evaluator");
+  return evaluator.OPERATOR_STRATEGIES;
+}
 
 function matchesPattern(pattern: string, value: string): boolean {
   if (pattern === "*") return true;
@@ -857,52 +885,6 @@ function matchesPattern(pattern: string, value: string): boolean {
   return false;
 }
 
-function statementMatchesRequest(
-  statement: PolicyStatement,
-  request: PolicyEvaluationRequest,
-): boolean {
-  if (!matchesPattern(statement.resource, request.resource)) return false;
-  if (!matchesPattern(statement.action, request.action)) return false;
-
-  if (statement.conditions && statement.conditions.length > 0) {
-    return statement.conditions.every((condition) => {
-      const fieldValue = getNestedField(request.context, condition.field);
-      const strategy = OPERATOR_STRATEGIES[condition.operator];
-      if (!strategy) return false;
-      return strategy(fieldValue, condition.value);
-    });
-  }
-
-  return true;
-}
-
-// Reuse operator strategies from evaluator
-type OperatorFn = (fieldValue: unknown, conditionValue: unknown) => boolean;
-
-const OPERATOR_STRATEGIES: Record<string, OperatorFn> = {
-  eq: (field, value) => field === value,
-  neq: (field, value) => field !== value,
-  in: (field, value) => Array.isArray(value) && value.includes(field),
-  notin: (field, value) => Array.isArray(value) && !value.includes(field),
-  gt: (field, value) => typeof field === "number" && typeof value === "number" && field > value,
-  lt: (field, value) => typeof field === "number" && typeof value === "number" && field < value,
-  gte: (field, value) => typeof field === "number" && typeof value === "number" && field >= value,
-  lte: (field, value) => typeof field === "number" && typeof value === "number" && field <= value,
-  regex: (field, value) => {
-    if (typeof field !== "string" || typeof value !== "string") return false;
-    try { return new RegExp(value).test(field); } catch { return false; }
-  },
-  exists: (field) => field !== undefined && field !== null,
-  not_exists: (field) => field === undefined || field === null,
-  contains: (field, value) => {
-    if (typeof field === "string" && typeof value === "string") return field.includes(value);
-    if (Array.isArray(field)) return field.includes(value);
-    return false;
-  },
-  starts_with: (field, value) => typeof field === "string" && typeof value === "string" && field.startsWith(value),
-  ends_with: (field, value) => typeof field === "string" && typeof value === "string" && field.endsWith(value),
-};
-
 function getNestedField(obj: Record<string, unknown>, path: string): unknown {
   const parts = path.split(".");
   let current: unknown = obj;
@@ -915,6 +897,26 @@ function getNestedField(obj: Record<string, unknown>, path: string): unknown {
     }
   }
   return current;
+}
+
+function statementMatchesRequest(
+  statement: PolicyStatement,
+  request: PolicyEvaluationRequest,
+): boolean {
+  if (!matchesPattern(statement.resource, request.resource)) return false;
+  if (!matchesPattern(statement.action, request.action)) return false;
+
+  if (statement.conditions && statement.conditions.length > 0) {
+    const strategies = getOperatorStrategies();
+    return statement.conditions.every((condition) => {
+      const fieldValue = getNestedField(request.context, condition.field);
+      const strategy = strategies[condition.operator];
+      if (!strategy) return false;
+      return strategy(fieldValue, condition.value);
+    });
+  }
+
+  return true;
 }
 
 // ─── Helper: Load a namespace record from DB ──────────────────────────

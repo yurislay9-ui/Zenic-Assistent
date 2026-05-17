@@ -82,11 +82,14 @@ class NotificationLogService {
     return this.mapRecordToModel(record);
   }
 
-  /** Get notification history for a request */
-  async getNotificationHistory(requestId: string): Promise<NotificationLogRecord[]> {
+  /** Get notification history for a request
+   *  FIX #7: Añadido take con límite.
+   */
+  async getNotificationHistory(requestId: string, limit = 100): Promise<NotificationLogRecord[]> {
     const records = await db.hitlNotificationLog.findMany({
       where: { requestId },
       orderBy: { createdAt: "desc" },
+      take: Math.min(limit, 200), // INVARIANT 3
     });
 
     return records.map((r) => this.mapRecordToModel(r));

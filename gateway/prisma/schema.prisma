@@ -123,6 +123,10 @@ model McpTool {
   executions  ToolExecution[]
   accessPolicies ToolAccessPolicy[]
 
+  @@index([category])
+  @@index([riskLevel])
+  @@index([status])
+  @@index([serverId])
   @@map("mcp_tools")
 }
 
@@ -146,6 +150,7 @@ model McpServer {
 
   tools McpTool[]
 
+  @@index([status])
   @@map("mcp_servers")
 }
 
@@ -175,6 +180,11 @@ model ToolExecution {
   auditLogId  String?  @unique
   auditLog    AuditLog?  @relation(fields: [auditLogId], references: [id], onDelete: SetNull)
 
+  @@index([toolId])
+  @@index([executorId])
+  @@index([status])
+  @@index([verdict])
+  @@index([createdAt])
   @@map("tool_executions")
 }
 
@@ -203,6 +213,7 @@ model AuditLog {
   @@index([action])
   @@index([resource])
   @@index([severity])
+  @@index([outcome])
   @@index([createdAt])
   @@map("audit_logs")
 }
@@ -225,6 +236,8 @@ model AccessPolicy {
 
   toolAccessPolicies ToolAccessPolicy[]
 
+  @@index([isEnabled])
+  @@index([priority])
   @@map("access_policies")
 }
 
@@ -1321,18 +1334,20 @@ model MemoryLifecycleEpisode {
   @@map("memory_lifecycle_episodes")
 }
 
-// ─── API Credentials — API Keys & Service Connections ──────────────────
+// ─── API Credentials (External AI Services) ──────────────────────────
+// SECURITY: Campos sensibles (apiKey, apiSecret, password, username) se
+// cifran con AES-256-GCM antes de persistir. Solo se enmascaran al leer.
+// INVARIANT 4 — defensa en profundidad, la regla DENY es absoluta.
 
 model ApiCredential {
   id            String   @id @default(cuid())
   name          String                          // Human-readable name e.g. "OpenAI Production"
   platform      String                          // Platform ID: openai, anthropic, google, azure, aws, custom, etc.
   type          String   @default("api_key")    // api_key | oauth2 | basic_auth | bearer | custom
-  apiKey        String                          // The API key or token (masked in UI)
-  apiSecret     String?                         // Optional secret (for HMAC, client_secret, etc.)
+  encryptedData String                          // AES-256-GCM encrypted JSON: { apiKey, apiSecret, password, username }
+  iv            String                          // Initialization vector (hex)
+  authTag       String                          // Authentication tag (hex)
   endpoint      String?                         // Custom endpoint URL if applicable
-  username      String?                         // For basic_auth type
-  password      String?                         // For basic_auth type (masked in UI)
   scope         String   @default("[]")         // JSON: array of permission scopes
   isActive      Boolean  @default(true)
   lastVerified  DateTime?                       // When the key was last tested
@@ -1346,4 +1361,59 @@ model ApiCredential {
   @@index([isActive])
   @@index([verifyStatus])
   @@map("api_credentials")
+}
+
+// ─── Service Credentials (External Agent Connections) ────────────────
+// SECURITY: Campos cifrados con AES-256-GCM (ver lib/crypto.ts).
+// Los valores nunca se almacenan en localStorage ni en texto plano.
+// INVARIANT 4 — defensa en profundidad, la regla DENY es absoluta.
+
+model ServiceCredential {
+  id            String   @id @default(cuid())
+  serviceId     String                          // e.g. "jira", "slack", "whatsapp", "twilio"
+  nombre        String                          // Human-readable service name
+  encryptedData String                          // AES-256-GCM encrypted JSON of campos (key-value pairs)
+  iv            String                          // Initialization vector (hex)
+  authTag       String                          // Authentication tag (hex)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([serviceId])
+  @@index([isActive])
+  @@map("service_credentials")
+}
+
+// ─── Niche Templates & Files (Persistent, not in-memory) ────────────
+
+model NicheTemplate {
+  id            String   @id @default(cuid())
+  nombre        String                          // Template name
+  descripcion   String                          // Template description
+  tipo          String   @default("documento")  // documento | formulario | flujo | registro
+  nichoId       String                          // Industry niche ID
+  estado        String   @default("borrador")   // lista | borrador
+  sourceFileId  String?                         // FK to NicheTemplateFile that generated this
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([nichoId])
+  @@index([estado])
+  @@map("niche_templates")
+}
+
+model NicheTemplateFile {
+  id                String   @id @default(cuid())
+  nombre            String                          // Original file name
+  tipo              String                          // MIME type
+  tamano            Int                             // File size in bytes
+  nichoId           String                          // Industry niche ID
+  estado            String   @default("recibido")   // recibido | procesando | completado | error
+  plantillaGenerada String?                         // Name of generated template
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([nichoId])
+  @@index([estado])
+  @@map("niche_template_files")
 }

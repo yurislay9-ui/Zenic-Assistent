@@ -9,7 +9,9 @@ import type {
 } from "@/components/ui/toast"
 
 const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+// FIX CRÍTICO: 1000000ms (16.7 min) → 5000ms (5 seg)
+// INVARIANT 3: 500MB RAM — los toasts deben purgarse rápidamente
+const TOAST_REMOVE_DELAY = 5000
 
 type ToasterToast = ToastProps & {
   id: string
@@ -58,6 +60,7 @@ interface State {
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
+// Efecto secundario extraído del reducer — reducer debe ser puro
 const addToRemoveQueue = (toastId: string) => {
   if (toastTimeouts.has(toastId)) {
     return
@@ -74,6 +77,8 @@ const addToRemoveQueue = (toastId: string) => {
   toastTimeouts.set(toastId, timeout)
 }
 
+// FIX: Reducer PURO — sin efectos secundarios
+// El addToRemoveQueue() se ejecuta en dispatch(), no aquí
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case "ADD_TOAST":
@@ -92,17 +97,6 @@ export const reducer = (state: State, action: Action): State => {
 
     case "DISMISS_TOAST": {
       const { toastId } = action
-
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
-      if (toastId) {
-        addToRemoveQueue(toastId)
-      } else {
-        state.toasts.forEach((toast) => {
-          addToRemoveQueue(toast.id)
-        })
-      }
-
       return {
         ...state,
         toasts: state.toasts.map((t) =>
@@ -133,8 +127,22 @@ const listeners: Array<(state: State) => void> = []
 
 let memoryState: State = { toasts: [] }
 
+// FIX: Efectos secundarios de DISMISS movidos aquí fuera del reducer
 function dispatch(action: Action) {
   memoryState = reducer(memoryState, action)
+
+  // Manejar addToRemoveQueue fuera del reducer (pureza)
+  if (action.type === "DISMISS_TOAST") {
+    const { toastId } = action
+    if (toastId) {
+      addToRemoveQueue(toastId)
+    } else {
+      memoryState.toasts.forEach((toast) => {
+        addToRemoveQueue(toast.id)
+      })
+    }
+  }
+
   listeners.forEach((listener) => {
     listener(memoryState)
   })
@@ -174,6 +182,8 @@ function toast({ ...props }: Toast) {
 function useToast() {
   const [state, setState] = React.useState<State>(memoryState)
 
+  // FIX CRÍTICO: dependencia [] en vez de [state]
+  // Antes: [state] causaba re-suscripción infinita en cada render
   React.useEffect(() => {
     listeners.push(setState)
     return () => {
@@ -182,7 +192,7 @@ function useToast() {
         listeners.splice(index, 1)
       }
     }
-  }, [state])
+  }, []) // ← DEPENDENCIA VACÍA — solo suscribir una vez
 
   return {
     ...state,

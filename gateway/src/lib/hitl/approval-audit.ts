@@ -16,6 +16,7 @@ import {
   type ComplianceExportRecord,
   type HitlEventType,
   ApprovalRequestStatus,
+  ApprovalType,
   DecisionType,
 } from "./types";
 
@@ -48,7 +49,12 @@ function computeContentHash(data: {
   return createHash("sha256").update(canonical).digest("hex");
 }
 
-/** Record an audit event in the HITL approval audit trail */
+/** Record an audit event in the HITL approval audit trail
+ *  FIX #2 CRÍTICO: Race condition — antes hacía read-then-write sin transacción.
+ *  Si dos eventos se grababan concurrentemente, ambos obtenían el mismo previousHash,
+ *  rompiendo la cadena Merkle. Ahora usa $transaction con lock serializable
+ *  para garantizar que el hash se encadene correctamente bajo concurrencia.
+ */
 export async function recordAuditEvent(params: {
   requestId: string;
   eventType: HitlEventType;
@@ -56,40 +62,55 @@ export async function recordAuditEvent(params: {
   actorName: string;
   details: Record<string, unknown>;
 }): Promise<ApprovalAuditRecord> {
-  // Get the latest audit record for this request to chain the hash
-  const latestAudit = await db.hitlApprovalAudit.findFirst({
-    where: { requestId: params.requestId },
-    orderBy: { timestamp: "desc" },
-  });
-
-  // If no record for this request, get the global latest for cross-request chaining
-  const previousHash = latestAudit?.contentHash ??
-    (await getLatestGlobalHash());
-
   const timestamp = new Date().toISOString();
   const detailsStr = JSON.stringify(params.details);
 
-  const contentHash = computeContentHash({
-    requestId: params.requestId,
-    eventType: params.eventType,
-    actorId: params.actorId,
-    actorName: params.actorName,
-    details: detailsStr,
-    previousHash,
-    timestamp,
-  });
+  // FIX #2: Toda la operación dentro de transacción serializable
+  // para evitar race condition en la cadena Merkle.
+  // Pasos atómicos: 1) leer último hash → 2) computar nuevo → 3) escribir
+  const record = await db.$transaction(async (tx) => {
+    // 1. Get the latest audit record for this request to chain the hash
+    const latestAudit = await tx.hitlApprovalAudit.findFirst({
+      where: { requestId: params.requestId },
+      orderBy: { timestamp: "desc" },
+    });
 
-  const record = await db.hitlApprovalAudit.create({
-    data: {
+    // If no record for this request, get the global latest for cross-request chaining
+    let previousHash: string;
+    if (latestAudit?.contentHash) {
+      previousHash = latestAudit.contentHash;
+    } else {
+      const globalLatest = await tx.hitlApprovalAudit.findFirst({
+        orderBy: { timestamp: "desc" },
+        select: { contentHash: true },
+      });
+      previousHash = globalLatest?.contentHash ?? HITL_GENESIS_HASH;
+    }
+
+    // 2. Compute content hash
+    const contentHash = computeContentHash({
       requestId: params.requestId,
       eventType: params.eventType,
       actorId: params.actorId,
       actorName: params.actorName,
       details: detailsStr,
-      contentHash,
       previousHash,
-      timestamp: new Date(timestamp),
-    },
+      timestamp,
+    });
+
+    // 3. Create the record atomically
+    return tx.hitlApprovalAudit.create({
+      data: {
+        requestId: params.requestId,
+        eventType: params.eventType,
+        actorId: params.actorId,
+        actorName: params.actorName,
+        details: detailsStr,
+        contentHash,
+        previousHash,
+        timestamp: new Date(timestamp),
+      },
+    });
   });
 
   return {
@@ -105,14 +126,9 @@ export async function recordAuditEvent(params: {
   };
 }
 
-/** Get the latest global hash from the audit trail */
-async function getLatestGlobalHash(): Promise<string> {
-  const latest = await db.hitlApprovalAudit.findFirst({
-    orderBy: { timestamp: "desc" },
-    select: { contentHash: true },
-  });
-  return latest?.contentHash ?? HITL_GENESIS_HASH;
-}
+// getLatestGlobalHash eliminado — la lógica ahora vive dentro de la
+// transacción en recordAuditEvent (FIX #2). Se mantiene HITL_GENESIS_HASH
+// como constante para uso directo.
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Audit Trail Query & Verification
@@ -302,7 +318,7 @@ export async function exportComplianceRecord(requestId: string): Promise<Complia
   return {
     requestId: request.requestId,
     title: request.title,
-    type: request.type as ApprovalRequestStatus,
+    type: request.type as ApprovalType, // FIX #10: era ApprovalRequestStatus, debe ser ApprovalType
     status: request.status as ApprovalRequestStatus,
     requester: request.requesterName,
     approvers,
@@ -319,11 +335,16 @@ export async function exportComplianceRecord(requestId: string): Promise<Complia
   };
 }
 
-/** Batch export compliance records for multiple requests */
+/** Batch export compliance records for multiple requests
+ *  FIX #6: Antes hacía N+1 queries (1 por cada requestId).
+ *  Ahora carga todos los requests con includes en 1 sola query
+ *  y construye los ComplianceExportRecords en JS, evitando O(N) queries.
+ */
 export async function batchExportComplianceRecords(options?: {
   status?: ApprovalRequestStatus;
   startDate?: string;
   endDate?: string;
+  limit?: number;
 }): Promise<ComplianceExportRecord[]> {
   const where: Record<string, unknown> = {};
 
@@ -335,17 +356,71 @@ export async function batchExportComplianceRecords(options?: {
     };
   }
 
+  const BATCH_LIMIT = Math.min(options?.limit ?? 100, 200); // INVARIANT 3
+
+  // FIX #6: Una sola query con includes en vez de N+1
   const requests = await db.hitlApprovalRequest.findMany({
     where,
-    select: { requestId: true },
     orderBy: { createdAt: "desc" },
+    take: BATCH_LIMIT,
+    include: {
+      decisions: true,
+      delegations: true,
+      escalations: true,
+      undoActions: { orderBy: { createdAt: "asc" } },
+      auditRecords: { orderBy: { timestamp: "asc" } },
+    },
   });
 
-  const records: ComplianceExportRecord[] = [];
-  for (const r of requests) {
-    const record = await exportComplianceRecord(r.requestId);
-    if (record) records.push(record);
-  }
+  // Construir ComplianceExportRecords desde los datos ya cargados
+  return requests.map((request) => {
+    const auditHashes = request.auditRecords.map((a) => a.contentHash);
+    const integrityHash = createHash("sha256")
+      .update(JSON.stringify(auditHashes))
+      .digest("hex");
 
-  return records;
+    const approvers = request.decisions.map((d) => ({
+      name: d.decisionByName,
+      role: d.role,
+      decision: d.decision as DecisionType,
+      decidedAt: d.decidedAt.toISOString(),
+      comment: d.comment,
+    }));
+
+    const delegations = request.delegations.map((d) => ({
+      from: d.fromUserName,
+      to: d.toUserName,
+      reason: d.reason,
+      createdAt: d.createdAt.toISOString(),
+    }));
+
+    const escalations = request.escalations.map((e) => ({
+      fromLevel: e.fromLevel,
+      toLevel: e.toLevel,
+      toRole: e.toRole,
+      reason: e.reason,
+      createdAt: e.createdAt.toISOString(),
+    }));
+
+    const lastUndo = request.undoActions[request.undoActions.length - 1];
+
+    return {
+      requestId: request.requestId,
+      title: request.title,
+      type: request.type as ApprovalType,
+      status: request.status as ApprovalRequestStatus,
+      requester: request.requesterName,
+      approvers,
+      delegations,
+      escalations,
+      executedAt: request.executedAt?.toISOString() ?? null,
+      undo: {
+        executedAt: lastUndo?.executedAt?.toISOString() ?? null,
+        undoBy: lastUndo?.undoByName ?? null,
+        reason: lastUndo?.reason ?? null,
+      },
+      createdAt: request.createdAt.toISOString(),
+      integrityHash,
+    };
+  });
 }

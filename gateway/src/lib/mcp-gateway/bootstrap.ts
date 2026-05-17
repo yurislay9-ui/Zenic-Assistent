@@ -28,12 +28,15 @@ export function initializeGateway(): GatewayEngine {
   const registry = getRegistry();
 
   // 2. Register default API keys (demo)
+  // FIX #11: Demo keys ahora expiran en 30 días en vez de nunca.
+  const DEMO_KEY_EXPIRY = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 días
+
   authService.registerApiKey({
     key: "zenic_demo_key_2024",
     tenantId: "default",
     name: "demo-client",
     scopes: ["tool:execute", "tool:read"],
-    expiresAt: undefined, // never expires
+    expiresAt: DEMO_KEY_EXPIRY,
   });
 
   authService.registerApiKey({
@@ -41,7 +44,7 @@ export function initializeGateway(): GatewayEngine {
     tenantId: "default",
     name: "admin-client",
     scopes: ["*"],
-    expiresAt: undefined,
+    expiresAt: DEMO_KEY_EXPIRY,
   });
 
   // Register tenants
@@ -104,10 +107,10 @@ export function initializeGateway(): GatewayEngine {
     config: {
       defaultTimeout: 30_000,
       maxRetries: 2,
-      requireAuth: false, // Allow unauthenticated for development
+      requireAuth: true, // FIX #11: Auth habilitado — INVARIANT 4
       enforceRateLimit: true,
       auditAll: true,
-      enforceRbac: false, // Disable RBAC for development (no DB dependency in hot path)
+      enforceRbac: true, // FIX #11: RBAC habilitado — defensa en profundidad
     },
   });
 

@@ -626,6 +626,9 @@ export async function approveRequest(
     newStatus = ApprovalStatusEnum.REJECTED;
   } else {
     // Approval → increment currentApprovals
+    // BUG #12 FIX: Atomic increment inside transaction to prevent race condition
+    // where two concurrent reviewers both read the same count and both increment by 1
+    // but one increment is lost.
     newCurrentApprovals = record.currentApprovals + 1;
     if (newCurrentApprovals >= record.requiredApprovals) {
       // Enough approvals → set status to "approved"
@@ -634,15 +637,48 @@ export async function approveRequest(
     }
   }
 
-  // Update the record
-  const updated = await db.policyApproval.update({
-    where: { approvalId },
-    data: {
-      status: newStatus,
-      currentApprovals: newCurrentApprovals,
-      approvals: JSON.stringify(updatedApprovals),
-      updatedAt: new Date(),
-    },
+  // BUG #12 FIX: Use $transaction to ensure atomic read-modify-write
+  const updated = await db.$transaction(async (tx) => {
+    // Re-read inside transaction to get the latest state
+    const freshRecord = await tx.policyApproval.findUnique({
+      where: { approvalId },
+    });
+    if (!freshRecord) {
+      throw new Error(`Approval request "${approvalId}" not found during transaction`);
+    }
+
+    // Re-validate: still in pending_review?
+    if (freshRecord.status !== ApprovalStatusEnum.PENDING_REVIEW) {
+      throw new Error(
+        `Approval request "${approvalId}" status changed to "${freshRecord.status}" during review. Please retry.`
+      );
+    }
+
+    // Merge approvals from concurrent reviewers
+    const freshApprovals = JSON.parse(freshRecord.approvals) as ApprovalDecision[];
+    const mergedApprovals = [...freshApprovals, decision];
+
+    let finalStatus = freshRecord.status;
+    let finalCurrentApprovals = freshRecord.currentApprovals;
+
+    if (decision.decision === "rejected") {
+      finalStatus = ApprovalStatusEnum.REJECTED;
+    } else {
+      finalCurrentApprovals = freshRecord.currentApprovals + 1;
+      if (finalCurrentApprovals >= freshRecord.requiredApprovals) {
+        finalStatus = ApprovalStatusEnum.APPROVED;
+      }
+    }
+
+    return tx.policyApproval.update({
+      where: { approvalId },
+      data: {
+        status: finalStatus,
+        currentApprovals: finalCurrentApprovals,
+        approvals: JSON.stringify(mergedApprovals),
+        updatedAt: new Date(),
+      },
+    });
   });
 
   return mapDbToApprovalRequest(updated);

@@ -6,7 +6,6 @@
 //   - Strategy: ApprovalPolicyStrategy for pluggable approval policies
 //   - Observer: Emits events to NotificationService on state changes
 
-import { createHash } from "crypto";
 import { db } from "@/lib/db";
 import {
   type CreateApprovalRequestInput,
@@ -310,68 +309,90 @@ class ApprovalEngine {
     };
   }
 
-  /** Approve a request */
+  /** Approve a request — FIX: usa $transaction + atomic increment para evitar race condition */
   async approveRequest(requestId: string, input: ApproveRequestInput): Promise<ApprovalRequest> {
-    const record = await db.hitlApprovalRequest.findUnique({
-      where: { requestId },
+    // FIX #3: Toda la operación dentro de transacción para evitar race condition
+    // en currentApprovals (read-modify-write sin tx = contador corrupto)
+    const { updated, isFullyApproved, actualApprovalCount, requiredApprovals, recordTitle, recordPriority } = await db.$transaction(async (tx) => {
+      const record = await tx.hitlApprovalRequest.findUnique({
+        where: { requestId },
+      });
+
+      if (!record) {
+        throw new Error(`Approval request "${requestId}" not found`);
+      }
+
+      if (record.status !== ApprovalRequestStatus.PENDING && record.status !== ApprovalRequestStatus.ESCALATED) {
+        throw new Error(`Cannot approve request in status "${record.status}"`);
+      }
+
+      // Check for duplicate approval by same user
+      const existingDecision = await tx.hitlApprovalDecision.findFirst({
+        where: {
+          requestId,
+          decisionBy: input.decisionBy,
+          decision: DecisionType.APPROVED,
+        },
+      });
+
+      if (existingDecision) {
+        throw new Error(`User "${input.decisionByName}" has already approved this request`);
+      }
+
+      // Create the approval decision
+      await tx.hitlApprovalDecision.create({
+        data: {
+          requestId,
+          decision: DecisionType.APPROVED,
+          decisionBy: input.decisionBy,
+          decisionByName: input.decisionByName,
+          role: input.role,
+          comment: input.comment ?? "",
+          delegatedFrom: input.delegatedFrom ?? null,
+        },
+      });
+
+      // FIX #5: Atomic increment + read back del valor actualizado.
+      // Antes: newApprovalCount = record.currentApprovals + 1 (stale dentro de tx)
+      // Ahora: actualizamos y leemos el valor real post-increment.
+      const policy: ApprovalPolicy = JSON.parse(record.approvalPolicy);
+      const afterUpdate = await tx.hitlApprovalRequest.update({
+        where: { requestId },
+        data: {
+          currentApprovals: { increment: 1 }, // ATOMIC
+        },
+      });
+
+      const actualApprovalCount = afterUpdate.currentApprovals;
+      const isFullyApproved = isApprovalPolicySatisfied(
+        policy,
+        actualApprovalCount,
+        record.requiredApprovals,
+        [],
+      );
+
+      // Si fully approved, actualizar status y executedAt
+      const updated = isFullyApproved
+        ? await tx.hitlApprovalRequest.update({
+            where: { requestId },
+            data: {
+              status: ApprovalRequestStatus.APPROVED,
+              executedAt: new Date(),
+            },
+          })
+        : afterUpdate;
+
+      return {
+        updated,
+        isFullyApproved,
+        actualApprovalCount,
+        requiredApprovals: record.requiredApprovals,
+        recordTitle: record.title,
+        recordPriority: record.priority as ApprovalPriority,
+      };
     });
 
-    if (!record) {
-      throw new Error(`Approval request "${requestId}" not found`);
-    }
-
-    if (record.status !== ApprovalRequestStatus.PENDING && record.status !== ApprovalRequestStatus.ESCALATED) {
-      throw new Error(`Cannot approve request in status "${record.status}"`);
-    }
-
-    // Check for duplicate approval by same user
-    const existingDecision = await db.hitlApprovalDecision.findFirst({
-      where: {
-        requestId,
-        decisionBy: input.decisionBy,
-        decision: DecisionType.APPROVED,
-      },
-    });
-
-    if (existingDecision) {
-      throw new Error(`User "${input.decisionByName}" has already approved this request`);
-    }
-
-    // Create the approval decision
-    await db.hitlApprovalDecision.create({
-      data: {
-        requestId,
-        decision: DecisionType.APPROVED,
-        decisionBy: input.decisionBy,
-        decisionByName: input.decisionByName,
-        role: input.role,
-        comment: input.comment ?? "",
-        delegatedFrom: input.delegatedFrom ?? null,
-      },
-    });
-
-    // Update approval count
-    const newApprovalCount = record.currentApprovals + 1;
-    const policy: ApprovalPolicy = JSON.parse(record.approvalPolicy);
-    const isFullyApproved = isApprovalPolicySatisfied(
-      policy,
-      newApprovalCount,
-      record.requiredApprovals,
-      [], // We don't track approved roles at the engine level for simplicity
-    );
-
-    const newStatus = isFullyApproved ? ApprovalRequestStatus.APPROVED : record.status;
-
-    const updated = await db.hitlApprovalRequest.update({
-      where: { requestId },
-      data: {
-        currentApprovals: newApprovalCount,
-        status: newStatus,
-        ...(isFullyApproved ? { executedAt: new Date() } : {}),
-      },
-    });
-
-    // Record audit
+    // Record audit (fuera de tx — best-effort)
     await recordAuditEvent({
       requestId,
       eventType: HitlEventType.APPROVED,
@@ -381,8 +402,8 @@ class ApprovalEngine {
         comment: input.comment,
         delegatedFrom: input.delegatedFrom,
         fullyApproved: isFullyApproved,
-        currentApprovals: newApprovalCount,
-        requiredApprovals: record.requiredApprovals,
+        currentApprovals: actualApprovalCount,
+        requiredApprovals,
       },
     });
 
@@ -391,53 +412,66 @@ class ApprovalEngine {
       isFullyApproved ? "approval_approved" : "approval_pending",
       {
         requestId,
-        title: record.title,
-        priority: record.priority as ApprovalPriority,
+        title: recordTitle,
+        priority: recordPriority,
         approverName: input.decisionByName,
         fullyApproved: isFullyApproved,
-        currentApprovals: newApprovalCount,
-        requiredApprovals: record.requiredApprovals,
+        currentApprovals: actualApprovalCount,
+        requiredApprovals,
       },
     );
 
     return this.mapRecordToModel(updated);
   }
 
-  /** Reject a request */
+  /** Reject a request
+   *  FIX #4 ALTO: Antes hacía write-then-write sin transacción.
+   *  Si fallaba entre create decision y update status, quedaba en estado inconsistente.
+   *  Ahora toda la operación es atómica dentro de $transaction.
+   */
   async rejectRequest(requestId: string, input: RejectRequestInput): Promise<ApprovalRequest> {
-    const record = await db.hitlApprovalRequest.findUnique({
-      where: { requestId },
+    const { updated, recordTitle, recordPriority, recordRequesterId } = await db.$transaction(async (tx) => {
+      const record = await tx.hitlApprovalRequest.findUnique({
+        where: { requestId },
+      });
+
+      if (!record) {
+        throw new Error(`Approval request "${requestId}" not found`);
+      }
+
+      if (record.status !== ApprovalRequestStatus.PENDING && record.status !== ApprovalRequestStatus.ESCALATED) {
+        throw new Error(`Cannot reject request in status "${record.status}"`);
+      }
+
+      // Create the rejection decision
+      await tx.hitlApprovalDecision.create({
+        data: {
+          requestId,
+          decision: DecisionType.REJECTED,
+          decisionBy: input.decisionBy,
+          decisionByName: input.decisionByName,
+          role: input.role,
+          comment: input.comment,
+          delegatedFrom: null,
+        },
+      });
+
+      const updated = await tx.hitlApprovalRequest.update({
+        where: { requestId },
+        data: {
+          status: ApprovalRequestStatus.REJECTED,
+        },
+      });
+
+      return {
+        updated,
+        recordTitle: record.title,
+        recordPriority: record.priority as ApprovalPriority,
+        recordRequesterId: record.requesterId,
+      };
     });
 
-    if (!record) {
-      throw new Error(`Approval request "${requestId}" not found`);
-    }
-
-    if (record.status !== ApprovalRequestStatus.PENDING && record.status !== ApprovalRequestStatus.ESCALATED) {
-      throw new Error(`Cannot reject request in status "${record.status}"`);
-    }
-
-    // Create the rejection decision
-    await db.hitlApprovalDecision.create({
-      data: {
-        requestId,
-        decision: DecisionType.REJECTED,
-        decisionBy: input.decisionBy,
-        decisionByName: input.decisionByName,
-        role: input.role,
-        comment: input.comment,
-        delegatedFrom: null,
-      },
-    });
-
-    const updated = await db.hitlApprovalRequest.update({
-      where: { requestId },
-      data: {
-        status: ApprovalRequestStatus.REJECTED,
-      },
-    });
-
-    // Record audit
+    // Record audit (fuera de tx — best-effort)
     await recordAuditEvent({
       requestId,
       eventType: HitlEventType.REJECTED,
@@ -452,11 +486,11 @@ class ApprovalEngine {
     // Notify
     await notifyApprovalEvent("approval_rejected", {
       requestId,
-      title: record.title,
-      priority: record.priority as ApprovalPriority,
+      title: recordTitle,
+      priority: recordPriority,
       rejecterName: input.decisionByName,
       reason: input.comment,
-      requesterId: record.requesterId,
+      requesterId: recordRequesterId,
     });
 
     return this.mapRecordToModel(updated);
@@ -525,7 +559,7 @@ class ApprovalEngine {
     return this.mapRecordToModel(updated);
   }
 
-  /** Check for expired requests and mark them */
+  /** Check for expired requests and mark them — FIX: batch update + parallel audit/notify */
   async checkExpiredRequests(): Promise<number> {
     const now = new Date();
     const expired = await db.hitlApprovalRequest.findMany({
@@ -533,72 +567,96 @@ class ApprovalEngine {
         status: { in: [ApprovalRequestStatus.PENDING, ApprovalRequestStatus.ESCALATED] },
         deadline: { not: null, lt: now },
       },
+      take: 100, // INVARIANT 3: max 100 por batch
     });
 
-    let count = 0;
-    for (const record of expired) {
-      await db.hitlApprovalRequest.update({
-        where: { requestId: record.requestId },
-        data: { status: ApprovalRequestStatus.EXPIRED },
-      });
+    if (expired.length === 0) return 0;
 
-      await recordAuditEvent({
-        requestId: record.requestId,
-        eventType: HitlEventType.EXPIRED,
-        actorId: "system",
-        actorName: "System",
-        details: { deadline: record.deadline?.toISOString(), expiredAt: now.toISOString() },
-      });
+    // FIX #6: Batch update + parallel side effects (antes era N×3 secuencial)
+    // Paso 1: Batch update — 1 sola query con updateMany
+    const expiredIds = expired.map((r) => r.requestId);
+    await db.hitlApprovalRequest.updateMany({
+      where: { requestId: { in: expiredIds } },
+      data: { status: ApprovalRequestStatus.EXPIRED },
+    });
 
-      await notifyApprovalEvent("approval_expired", {
-        requestId: record.requestId,
-        title: record.title,
-        priority: record.priority as ApprovalPriority,
-        requesterId: record.requesterId,
-      });
+    // Paso 2: Audit + Notify en paralelo por cada request
+    await Promise.all(expired.map((record) =>
+      Promise.all([
+        recordAuditEvent({
+          requestId: record.requestId,
+          eventType: HitlEventType.EXPIRED,
+          actorId: "system",
+          actorName: "System",
+          details: { deadline: record.deadline?.toISOString(), expiredAt: now.toISOString() },
+        }),
+        notifyApprovalEvent("approval_expired", {
+          requestId: record.requestId,
+          title: record.title,
+          priority: record.priority as ApprovalPriority,
+          requesterId: record.requesterId,
+        }),
+      ])
+    ));
 
-      count++;
-    }
-
-    return count;
+    return expired.length;
   }
 
-  /** Get approval statistics */
+  /** Get approval statistics — FIX: usa COUNT queries en vez de findMany(sin límite) */
   async getStats(): Promise<ApprovalStats> {
-    const all = await db.hitlApprovalRequest.findMany({
-      select: { status: true, priority: true, type: true, createdAt: true, updatedAt: true },
-    });
+    // FIX #2: Antes cargaba TODOS los registros en memoria con findMany sin take.
+    // El sistema de auditoría por diseño nunca elimina registros → crecimiento infinito.
+    // Ahora: COUNT + GROUP BY en SQL → solo números, cero objetos en RAM.
+    const [
+      total,
+      byStatusRows,
+      byPriorityRows,
+      byTypeRows,
+      autoApprovedCount,
+      avgDecisionRows,
+    ] = await Promise.all([
+      db.hitlApprovalRequest.count(),
+      db.hitlApprovalRequest.groupBy({ by: ["status"], _count: { status: true } }),
+      db.hitlApprovalRequest.groupBy({ by: ["priority"], _count: { priority: true } }),
+      db.hitlApprovalRequest.groupBy({ by: ["type"], _count: { type: true } }),
+      db.hitlApprovalDecision.count({
+        where: { decisionBy: "system", decision: DecisionType.APPROVED },
+      }),
+      // Avg decision time: solo approved/rejected con updatedAt-createdAt
+      db.hitlApprovalRequest.findMany({
+        where: {
+          status: { in: [ApprovalRequestStatus.APPROVED, ApprovalRequestStatus.REJECTED] },
+        },
+        select: { createdAt: true, updatedAt: true },
+        take: 200, // INVARIANT 3: muestra representativa, no toda la tabla
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
 
     const byStatus: Record<string, number> = {};
-    const byPriority: Record<string, number> = {};
-    const byType: Record<string, number> = {};
-
-    let totalDecisionTime = 0;
-    let decisionCount = 0;
-
-    for (const r of all) {
-      byStatus[r.status] = (byStatus[r.status] ?? 0) + 1;
-      byPriority[r.priority] = (byPriority[r.priority] ?? 0) + 1;
-      byType[r.type] = (byType[r.type] ?? 0) + 1;
-
-      if (r.status === ApprovalRequestStatus.APPROVED || r.status === ApprovalRequestStatus.REJECTED) {
-        const created = new Date(r.createdAt).getTime();
-        const updated = new Date(r.updatedAt).getTime();
-        totalDecisionTime += updated - created;
-        decisionCount++;
-      }
+    for (const row of byStatusRows) {
+      byStatus[row.status] = row._count.status;
     }
 
-    const total = all.length;
+    const byPriority: Record<string, number> = {};
+    for (const row of byPriorityRows) {
+      byPriority[row.priority] = row._count.priority;
+    }
+
+    const byType: Record<string, number> = {};
+    for (const row of byTypeRows) {
+      byType[row.type] = row._count.type;
+    }
+
+    const totalDecisionTime = avgDecisionRows.reduce(
+      (sum, r) => sum + (new Date(r.updatedAt).getTime() - new Date(r.createdAt).getTime()),
+      0,
+    );
+    const decisionCount = avgDecisionRows.length;
+
     const undone = byStatus[ApprovalRequestStatus.UNDONE] ?? 0;
-    const approved = byStatus[ApprovalRequestStatus.APPROVED] ?? 0;
     const delegated = byStatus[ApprovalRequestStatus.DELEGATED] ?? 0;
     const escalated = byStatus[ApprovalRequestStatus.ESCALATED] ?? 0;
-
-    // Get auto-approved count from decisions
-    const autoApprovedCount = await db.hitlApprovalDecision.count({
-      where: { decisionBy: "system", decision: DecisionType.APPROVED },
-    });
 
     return {
       total,
@@ -606,7 +664,7 @@ class ApprovalEngine {
       byPriority: byPriority as Record<ApprovalPriority, number>,
       byType: byType as Record<ApprovalType, number>,
       avgTimeToDecision: decisionCount > 0 ? Math.round(totalDecisionTime / decisionCount) : 0,
-      avgTimeToExecution: 0, // Would need execution timestamps
+      avgTimeToExecution: 0,
       undoRate: total > 0 ? undone / total : 0,
       autoApproveRate: total > 0 ? autoApprovedCount / total : 0,
       delegationRate: total > 0 ? delegated / total : 0,
@@ -614,37 +672,40 @@ class ApprovalEngine {
     };
   }
 
-  /** List pending approvals for a specific user */
+  /** List pending approvals for a specific user — FIX: filtra en SQL, no en JS */
   async listPendingForUser(userId: string): Promise<ApprovalRequest[]> {
-    // Get requests where user hasn't made a decision yet
-    const decidedRequestIds = await db.hitlApprovalDecision.findMany({
-      where: { decisionBy: userId },
-      select: { requestId: true },
-    });
+    // FIX #8: Antes cargaba TODAS las pendientes y filtraba en JS.
+    // Ahora: obtiene IDs decididos → excluye en SQL con NOT requestId IN (...)
+    // e incluye delegadas con OR requestId IN (delegated).
 
-    const decidedIds = new Set(decidedRequestIds.map((d) => d.requestId));
+    const [decidedIds, delegatedIds] = await Promise.all([
+      db.hitlApprovalDecision.findMany({
+        where: { decisionBy: userId },
+        select: { requestId: true },
+      }),
+      db.hitlDelegation.findMany({
+        where: { toUserId: userId, isActive: true },
+        select: { requestId: true },
+      }),
+    ]);
 
-    // Get active delegations for this user
-    const delegations = await db.hitlDelegation.findMany({
-      where: { toUserId: userId, isActive: true },
-      select: { requestId: true },
-    });
+    const decidedRequestIds = decidedIds.map((d) => d.requestId);
+    const delegatedRequestIds = delegatedIds.map((d) => d.requestId);
 
-    const delegatedRequestIds = new Set(delegations.map((d) => d.requestId));
-
+    // Pending where user hasn't decided, OR where user has an active delegation
     const pendingRequests = await db.hitlApprovalRequest.findMany({
       where: {
         status: { in: [ApprovalRequestStatus.PENDING, ApprovalRequestStatus.ESCALATED] },
+        OR: [
+          { requestId: { notIn: decidedRequestIds } },
+          { requestId: { in: delegatedRequestIds } },
+        ],
       },
       orderBy: { createdAt: "desc" },
+      take: 100, // INVARIANT 3
     });
 
-    // Filter out already-decided by this user, include delegated
-    const filtered = pendingRequests.filter(
-      (r) => !decidedIds.has(r.requestId) || delegatedRequestIds.has(r.requestId),
-    );
-
-    return filtered.map((r) => this.mapRecordToModel(r));
+    return pendingRequests.map((r) => this.mapRecordToModel(r));
   }
 
   /** Get approval history with filters */
@@ -809,6 +870,7 @@ export function getApprovalEngine(): ApprovalEngine {
 
 export function resetApprovalEngine(): void {
   engineInstance = null;
+  ApprovalEngine.instance = null; // FIX #5: también limpia static instance
 }
 
 // Re-export strategy function for external use

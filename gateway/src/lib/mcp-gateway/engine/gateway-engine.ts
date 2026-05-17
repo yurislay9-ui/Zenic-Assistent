@@ -204,8 +204,16 @@ export class GatewayEngine {
           },
         };
       } catch {
-        // Policy engine not available — allow by default (fail-open for dev)
-        return { passed: true, details: { policyEngine: "unavailable" } };
+        // FIX #3 CRÍTICO: INVARIANT 4 — DENY es absoluto.
+        // Antes: fail-open (allow si policy engine no disponible).
+        // Ahora: fail-closed (DENY si no se puede evaluar la política).
+        // En producción, un policy engine caído significa que NO se puede
+        // garantizar la seguridad → la acción DEBE ser denegada.
+        return {
+          passed: false,
+          reason: "Policy engine unavailable — denying by default (INVARIANT 4: DENY is absolute)",
+          details: { policyEngine: "unavailable", failClosed: true },
+        };
       }
     });
     pipeline.push(policyStep);

@@ -1,8 +1,22 @@
+// ─── Zenic-Agents v3 — Audit Log Query (Refactorizado FASE 9) ────────
+// CAMBIOS:
+// - Autenticación obligatoria (requireAuthAndPermission con audit:read)
+// - safeJsonParse centralizado desde utils
+// - Keyset pagination (cursor-based) para eficiencia con SQLite
+// - Búsqueda con OR limitada a 3 campos (no 5) para reducir carga
+// - Límite máximo de resultados reducido a 50 por página
+
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import type { AuditQuery, PaginatedResponse } from "@/lib/mcp-gateway/types";
+import { requireAuthAndPermission } from "@/lib/rbac-auth";
+import { safeJsonParse } from "@/lib/utils";
+import type { AuditQuery } from "@/lib/mcp-gateway/types";
 
 export async function GET(request: NextRequest) {
+  // ─── Auth + Permission Check ──────────────────────────────────────
+  const authResult = await requireAuthAndPermission(request, "audit", "read");
+  if (authResult instanceof NextResponse) return authResult;
+
   try {
     const { searchParams } = new URL(request.url);
 
@@ -15,12 +29,14 @@ export async function GET(request: NextRequest) {
       startDate: searchParams.get("startDate") || undefined,
       endDate: searchParams.get("endDate") || undefined,
       search: searchParams.get("search") || undefined,
-      page: Math.max(1, Number(searchParams.get("page")) || 1),
-      pageSize: Math.min(100, Math.max(1, Number(searchParams.get("pageSize")) || 20)),
     };
+
+    const pageSize = Math.min(50, Math.max(1, Number(searchParams.get("pageSize")) || 20));
+    const cursor = searchParams.get("cursor") || undefined;
 
     // Build where clause
     const where: {
+      id?: { gt: string };
       actorId?: string;
       action?: { contains: string };
       resource?: string;
@@ -29,6 +45,11 @@ export async function GET(request: NextRequest) {
       createdAt?: { gte?: Date; lte?: Date };
       OR?: Array<Record<string, unknown>>;
     } = {};
+
+    // Keyset pagination: si hay cursor, filtrar por id > cursor
+    if (cursor) {
+      where.id = { gt: cursor };
+    }
 
     if (query.actorId) where.actorId = query.actorId;
     if (query.action) where.action = { contains: query.action };
@@ -42,59 +63,49 @@ export async function GET(request: NextRequest) {
       if (query.endDate) where.createdAt.lte = new Date(query.endDate);
     }
 
+    // Search limitado a 3 campos críticos (no 5)
     if (query.search) {
       where.OR = [
         { action: { contains: query.search } },
         { resource: { contains: query.search } },
         { resourceName: { contains: query.search } },
-        { actorId: { contains: query.search } },
-        { details: { contains: query.search } },
       ];
     }
-
-    const page = query.page ?? 1;
-    const pageSize = query.pageSize ?? 20;
 
     const [logs, total] = await Promise.all([
       db.auditLog.findMany({
         where,
-        orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        orderBy: cursor ? { id: "asc" } : { createdAt: "desc" },
+        take: pageSize + 1, // +1 para determinar si hay página siguiente
       }),
       db.auditLog.count({ where }),
     ]);
 
+    // Determinar si hay página siguiente
+    const hasNextPage = logs.length > pageSize;
+    const data = hasNextPage ? logs.slice(0, pageSize) : logs;
+    const nextCursor = hasNextPage ? data[data.length - 1].id : null;
+
     // Parse JSON fields
-    const data = logs.map((log) => ({
+    const parsedData = data.map((log) => ({
       ...log,
       details: safeJsonParse(log.details),
       tags: safeJsonParse(log.tags),
     }));
 
-    const response: PaginatedResponse<typeof data[number]> = {
+    return NextResponse.json({
       success: true,
-      data,
+      data: parsedData,
       total,
-      page,
       pageSize,
-      totalPages: Math.ceil(total / pageSize),
-    };
-
-    return NextResponse.json(response);
+      nextCursor,
+      hasMore: hasNextPage,
+    });
   } catch (error) {
     console.error("[Audit GET]", error);
     return NextResponse.json(
-      { success: false, error: "Failed to fetch audit logs", code: "INTERNAL_ERROR" },
-      { status: 500 }
+      { success: false, error: "Error al obtener logs de auditoría", code: "INTERNAL_ERROR" },
+      { status: 500 },
     );
-  }
-}
-
-function safeJsonParse(str: string): unknown {
-  try {
-    return JSON.parse(str);
-  } catch {
-    return str;
   }
 }

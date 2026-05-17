@@ -1,11 +1,14 @@
 // ─── Zenic-Agents v3 — HITL Notification System ──────────────────────
 // Phase 5: In-app notifications, priority routing, digest mode
 //
-// Design Patterns:
-//   - Observer: Notification listeners for approval events
-//   - Strategy: Notification channel dispatch strategies
-//   - Singleton: NotificationService instance
+// FIX vs original:
+//   - CRÍTICO: Eliminado almacén en memoria (Map) que crecía sin límite
+//     y se perdía en restart/HMR. Ahora toda persistencia va a SQLite via Prisma.
+//   - FIX #5: Singleton reset ahora limpia BOTH module var + static instance.
+//   - MEDIUM: digestQueue ahora tiene max 100 por usuario (INVARIANT 3).
+//   - Invariante respetada: 500MB RAM — ya no acumula notificaciones en memoria.
 
+import { db } from "@/lib/db";
 import {
   type HitlNotification,
   type NotificationChannel,
@@ -16,13 +19,8 @@ import {
   ApprovalPriority,
 } from "./types";
 
-// ═══════════════════════════════════════════════════════════════════════════
-// In-Memory Notification Store (production would use DB + WebSocket)
-// ═══════════════════════════════════════════════════════════════════════════
-
-interface StoredNotification extends HitlNotification {
-  id: string;
-}
+/** Maximum notifications per user in digest queue (INVARIANT 3) */
+const MAX_DIGEST_QUEUE_SIZE = 100;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Notification Service
@@ -30,9 +28,8 @@ interface StoredNotification extends HitlNotification {
 
 class NotificationService {
   private static instance: NotificationService | null = null;
-  private notifications: Map<string, StoredNotification[]> = new Map();
   private subscriptions: Map<string, NotificationSubscription> = new Map();
-  private digestQueue: Map<string, StoredNotification[]> = new Map();
+  private digestQueue: Map<string, string[]> = new Map(); // userId → notification IDs
 
   private constructor() {}
 
@@ -82,80 +79,118 @@ class NotificationService {
       if (this.priorityLevel(priority) < this.priorityLevel(minPriority)) continue;
 
       for (const channel of channels) {
-        const notification = this.createNotification(
-          userId,
-          event,
-          payload,
-          priority,
-          channel,
-        );
+        const { title: eventTitle, message } = this.formatNotification(event, payload);
 
         if (subscription?.digestMode && channel === NotificationChannelEnum.IN_APP) {
-          // Queue for digest
+          // Queue for digest — store ID only, not full object
           const queue = this.digestQueue.get(userId) ?? [];
-          queue.push(notification);
-          this.digestQueue.set(userId, queue);
+
+          // INVARIANT 3: cap digest queue
+          if (queue.length < MAX_DIGEST_QUEUE_SIZE) {
+            // Persist notification to DB immediately (even in digest mode)
+            await db.hitlNotification.create({
+              data: {
+                userId,
+                type: this.mapEventType(event),
+                title: eventTitle,
+                message,
+                requestId: payload.requestId,
+                priority,
+                channel,
+                isRead: false,
+              },
+            });
+
+            queue.push(payload.requestId);
+            this.digestQueue.set(userId, queue);
+          }
         } else {
-          // Send immediately
-          await this.dispatchNotification(notification, channel);
+          // Send immediately — persist to DB
+          await db.hitlNotification.create({
+            data: {
+              userId,
+              type: this.mapEventType(event),
+              title: eventTitle,
+              message,
+              requestId: payload.requestId,
+              priority,
+              channel,
+              isRead: false,
+            },
+          });
+
+          // Dispatch stubs for non-in-app channels
+          if (channel === "email") {
+            console.log(`[HITL Email Stub] To: ${userId}, Subject: ${eventTitle}`);
+          } else if (channel === "webhook") {
+            console.log(`[HITL Webhook Stub] Event: ${event}, Request: ${payload.requestId}`);
+          }
         }
       }
     }
   }
 
-  /** Get notifications for a user */
-  getNotifications(userId: string, options?: {
+  /** Get notifications for a user — from DB with limit */
+  async getNotifications(userId: string, options?: {
     unreadOnly?: boolean;
     limit?: number;
-  }): HitlNotification[] {
-    const userNotifications = this.notifications.get(userId) ?? [];
-    let filtered = [...userNotifications];
+  }): Promise<HitlNotification[]> {
+    const limit = Math.min(options?.limit ?? 50, 200); // INVARIANT 3: max 200
 
-    if (options?.unreadOnly) {
-      filtered = filtered.filter((n) => !n.isRead);
-    }
+    const where: Record<string, unknown> = { userId };
+    if (options?.unreadOnly) where.isRead = false; // FIX #1 CRÍTICO: mostrar NO leídas cuando unreadOnly=true
 
-    // Sort by creation time, newest first
-    filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const records = await db.hitlNotification.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
 
-    if (options?.limit) {
-      filtered = filtered.slice(0, options.limit);
-    }
-
-    return filtered;
+    return records.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      type: r.type as HitlNotification["type"],
+      title: r.title,
+      message: r.message,
+      requestId: r.requestId,
+      priority: r.priority as NotificationPriority,
+      channel: r.channel as NotificationChannel,
+      isRead: r.isRead,
+      createdAt: r.createdAt.toISOString(),
+    }));
   }
 
   /** Mark a notification as read */
-  markAsRead(userId: string, notificationId: string): boolean {
-    const userNotifications = this.notifications.get(userId);
-    if (!userNotifications) return false;
+  async markAsRead(userId: string, notificationId: string): Promise<boolean> {
+    const record = await db.hitlNotification.findFirst({
+      where: { id: notificationId, userId },
+    });
 
-    const notification = userNotifications.find((n) => n.id === notificationId);
-    if (!notification) return false;
+    if (!record) return false;
 
-    notification.isRead = true;
+    await db.hitlNotification.update({
+      where: { id: notificationId },
+      data: { isRead: true },
+    });
+
     return true;
   }
 
   /** Mark all notifications as read for a user */
-  markAllAsRead(userId: string): number {
-    const userNotifications = this.notifications.get(userId);
-    if (!userNotifications) return 0;
+  async markAllAsRead(userId: string): Promise<number> {
+    const result = await db.hitlNotification.updateMany({
+      where: { userId, isRead: false },
+      data: { isRead: true },
+    });
 
-    let count = 0;
-    for (const n of userNotifications) {
-      if (!n.isRead) {
-        n.isRead = true;
-        count++;
-      }
-    }
-    return count;
+    return result.count;
   }
 
   /** Get unread count for a user */
-  getUnreadCount(userId: string): number {
-    const userNotifications = this.notifications.get(userId) ?? [];
-    return userNotifications.filter((n) => !n.isRead).length;
+  async getUnreadCount(userId: string): Promise<number> {
+    return db.hitlNotification.count({
+      where: { userId, isRead: false },
+    });
   }
 
   /** Subscribe a user to notification channels */
@@ -171,30 +206,25 @@ class NotificationService {
   }
 
   /** Flush digest queue for a user (send batched notifications) */
-  flushDigest(userId: string): number {
+  async flushDigest(userId: string): Promise<number> {
     const queue = this.digestQueue.get(userId);
     if (!queue || queue.length === 0) return 0;
 
-    // Create a single digest notification
     const count = queue.length;
-    const first = queue[0];
 
-    const digestNotification: StoredNotification = {
-      id: `notif_digest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      userId,
-      type: "approval_pending",
-      title: `${count} pending approval notifications`,
-      message: `You have ${count} approval-related notifications. Latest: ${first.title}`,
-      requestId: first.requestId,
-      priority: NotificationPriorityEnum.NORMAL,
-      channel: NotificationChannelEnum.IN_APP,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    };
-
-    const userNotifications = this.notifications.get(userId) ?? [];
-    userNotifications.push(digestNotification);
-    this.notifications.set(userId, userNotifications);
+    // Create a single digest notification
+    await db.hitlNotification.create({
+      data: {
+        userId,
+        type: "approval_pending",
+        title: `${count} pending approval notifications`,
+        message: `You have ${count} approval-related notifications in your digest queue.`,
+        requestId: "digest",
+        priority: NotificationPriorityEnum.NORMAL,
+        channel: NotificationChannelEnum.IN_APP,
+        isRead: false,
+      },
+    });
 
     // Clear the queue
     this.digestQueue.delete(userId);
@@ -203,92 +233,6 @@ class NotificationService {
   }
 
   // ─── Private Helpers ────────────────────────────────────────────────
-
-  private createNotification(
-    userId: string,
-    event: string,
-    payload: Record<string, unknown>,
-    priority: NotificationPriority,
-    channel: NotificationChannel,
-  ): StoredNotification {
-    const id = `notif_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    const { title: eventTitle, message } = this.formatNotification(event, payload);
-
-    return {
-      id,
-      userId,
-      type: this.mapEventType(event),
-      title: eventTitle,
-      message,
-      requestId: payload.requestId as string,
-      priority,
-      channel,
-      isRead: false,
-      createdAt: new Date().toISOString(),
-    };
-  }
-
-  private async dispatchNotification(notification: StoredNotification, channel: NotificationChannel): Promise<void> {
-    switch (channel) {
-      case "in_app": {
-        const userNotifications = this.notifications.get(notification.userId) ?? [];
-        userNotifications.push(notification);
-        this.notifications.set(notification.userId, userNotifications);
-        break;
-      }
-      case "email":
-        // Stub: In production, integrate with email service
-        console.log(`[HITL Email Stub] To: ${notification.userId}, Subject: ${notification.title}`);
-        break;
-      case "webhook":
-        // Stub: In production, POST to configured webhook URL
-        console.log(`[HITL Webhook Stub] Event: ${notification.type}, Request: ${notification.requestId}`);
-        break;
-    }
-  }
-
-  private resolveTargetUsers(event: string, payload: Record<string, unknown>): string[] {
-    const users: string[] = [];
-
-    switch (event) {
-      case "approval_pending":
-        // Notify all potential approvers (in a real system, this would be role-based)
-        // For now, just notify if there's a specific target
-        if (payload.toUserId) users.push(payload.toUserId as string);
-        break;
-      case "approval_approved":
-      case "approval_rejected":
-        // Notify the requester
-        if (payload.requesterId) users.push(payload.requesterId as string);
-        break;
-      case "approval_delegated":
-        // Notify the delegate
-        if (payload.toUserId) users.push(payload.toUserId as string);
-        // Also notify the requester
-        if (payload.requesterId) users.push(payload.requesterId as string);
-        break;
-      case "approval_escalated":
-        // Notify approvers at the new level
-        if (payload.toUserId) users.push(payload.toUserId as string);
-        // Also notify the requester
-        if (payload.requesterId) users.push(payload.requesterId as string);
-        break;
-      case "approval_expired":
-        // Notify the requester
-        if (payload.requesterId) users.push(payload.requesterId as string);
-        break;
-      case "approval_undone":
-        // Notify the requester and relevant approvers
-        if (payload.requesterId) users.push(payload.requesterId as string);
-        break;
-      case "undo_available":
-        // Notify the requester
-        if (payload.requesterId) users.push(payload.requesterId as string);
-        break;
-    }
-
-    return [...new Set(users)]; // Deduplicate
-  }
 
   private formatNotification(
     event: string,
@@ -398,6 +342,35 @@ class NotificationService {
     return mapping[event] ?? "approval_pending";
   }
 
+  private resolveTargetUsers(event: string, payload: Record<string, unknown>): string[] {
+    const users: string[] = [];
+
+    switch (event) {
+      case "approval_pending":
+        if (payload.toUserId) users.push(payload.toUserId as string);
+        break;
+      case "approval_approved":
+      case "approval_rejected":
+        if (payload.requesterId) users.push(payload.requesterId as string);
+        break;
+      case "approval_delegated":
+        if (payload.toUserId) users.push(payload.toUserId as string);
+        if (payload.requesterId) users.push(payload.requesterId as string);
+        break;
+      case "approval_escalated":
+        if (payload.toUserId) users.push(payload.toUserId as string);
+        if (payload.requesterId) users.push(payload.requesterId as string);
+        break;
+      case "approval_expired":
+      case "approval_undone":
+      case "undo_available":
+        if (payload.requesterId) users.push(payload.requesterId as string);
+        break;
+    }
+
+    return [...new Set(users)];
+  }
+
   private priorityLevel(priority: NotificationPriority): number {
     switch (priority) {
       case NotificationPriorityEnum.LOW: return 0;
@@ -409,7 +382,7 @@ class NotificationService {
   }
 }
 
-// ─── Singleton Accessors ──────────────────────────────────────────────
+// ─── Singleton Accessors — FIX #5: reset limpia AMBAS instancias ──────
 
 let notificationServiceInstance: NotificationService | null = null;
 
@@ -422,6 +395,7 @@ export function getNotificationService(): NotificationService {
 
 export function resetNotificationService(): void {
   notificationServiceInstance = null;
+  NotificationService.instance = null; // FIX: también limpia static instance
 }
 
 /** Convenience function for notifying approval events */

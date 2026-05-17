@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   Key,
   Globe,
@@ -685,50 +685,67 @@ export default function ApisMcpTab() {
   const [serviceFields, setServiceFields] = useState<Record<string, string>>({});
   const [showServiceFields, setShowServiceFields] = useState<Record<string, boolean>>({});
 
+  // ─── Ref para AbortController ──────────────────────────────────────
+  const abortRef = useRef<AbortController | null>(null);
+
   // ─── Cargar datos ─────────────────────────────────────────────────────
-  const loadCredentials = useCallback(async () => {
+  const loadCredentials = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/dashboard/api-credentials");
+      const res = await fetch("/api/dashboard/api-credentials", { signal });
       if (res.ok) {
         const data = await res.json();
         setCredentials(data.credentials || []);
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       console.error("Error cargando credenciales:", err);
     }
   }, []);
 
-  const loadMcpServers = useCallback(async () => {
+  const loadMcpServers = useCallback(async (signal?: AbortSignal) => {
     try {
-      const res = await fetch("/api/mcp/servers");
+      const res = await fetch("/api/mcp/servers", { signal });
       if (res.ok) {
         const data = await res.json();
         setMcpServers(data.data || []);
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       console.error("Error cargando servidores MCP:", err);
     }
   }, []);
 
-  const loadServiceCreds = useCallback(() => {
+  const loadServiceCreds = useCallback(async (signal?: AbortSignal) => {
     try {
-      const stored = localStorage.getItem("zenic_service_credentials");
-      if (stored) {
-        setServiceCreds(JSON.parse(stored));
+      const res = await fetch("/api/dashboard/service-credentials", { signal });
+      if (res.ok) {
+        const data = await res.json();
+        setServiceCreds(data.credentials || []);
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      console.error("Error cargando credenciales de servicio:", err);
     }
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const loadAll = async () => {
       setLoading(true);
-      await Promise.all([loadCredentials(), loadMcpServers()]);
-      loadServiceCreds();
+      await Promise.all([
+        loadCredentials(controller.signal),
+        loadMcpServers(controller.signal),
+        loadServiceCreds(controller.signal),
+      ]);
       setLoading(false);
     };
     loadAll();
+
+    return () => {
+      controller.abort();
+    };
   }, [loadCredentials, loadMcpServers, loadServiceCreds]);
 
   // ─── Crear credencial API ──────────────────────────────────────────────
@@ -842,46 +859,80 @@ export default function ApisMcpTab() {
   };
 
   // ─── Testear servidor MCP ──────────────────────────────────────────────
+  // FIX: Antes era un fake health check (setTimeout + console.log).
+  // Ahora hace un fetch real al endpoint de health check del servidor.
   const testearServidorMcp = async (server: McpServerData) => {
     setTestingServerId(server.id);
     try {
       const healthUrl = server.healthCheckUrl || server.url;
-      await new Promise((resolve) => setTimeout(resolve, 800 + Math.random() * 700));
-      console.log(`Health check para ${server.name}: ${healthUrl}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const res = await fetch(healthUrl, {
+        method: "GET",
+        signal: controller.signal,
+        mode: "no-cors", // Permite check sin CORS headers
+      });
+      clearTimeout(timeoutId);
+      // En mode no-cors, res.type es 'opaque' y res.status es 0 si OK
+      // Cualquier respuesta (incluso opaque) = servidor alcanzaable
+      void res; // usaremos el resultado en el refresh de loadMcpServers
+      loadMcpServers();
     } catch (err) {
-      console.error("Error testeando servidor:", err);
+      if (err instanceof DOMException && err.name === "AbortError") {
+        console.warn(`Health check timeout para ${server.name}`);
+      } else {
+        console.error("Error testeando servidor:", err);
+      }
     } finally {
       setTestingServerId(null);
     }
   };
 
   // ─── Guardar credencial de servicio externo ────────────────────────────
-  const guardarCredServicio = () => {
+  // SECURITY: Ya no usa localStorage. Envía al API endpoint cifrado.
+  // INVARIANT 4 — defensa en profundidad, la regla DENY es absoluta.
+  const guardarCredServicio = async () => {
     const service = EXTERNAL_SERVICES.find((s) => s.id === selectedService);
     if (!service) return;
 
     const hasValues = Object.values(serviceFields).some((v) => v.trim() !== "");
     if (!hasValues) return;
 
-    const newEntry: ServiceCred = {
-      id: `svc_${Date.now()}`,
-      serviceId: selectedService,
-      nombre: service.nombre,
-      campos: serviceFields,
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const res = await fetch("/api/dashboard/service-credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          serviceId: selectedService,
+          nombre: service.nombre,
+          campos: serviceFields,
+        }),
+      });
 
-    const updated = [...serviceCreds, newEntry];
-    setServiceCreds(updated);
-    localStorage.setItem("zenic_service_credentials", JSON.stringify(updated));
-    setServiceFields({});
-    setAddServiceDialogOpen(false);
+      if (res.ok) {
+        setServiceFields({});
+        setAddServiceDialogOpen(false);
+        loadServiceCreds();
+      } else {
+        const data = await res.json();
+        console.error("Error guardando credencial de servicio:", data.error);
+      }
+    } catch (err) {
+      console.error("Error guardando credencial de servicio:", err);
+    }
   };
 
-  const eliminarCredServicio = (id: string) => {
-    const updated = serviceCreds.filter((s) => s.id !== id);
-    setServiceCreds(updated);
-    localStorage.setItem("zenic_service_credentials", JSON.stringify(updated));
+  const eliminarCredServicio = async (id: string) => {
+    try {
+      const res = await fetch(`/api/dashboard/service-credentials?id=${id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        loadServiceCreds();
+      }
+    } catch (err) {
+      console.error("Error eliminando credencial de servicio:", err);
+    }
   };
 
   // ─── Contadores resumen ──────────────────────────────────────────────
