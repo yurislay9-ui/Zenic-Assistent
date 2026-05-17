@@ -221,7 +221,7 @@ class AutonomyConfigManager:
             def _init() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE TABLE IF NOT EXISTS _zenic_autonomy_configs (
                             config_id TEXT PRIMARY KEY,
                             level TEXT NOT NULL DEFAULT 'semi_autonomous',
@@ -237,11 +237,11 @@ class AutonomyConfigManager:
                             updated_at TEXT NOT NULL DEFAULT ''
                         )
                     """)
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE INDEX IF NOT EXISTS idx_zenic_aut_obj
                         ON _zenic_autonomy_configs(objective_id)
                     """)
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE INDEX IF NOT EXISTS idx_zenic_aut_tenant
                         ON _zenic_autonomy_configs(tenant_id)
                     """)
@@ -278,19 +278,19 @@ class AutonomyConfigManager:
                 conn.row_factory = sqlite3.Row
                 try:
                     if objective_id:
-                        row = conn.execute(
+                        row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                             """SELECT * FROM _zenic_autonomy_configs
                                WHERE objective_id = ? LIMIT 1""",
                             (objective_id,),
                         ).fetchone()
                     elif tenant_id:
-                        row = conn.execute(
+                        row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                             """SELECT * FROM _zenic_autonomy_configs
                                WHERE tenant_id = ? AND objective_id = '' LIMIT 1""",
                             (tenant_id,),
                         ).fetchone()
                     else:
-                        row = conn.execute(
+                        row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                             """SELECT * FROM _zenic_autonomy_configs
                                WHERE objective_id = '' AND tenant_id = '' LIMIT 1""",
                         ).fetchone()
@@ -362,14 +362,14 @@ class AutonomyConfigManager:
                 conn.row_factory = sqlite3.Row
                 try:
                     if tenant_id:
-                        rows = conn.execute(
+                        rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                             """SELECT * FROM _zenic_autonomy_configs
                                WHERE tenant_id = ?
                                ORDER BY created_at DESC""",
                             (tenant_id,),
                         ).fetchall()
                     else:
-                        rows = conn.execute(
+                        rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                             """SELECT * FROM _zenic_autonomy_configs
                                ORDER BY created_at DESC""",
                         ).fetchall()
@@ -398,7 +398,7 @@ class AutonomyConfigManager:
             def _upsert() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """INSERT OR REPLACE INTO _zenic_autonomy_configs
                            (config_id, level, objective_id, tenant_id,
                             max_actions_per_cycle, requires_approval_above_risk,

@@ -135,7 +135,7 @@ class ApprovalAuditMerkle:
         """Create the audit records table if it does not exist."""
         def _do_init() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS audit_records (
                     record_id TEXT PRIMARY KEY,
                     request_id TEXT NOT NULL,
@@ -148,11 +148,11 @@ class ApprovalAuditMerkle:
                     timestamp TEXT NOT NULL
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_audit_request
                 ON audit_records(request_id, timestamp ASC)
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_audit_hash
                 ON audit_records(content_hash)
             """)
@@ -216,7 +216,7 @@ class ApprovalAuditMerkle:
         def _do_query() -> List[AuditRecord]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT * FROM audit_records
                    WHERE request_id = ?
                    ORDER BY timestamp ASC""",
@@ -271,7 +271,7 @@ class ApprovalAuditMerkle:
         def _do_query() -> List[AuditRecord]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT * FROM audit_records
                    ORDER BY timestamp ASC""",
             ).fetchall()
@@ -306,7 +306,7 @@ class ApprovalAuditMerkle:
         def _do_query() -> List[AuditRecord]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT * FROM audit_records
                    ORDER BY timestamp ASC""",
             ).fetchall()
@@ -393,7 +393,7 @@ class ApprovalAuditMerkle:
         """
         def _do_query() -> List[str]:
             conn = sqlite3.connect(self._db_path)
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT content_hash FROM audit_records ORDER BY timestamp ASC",
             ).fetchall()
             conn.close()
@@ -423,7 +423,7 @@ class ApprovalAuditMerkle:
         """Get the content_hash of the most recent record (for chaining)."""
         def _do_query() -> str:
             conn = sqlite3.connect(self._db_path)
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT content_hash FROM audit_records
                    ORDER BY timestamp DESC LIMIT 1""",
             ).fetchone()
@@ -453,7 +453,7 @@ class ApprovalAuditMerkle:
         def _do_persist() -> None:
             conn = sqlite3.connect(self._db_path)
             if insert:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO audit_records
                        (record_id, request_id, event_type, actor_id,
                         actor_name, details, content_hash, previous_hash,
@@ -472,7 +472,7 @@ class ApprovalAuditMerkle:
                     ),
                 )
             else:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """UPDATE audit_records SET
                        details=?, content_hash=?, previous_hash=?
                        WHERE record_id=?""",

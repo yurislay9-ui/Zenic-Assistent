@@ -24,7 +24,7 @@ import socket
 import threading
 from typing import Any, Dict, Optional
 
-from .backend import CoordinationBackend
+from ..backend import CoordinationBackend
 from ._types import NodeInfo, NodeState
 from ._lifecycle_mixin import LifecycleMixin
 from ._discovery_mixin import DiscoveryMixin

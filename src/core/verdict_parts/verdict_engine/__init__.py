@@ -147,6 +147,8 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
         # === MEMORY CHIP PRE-CHECK (T2-17, T1-15) ===
         # If the memory chip has a high-confidence mapping, bypass the entire
         # verdict pipeline and return immediately. This is the <5ms path.
+        if self._memory_chip is None:
+            logger.debug("Memory chip not initialized — PyO3 module may not be loaded")
         if self._memory_chip is not None:
             try:
                 chip_result = self._memory_chip.lookup(text, ctx.get("tenant_id", "__anonymous__"))
@@ -231,6 +233,8 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
             )
 
         # === PASO 5: Arbitraje de IA con resiliencia ===
+        if self._resilience is None:
+            logger.debug("Resilience orchestrator not available — running without circuit breaker")
         verdict_input = VerdictInput(
             question=question,
             evidence_for=consensus.evidence_for,

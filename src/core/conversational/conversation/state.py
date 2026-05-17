@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from ...types.base import new_id
-from ...types.intent import IntentCategory, ConversationMode
+from ..types.base import new_id
+from ..types.intent import IntentCategory, ConversationMode
 
 
 # ─── Fase de la conversacion ──────────────────────────────────

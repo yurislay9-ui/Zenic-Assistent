@@ -24,20 +24,20 @@ import logging
 import time
 from typing import Any
 
-from .understanding import (
+from .understanding import (  # type: ignore[import-unresolved]
     IntentClassifier,
     EntityExtractor,
     TargetResolver,
     CriticalityScorer,
     BilingualRouter,
 )
-from .memory import (
+from .memory import (  # type: ignore[import-unresolved]
     MemoryCollector,
     RelevanceScorer,
     ContextCompressor,
     ContextPrefetcher,
 )
-from .business import (
+from .business import (  # type: ignore[import-unresolved]
     InvoiceProcessor,
     InventoryManager,
     CRMPipeline,
@@ -50,13 +50,13 @@ from .business import (
 # code_ops removed — module deleted
 # CodeGenerator, CodeRefactorer, CodeOptimizer, CodeFixer,
 # ProjectScaffolder, DefensiveInjector no longer available
-from .validation import (
+from .validation import (  # type: ignore[import-unresolved]
     SecurityScanner,
     SyntaxValidator,
     RiskCalculator,
     FixSuggester,
 )
-from .automation import (
+from .automation import (  # type: ignore[import-unresolved]
     TriggerInferrer,
     ActionInferrer,
     ScheduleParser,
@@ -64,26 +64,26 @@ from .automation import (
     AutomationNamer,
     WorkflowSerializer,
 )
-from .reasoning import (
+from .reasoning import (  # type: ignore[import-unresolved]
     ProblemDetector,
     StepDecomposer,
     TemplateReasoner,
     ConfidenceEstimator,
     ConclusionExtractor,
 )
-from .verdict import (
+from .verdict import (  # type: ignore[import-unresolved]
     VerdictEngineV18,
     EvidenceCollectorV18,
     ConsensusResolverV18,
 )
-from .schemas import (
+from .schemas import (  # type: ignore[import-unresolved]
     Verdict, VerdictOutput, ConsensusResult, Evidence,
     IntentResult, EntityResult, TargetResult, CriticalityResult,
     LanguageResult, SecurityResult, SyntaxResult, RiskResult,
     WorkflowSpec, ProblemType, ReasoningResult, ConfidenceResult, DecomposedSteps, Conclusion,
     TriggerSpec, ActionSpec, ScheduleSpec, ConditionResult, NameResult,
 )
-from .resilience import (
+from .resilience import (  # type: ignore[import-unresolved]
     CircuitBreakerManager,
     BulkheadManager,
     GlobalHealthMonitor,

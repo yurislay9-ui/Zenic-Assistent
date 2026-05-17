@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import time
+import html
 from typing import Any, Dict, List, Optional
 
 from .types import (
@@ -312,7 +313,7 @@ class AlertManager:
         if not items:
             return ""
         rows = "".join(
-            f"<tr><td>{i.get('name', '?')}</td><td>{i.get('quantity', '?')}</td></tr>"
+            f"<tr><td>{html.escape(str(i.get('name', '?')))}</td><td>{html.escape(str(i.get('quantity', '?')))}</td></tr>"
             for i in items[:10]
         )
         return f"<table><tr><th>Producto</th><th>Cantidad</th></tr>{rows}</table>"

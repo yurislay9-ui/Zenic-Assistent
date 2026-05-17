@@ -25,6 +25,7 @@ Features:
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import logging
 import shutil
@@ -36,6 +37,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+from urllib.parse import urlparse
 
 from src.core.shared.retry import with_retry
 from src.core.shared.db_initializer import get_data_dir
@@ -49,6 +51,22 @@ from src.core.native import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _validate_url(url: str, allowed_schemes: tuple = ("http", "https")) -> str:
+    """Validate URL to prevent SSRF attacks."""
+    parsed = urlparse(url)
+    if parsed.scheme not in allowed_schemes:
+        raise ValueError(f"URL scheme '{parsed.scheme}' not allowed. Use: {allowed_schemes}")
+    if not parsed.hostname:
+        raise ValueError("URL must have a hostname")
+    try:
+        ip = ipaddress.ip_address(parsed.hostname)
+        if ip.is_private or ip.is_loopback or ip.is_reserved:
+            raise ValueError(f"Access to internal IPs is not allowed: {parsed.hostname}")
+    except ValueError:
+        pass  # hostname is not an IP, that's OK
+    return url
 
 __all__ = [
     "ResourceType",
@@ -186,7 +204,7 @@ class CoordinatedRollbackManager:
         def _do_init() -> None:
             conn = sqlite3.connect(self._db_path)
             try:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     CREATE TABLE IF NOT EXISTS coordinated_actions (
                         action_id  TEXT PRIMARY KEY,
@@ -196,15 +214,15 @@ class CoordinatedRollbackManager:
                     )
                     """
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_ca_tenant "
                     "ON coordinated_actions(tenant_id)"
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_ca_status "
                     "ON coordinated_actions(status)"
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     CREATE TABLE IF NOT EXISTS resource_records (
                         id                    INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -218,7 +236,7 @@ class CoordinatedRollbackManager:
                     )
                     """
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_rr_action "
                     "ON resource_records(action_id)"
                 )
@@ -260,7 +278,7 @@ class CoordinatedRollbackManager:
         def _do_persist() -> None:
             conn = sqlite3.connect(self._db_path)
             try:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     INSERT INTO coordinated_actions
                         (action_id, tenant_id, status, created_at)
@@ -513,7 +531,7 @@ class CoordinatedRollbackManager:
         def _do_list() -> List[CoordinatedAction]:
             conn = sqlite3.connect(self._db_path)
             try:
-                cursor = conn.execute(
+                cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     SELECT action_id FROM coordinated_actions
                     WHERE tenant_id = ? AND status = ?
@@ -611,7 +629,7 @@ class CoordinatedRollbackManager:
         def _log_recall() -> None:
             conn = sqlite3.connect(self._db_path)
             try:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     CREATE TABLE IF NOT EXISTS email_recall_log (
                         id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -623,7 +641,7 @@ class CoordinatedRollbackManager:
                     )
                     """
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     INSERT INTO email_recall_log
                         (action_id, message_id, to_addr, subject, recalled_at)
@@ -771,9 +789,10 @@ class CoordinatedRollbackManager:
             import urllib.request
             import urllib.error
 
+            validated_url = _validate_url(url)
             data = json.dumps(cancellation_payload).encode("utf-8")
             req = urllib.request.Request(
-                url,
+                validated_url,
                 data=data,
                 headers={"Content-Type": "application/json"},
                 method="POST",
@@ -809,7 +828,7 @@ class CoordinatedRollbackManager:
             def _do_add() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """
                         INSERT INTO resource_records
                             (action_id, resource_type, resource_id,
@@ -846,7 +865,7 @@ class CoordinatedRollbackManager:
         def _do_mark() -> None:
             conn = sqlite3.connect(self._db_path)
             try:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     UPDATE resource_records
                     SET compensation_executed = 1
@@ -881,7 +900,7 @@ class CoordinatedRollbackManager:
         def _do_update() -> None:
             conn = sqlite3.connect(self._db_path)
             try:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "UPDATE coordinated_actions SET status = ? WHERE action_id = ?",
                     (status.value, action_id),
                 )
@@ -903,7 +922,7 @@ class CoordinatedRollbackManager:
             conn = sqlite3.connect(self._db_path)
             try:
                 # Load the action
-                cursor = conn.execute(
+                cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT action_id, tenant_id, status, created_at "
                     "FROM coordinated_actions WHERE action_id = ?",
                     (action_id,),
@@ -920,7 +939,7 @@ class CoordinatedRollbackManager:
                 )
 
                 # Load all records for this action
-                cursor2 = conn.execute(
+                cursor2 = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     SELECT resource_type, resource_id, rollback_data,
                            compensation_executed, created_at

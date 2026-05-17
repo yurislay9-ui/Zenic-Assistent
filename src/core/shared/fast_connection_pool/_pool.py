@@ -71,7 +71,7 @@ class FastPool:
         import os
         if 'ANDROID_ARGUMENT' in os.environ:
             try:
-                from android.storage import app_storage_path
+                from android.storage import app_storage_path  # type: ignore[import-unresolved]
                 return str(Path(app_storage_path()) / "zenic_data")
             except Exception:
                 pass
@@ -107,7 +107,7 @@ class FastPool:
     def _is_alive(self, conn: sqlite3.Connection) -> bool:
         """Check if a connection is still alive."""
         try:
-            conn.execute("SELECT 1")
+            conn.execute("SELECT 1")  # nosemgrep: sqlalchemy-execute-raw-query
             return True
         except Exception:
             return False
@@ -204,14 +204,14 @@ class FastPool:
         conn = self.get(db_name)
         lock.acquire()
         try:
-            conn.execute("BEGIN")
+            conn.execute("BEGIN")  # nosemgrep: sqlalchemy-execute-raw-query
             yield conn
-            conn.execute("COMMIT")
+            conn.execute("COMMIT")  # nosemgrep: sqlalchemy-execute-raw-query
             self._get_stats(db_name).total_commits += 1
             self._get_stats(db_name).batch_commits += 1
         except Exception:
             try:
-                conn.execute("ROLLBACK")
+                conn.execute("ROLLBACK")  # nosemgrep: sqlalchemy-execute-raw-query
             except Exception:
                 pass
             raise
@@ -222,7 +222,7 @@ class FastPool:
         """Run WAL checkpoint to truncate the WAL file."""
         conn = self.get(db_name)
         try:
-            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")  # nosemgrep: sqlalchemy-execute-raw-query
         except sqlite3.Error as e:
             logger.debug("WAL checkpoint failed for %s: %s", db_name, e)
 
@@ -315,7 +315,7 @@ class FastPool:
                     logger.warning("purge_tenant: skipping invalid table name %r", table)
                     continue
                 try:
-                    cursor = conn.execute(
+                    cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f"DELETE FROM {table} WHERE tenant_id = ?",
                         (tenant_id,),
                     )

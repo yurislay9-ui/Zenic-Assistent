@@ -130,7 +130,7 @@ class ExpiryManager:
         """Create the expiry records table if it does not exist."""
         def _do_init() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS expiry_records (
                     request_id TEXT PRIMARY KEY,
                     expires_at TEXT NOT NULL,
@@ -140,7 +140,7 @@ class ExpiryManager:
                     status TEXT NOT NULL DEFAULT 'active'
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_expiry_status
                 ON expiry_records(status, expires_at)
             """)
@@ -331,7 +331,7 @@ class ExpiryManager:
         def _do_find() -> Optional[ExpiryRecord]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT * FROM expiry_records WHERE request_id = ?",
                 (request_id,),
             ).fetchone()
@@ -373,7 +373,7 @@ class ExpiryManager:
         def _do_query() -> List[ExpiryRecord]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT * FROM expiry_records
                    WHERE status = 'active'
                    ORDER BY expires_at ASC""",
@@ -432,7 +432,7 @@ class ExpiryManager:
             result_json = json.dumps(record.revert_result) if record.revert_result else None
 
             if insert:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO expiry_records
                        (request_id, expires_at, reverted_at, revert_result,
                         notification_sent_at, status)
@@ -447,7 +447,7 @@ class ExpiryManager:
                     ),
                 )
             else:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """UPDATE expiry_records SET
                        expires_at=?, reverted_at=?, revert_result=?,
                        notification_sent_at=?, status=?

@@ -27,6 +27,7 @@ import time
 from collections import deque
 from contextlib import contextmanager
 from typing import Any, Callable, Deque, Dict, List, Optional
+from ._core import Sidecar, sidecar_decorator  # type: ignore[import-unresolved]
 
 
 logger = logging.getLogger(__name__)

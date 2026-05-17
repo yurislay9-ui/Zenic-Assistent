@@ -162,7 +162,7 @@ class RollbackManager:
         """Create the rollback tables if they do not exist."""
         def _do_init() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS compensation_actions (
                     action_id TEXT PRIMARY KEY,
                     request_id TEXT NOT NULL,
@@ -171,7 +171,7 @@ class RollbackManager:
                     description TEXT NOT NULL DEFAULT ''
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS rollback_records (
                     rollback_id TEXT PRIMARY KEY,
                     request_id TEXT NOT NULL,
@@ -184,11 +184,11 @@ class RollbackManager:
                     merkle_hash TEXT NOT NULL
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_compensation_request
                 ON compensation_actions(request_id)
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_rollback_request
                 ON rollback_records(request_id, created_at DESC)
             """)
@@ -335,7 +335,7 @@ class RollbackManager:
         def _do_find() -> Optional[RollbackRecord]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT * FROM rollback_records WHERE rollback_id = ?",
                 (rollback_id,),
             ).fetchone()
@@ -351,7 +351,7 @@ class RollbackManager:
         def _do_query() -> List[RollbackRecord]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT * FROM rollback_records
                    WHERE request_id = ?
                    ORDER BY created_at DESC""",
@@ -382,7 +382,7 @@ class RollbackManager:
         def _do_query() -> List[CompensationAction]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT * FROM compensation_actions
                    WHERE request_id = ?
                    ORDER BY action_id ASC""",
@@ -471,7 +471,7 @@ class RollbackManager:
         def _do_persist() -> None:
             conn = sqlite3.connect(self._db_path)
             if insert:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO compensation_actions
                        (action_id, request_id, action_type, payload, description)
                        VALUES (?, ?, ?, ?, ?)""",
@@ -484,7 +484,7 @@ class RollbackManager:
                     ),
                 )
             else:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """UPDATE compensation_actions SET
                        payload=?, description=?
                        WHERE action_id=?""",
@@ -509,7 +509,7 @@ class RollbackManager:
             result_json = json.dumps(record.result) if record.result else None
 
             if insert:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO rollback_records
                        (rollback_id, request_id, trigger,
                         compensation_actions, status, executed_at,
@@ -528,7 +528,7 @@ class RollbackManager:
                     ),
                 )
             else:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """UPDATE rollback_records SET
                        status=?, executed_at=?, result=?,
                        merkle_hash=?

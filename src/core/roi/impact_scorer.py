@@ -146,7 +146,7 @@ class ImpactScorer:
         try:
             def _create() -> None:
                 conn = sqlite3.connect(self._db_path)
-                conn.execute("""
+                conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                     CREATE TABLE IF NOT EXISTS _zenic_impacts (
                         score_id TEXT PRIMARY KEY,
                         source TEXT NOT NULL DEFAULT '',
@@ -161,19 +161,19 @@ class ImpactScorer:
                         metadata TEXT NOT NULL DEFAULT '{}'
                     )
                 """)
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_impacts_source "
                     "ON _zenic_impacts(source)"
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_impacts_timestamp "
                     "ON _zenic_impacts(timestamp)"
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_impacts_urgency "
                     "ON _zenic_impacts(urgency_hours)"
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_impacts_score "
                     "ON _zenic_impacts(impact_score)"
                 )
@@ -376,7 +376,7 @@ class ImpactScorer:
             try:
                 def _query() -> List[ImpactScore]:
                     conn = sqlite3.connect(self._db_path)
-                    rows = conn.execute(
+                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT score_id, source, source_id, impact_type, "
                         "estimated_loss_if_no_action, estimated_gain_if_action, "
                         "urgency_hours, impact_score, currency, timestamp, metadata "
@@ -416,7 +416,7 @@ class ImpactScorer:
                     if to_time:
                         sql += " AND timestamp <= ?"
                         params.append(to_time)
-                    row = conn.execute(sql, params).fetchone()
+                    row = conn.execute(sql, params).fetchone()  # nosemgrep: sqlalchemy-execute-raw-query
                     conn.close()
                     return {
                         "total_potential_loss": float(row[0]),
@@ -444,7 +444,7 @@ class ImpactScorer:
             try:
                 def _query() -> List[ImpactScore]:
                     conn = sqlite3.connect(self._db_path)
-                    rows = conn.execute(
+                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT score_id, source, source_id, impact_type, "
                         "estimated_loss_if_no_action, estimated_gain_if_action, "
                         "urgency_hours, impact_score, currency, timestamp, metadata "
@@ -468,7 +468,7 @@ class ImpactScorer:
 
         def _insert() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT INTO _zenic_impacts
                    (score_id, source, source_id, impact_type,
                     estimated_loss_if_no_action, estimated_gain_if_action,

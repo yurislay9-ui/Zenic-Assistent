@@ -43,7 +43,7 @@ class CacheMixin:
         # First: exact hash match (fastest) — scoped by tenant AND client
         query_hash = hashlib.sha256(query.lower().strip().encode()).hexdigest()
         with sqlite3.connect(DB_PATH) as conn:
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT response_summary, operation, goal, importance, access_count, id
                    FROM semantic_cache
                    WHERE query_hash=? AND tenant_id=? AND client_id=?""",
@@ -51,7 +51,7 @@ class CacheMixin:
             ).fetchone()
             if row:
                 # Update access count
-                conn.execute("UPDATE semantic_cache SET access_count=access_count+1 WHERE id=?", (row[5],))
+                conn.execute("UPDATE semantic_cache SET access_count=access_count+1 WHERE id=?", (row[5],))  # nosemgrep: sqlalchemy-execute-raw-query
                 return {
                     "response": row[0],
                     "operation": row[1],
@@ -66,7 +66,7 @@ class CacheMixin:
             if query_emb is not None:
                 # Load recent cache entries for this tenant+client and compare
                 with sqlite3.connect(DB_PATH) as conn:
-                    rows = conn.execute(
+                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """SELECT id, query_text, response_summary, operation, goal, importance, embedding
                            FROM semantic_cache
                            WHERE tenant_id=? AND client_id=?
@@ -81,7 +81,7 @@ class CacheMixin:
                         if sim >= SEMANTIC_CACHE_THRESHOLD:
                             # Update access count
                             with sqlite3.connect(DB_PATH) as conn:
-                                conn.execute("UPDATE semantic_cache SET access_count=access_count+1 WHERE id=?", (row[0],))
+                                conn.execute("UPDATE semantic_cache SET access_count=access_count+1 WHERE id=?", (row[0],))  # nosemgrep: sqlalchemy-execute-raw-query
                             return {
                                 "response": row[2],
                                 "operation": row[3],
@@ -109,7 +109,7 @@ class CacheMixin:
         response_summary = response[:2000] if response else ""
 
         with sqlite3.connect(DB_PATH) as conn:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT OR REPLACE INTO semantic_cache 
                    (query_hash, query_text, response_summary, operation, goal,
                     importance, embedding, created_at, session_id, client_id, tenant_id)

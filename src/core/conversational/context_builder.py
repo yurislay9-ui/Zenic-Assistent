@@ -20,12 +20,12 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from ..types.base import PipelineContext
-from ..types.session import Session, Message, MessageRole
-from ..types.intent import AssistantIntent, IntentCategory
-from ..types.personality import PersonalityProfile
-from ..types.response import AssistantResponse
-from ..config.constants import (
+from .types.base import PipelineContext
+from .types.session import Session, Message, MessageRole
+from .types.intent import AssistantIntent, IntentCategory
+from .types.personality import PersonalityProfile
+from .types.response import AssistantResponse
+from ..config.constants import (  # type: ignore[import-unresolved]
     MAX_CONTEXT_TOKENS,
     CONTEXT_RESERVE_SYSTEM,
     CONTEXT_RESERVE_RESPONSE,

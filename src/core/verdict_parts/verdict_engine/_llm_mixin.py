@@ -110,6 +110,8 @@ class VerdictLLMMixin:
                 time.sleep(0.2)
 
             try:
+                if self._executor is None:
+                    raise RuntimeError("Executor not initialized — VerdictEngine may have been shut down")
                 future = self._executor.submit(
                     self._call_llm_safe, prompt, VERDICT_MAX_TOKENS
                 )
@@ -247,6 +249,8 @@ class VerdictLLMMixin:
                     time.sleep(delay)
 
                 try:
+                    if self._executor is None:
+                        raise RuntimeError("Executor not initialized — VerdictEngine may have been shut down")
                     future = self._executor.submit(
                         self._call_llm_safe, prompt, VERDICT_MAX_TOKENS
                     )

@@ -18,9 +18,9 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...types.base import Result, Ok
-from ...types.intent import AssistantIntent, IntentCategory, ConversationMode
-from ...types.session import Session
+from ..types.base import Result, Ok
+from ..types.intent import AssistantIntent, IntentCategory, ConversationMode
+from ..types.session import Session
 from ..input.parser import ParsedInput
 from ..input.enricher import EnrichedInput
 
@@ -258,7 +258,7 @@ class IntentEngine:
         self,
         enriched: EnrichedInput,
         session: Session | None = None,
-    ) -> Result[AssistantIntent]:
+    ) -> Result[AssistantIntent, Exception]:
         """
         Clasifica la intencion del mensaje enriquecido.
 

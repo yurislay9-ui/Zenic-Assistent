@@ -29,27 +29,24 @@ from src.core.shared.db_initializer import initialize_databases
 from src.core.shared._version import ZENIC_VERSION_STR, ZENIC_FULL_NAME
 
 # R3: Support ZENIC_USE_UNIFIED_DAG=1 for v18 experimental pipeline
-# Default is v16 DAGOrchestrator (production-ready, tested with Cline)
+# dag_orchestrator migrated to Rust — fallback chain skips it entirely
 import os as _os
 if _os.environ.get("ZENIC_USE_UNIFIED_DAG", "0") == "1":
     try:
-        from src.core.dag_parts.unified_orchestrator import UnifiedDAGOrchestrator as _Orchestrator
-    except ImportError:
-        from src.core.dag_orchestrator import DAGOrchestrator as _Orchestrator
-else:
-    try:
-        from src.core.dag_orchestrator import DAGOrchestrator as _Orchestrator
+        from src.core.dag_parts.unified_orchestrator import UnifiedDAGOrchestrator as _Orchestrator  # type: ignore[import-unresolved]
     except ImportError:
         from src.core.orchestrator import ZenicOrchestrator as _Orchestrator
+else:
+    from src.core.orchestrator import ZenicOrchestrator as _Orchestrator
 
 # Server module removed — no more HTTP server imports
 # from src.server import (ZenicHTTPHandler, ThreadedHTTPServer, ...)
 
-from textual.app import App, ComposeResult
-from textual.containers import Vertical, VerticalScroll
-from textual.widgets import Button, Input, Label, Static
-from textual.reactive import reactive
-from textual import work
+from textual.app import App, ComposeResult  # type: ignore[import-unresolved]
+from textual.containers import Vertical, VerticalScroll  # type: ignore[import-unresolved]
+from textual.widgets import Button, Input, Label, Static  # type: ignore[import-unresolved]
+from textual.reactive import reactive  # type: ignore[import-unresolved]
+from textual import work  # type: ignore[import-unresolved]
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ZENIC")

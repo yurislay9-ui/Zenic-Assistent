@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...types.memory import MemoryEntry, MemoryCategory
+from ..types.memory import MemoryEntry, MemoryCategory
 
 
 # ─── Pesos por categoria ─────────────────────────────────────

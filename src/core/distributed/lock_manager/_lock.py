@@ -3,7 +3,8 @@
 import logging
 import threading
 from typing import Any, Optional
-from .backend import CoordinationBackend
+from ..backend import CoordinationBackend
+logger = logging.getLogger("core.distributed.lock_manager._lock")
 
 class DistributedLock:
     """

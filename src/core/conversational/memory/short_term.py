@@ -17,12 +17,12 @@ import threading
 import time
 from typing import Any
 
-from ...types.base import Result, Ok
-from ...types.memory import (
+from ..types.base import Result, Ok
+from ..types.memory import (
     MemoryEntry, MemoryQuery, MemoryResult,
     MemoryType, MemoryCategory, MemoryStats,
 )
-from ...config.constants import MEMORY_MAX_LONG_TERM
+from ..config.constants import MEMORY_MAX_LONG_TERM
 
 
 class ShortTermMemory:
@@ -43,7 +43,7 @@ class ShortTermMemory:
 
     # ─── Store ────────────────────────────────────────────────
 
-    def store(self, entry: MemoryEntry) -> Result[bool]:
+    def store(self, entry: MemoryEntry) -> Result[bool, Exception]:
         """Almacena una entrada en short-term memory."""
         with self._lock:
             # Eviction si es necesario

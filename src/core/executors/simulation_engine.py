@@ -220,7 +220,7 @@ class SimulationEngine:
         def _init_schema() -> None:
             conn = sqlite3.connect(self._db_path)  # type: ignore[arg-type]
             try:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     CREATE TABLE IF NOT EXISTS _simulation_history (
                         simulation_id TEXT PRIMARY KEY,
@@ -233,7 +233,7 @@ class SimulationEngine:
                     )
                     """
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_sim_created "
                     "ON _simulation_history(created_at)"
                 )
@@ -260,7 +260,7 @@ class SimulationEngine:
         def _do_persist() -> None:
             conn = sqlite3.connect(db_path)
             try:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     INSERT INTO _simulation_history
                         (simulation_id, dag_id, nodes_simulated,
@@ -280,7 +280,7 @@ class SimulationEngine:
                 )
 
                 # Prune to keep only the last 50
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     DELETE FROM _simulation_history
                     WHERE simulation_id NOT IN (

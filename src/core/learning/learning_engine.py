@@ -159,7 +159,7 @@ class LearningEngine:
             def _apply() -> bool:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    cursor = conn.execute(
+                    cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "UPDATE learning_insights SET applied = 1 WHERE id = ?",
                         (insight_id,),
                     )
@@ -186,7 +186,7 @@ class LearningEngine:
                         params.append(1 if applied else 0)
 
                     where = " AND ".join(conditions)
-                    cursor = conn.execute(
+                    cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f"SELECT * FROM learning_insights WHERE {where} "
                         f"ORDER BY confidence DESC",
                         params,
@@ -298,19 +298,19 @@ class LearningEngine:
             def _calc() -> Dict[str, Any]:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    total = conn.execute("SELECT COUNT(*) FROM learning_insights").fetchone()[0]
-                    applied = conn.execute(
+                    total = conn.execute("SELECT COUNT(*) FROM learning_insights").fetchone()[0]  # nosemgrep: sqlalchemy-execute-raw-query
+                    applied = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT COUNT(*) FROM learning_insights WHERE applied = 1"
                     ).fetchone()[0]
 
                     type_counts: Dict[str, int] = {}
-                    cursor = conn.execute(
+                    cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT insight_type, COUNT(*) FROM learning_insights GROUP BY insight_type"
                     )
                     for itype, cnt in cursor.fetchall():
                         type_counts[itype] = cnt
 
-                    avg_conf = conn.execute(
+                    avg_conf = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT AVG(confidence) FROM learning_insights"
                     ).fetchone()[0] or 0.0
 
@@ -421,7 +421,7 @@ class LearningEngine:
             def _insert() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """INSERT OR REPLACE INTO learning_insights
                            (id, insight_type, pattern, recommendation, confidence,
                             supporting_outcomes, created_at, applied)

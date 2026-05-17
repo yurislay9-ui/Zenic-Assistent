@@ -130,7 +130,7 @@ class DelegationManager:
         """Create the delegation tables if they do not exist."""
         def _do_init() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS delegation_rules (
                     rule_id TEXT PRIMARY KEY,
                     from_user_id INTEGER NOT NULL,
@@ -143,7 +143,7 @@ class DelegationManager:
                     reason TEXT NOT NULL DEFAULT ''
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS delegation_records (
                     record_id TEXT PRIMARY KEY,
                     rule_id TEXT NOT NULL,
@@ -154,11 +154,11 @@ class DelegationManager:
                     acknowledged INTEGER NOT NULL DEFAULT 0
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_del_rules_from
                 ON delegation_rules(from_user_id, from_role, active)
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_del_records_rule
                 ON delegation_records(rule_id)
             """)
@@ -347,14 +347,14 @@ class DelegationManager:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
             if user_id:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """SELECT * FROM delegation_rules
                        WHERE from_user_id = ? AND active = 1
                        ORDER BY created_at DESC""",
                     (user_id,),
                 ).fetchall()
             else:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """SELECT * FROM delegation_rules
                        WHERE active = 1
                        ORDER BY created_at DESC""",
@@ -369,7 +369,7 @@ class DelegationManager:
         def _do_query() -> List[Dict[str, Any]]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT * FROM delegation_records
                    ORDER BY delegated_at DESC LIMIT ?""",
                 (limit,),
@@ -399,7 +399,7 @@ class DelegationManager:
         conn = sqlite3.connect(self._db_path)
         conn.row_factory = sqlite3.Row
         try:
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT * FROM delegation_rules
                    WHERE from_user_id = ? AND from_role = ? AND active = 1
                    ORDER BY created_at DESC""",
@@ -416,7 +416,7 @@ class DelegationManager:
         def _do_find() -> Optional[DelegationRule]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT * FROM delegation_rules WHERE rule_id = ?",
                 (rule_id,),
             ).fetchone()
@@ -432,7 +432,7 @@ class DelegationManager:
         def _do_find() -> Optional[DelegationRecord]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT * FROM delegation_records WHERE record_id = ?",
                 (record_id,),
             ).fetchone()
@@ -456,7 +456,7 @@ class DelegationManager:
         def _do_persist() -> None:
             conn = sqlite3.connect(self._db_path)
             if insert:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO delegation_rules
                        (rule_id, from_user_id, to_user_id, from_role, to_role,
                         active, expires_at, created_at, reason)
@@ -468,7 +468,7 @@ class DelegationManager:
                     ),
                 )
             else:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """UPDATE delegation_rules SET
                        active=?, expires_at=?, reason=?
                        WHERE rule_id=?""",
@@ -484,7 +484,7 @@ class DelegationManager:
         def _do_persist() -> None:
             conn = sqlite3.connect(self._db_path)
             if insert:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO delegation_records
                        (record_id, rule_id, original_approver, delegated_to,
                         action_type, delegated_at, acknowledged)
@@ -497,7 +497,7 @@ class DelegationManager:
                     ),
                 )
             else:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """UPDATE delegation_records SET acknowledged=?
                        WHERE record_id=?""",
                     (int(record.acknowledged), record.record_id),

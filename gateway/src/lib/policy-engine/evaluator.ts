@@ -371,8 +371,11 @@ export class PolicyEvaluator {
   private async loadActivePolicies(tenantId?: string): Promise<PolicyDocument[]> {
     const where: Record<string, unknown> = { isActive: true };
     // BUG #5 FIX: Filter by tenant when provided to prevent cross-tenant leaks
+    // Also include global policies (no tenantId) that apply to all tenants
     if (tenantId) {
       where.OR = [
+        { tenantId: null },
+        { tenantId },
         { labels: { contains: `"tenantId":"${tenantId}"` } },
         { labels: { contains: `"tenantId": "${tenantId}"` } },
       ];

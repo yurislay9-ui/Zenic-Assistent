@@ -125,7 +125,7 @@ class PgConnectionMixin:
     async def connect(self) -> None:
         """Initialize PostgreSQL connection and create schema."""
         try:
-            import psycopg2
+            import psycopg2  # type: ignore[import-unresolved]
             from psycopg2 import pool
         except ImportError:
             raise ImportError(
@@ -230,7 +230,7 @@ class PgConnectionMixin:
         conn = self._get_conn()
         try:
             with conn.cursor() as cur:
-                cur.execute(sql)
+                cur.execute(sql)  # nosemgrep: sqlalchemy-execute-raw-query
             if not conn.autocommit:
                 conn.commit()
         except Exception as exc:
@@ -250,7 +250,7 @@ class PgConnectionMixin:
         conn = self._get_conn()
         try:
             with conn.cursor() as cur:
-                cur.execute(sql, params)
+                cur.execute(sql, params)  # nosemgrep: sqlalchemy-execute-raw-query
                 if cur.description is None:
                     return []
                 columns = [desc[0] for desc in cur.description]
@@ -272,7 +272,7 @@ class PgConnectionMixin:
         conn = self._get_conn()
         try:
             with conn.cursor() as cur:
-                cur.execute(sql, params)
+                cur.execute(sql, params)  # nosemgrep: sqlalchemy-execute-raw-query
                 affected = cur.rowcount
             if not conn.autocommit:
                 conn.commit()

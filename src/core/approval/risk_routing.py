@@ -135,7 +135,7 @@ class RiskBasedApprovalRouter:
         """Create the risk_assessments table if it does not exist."""
         def _do_init() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS risk_assessments (
                     assessment_id TEXT PRIMARY KEY,
                     action_type TEXT NOT NULL,
@@ -149,7 +149,7 @@ class RiskBasedApprovalRouter:
                     created_at TEXT NOT NULL
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_risk_action_type
                 ON risk_assessments(action_type, created_at DESC)
             """)
@@ -277,14 +277,14 @@ class RiskBasedApprovalRouter:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
             if action_type:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """SELECT * FROM risk_assessments
                        WHERE action_type = ?
                        ORDER BY created_at DESC LIMIT ?""",
                     (action_type, limit),
                 ).fetchall()
             else:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """SELECT * FROM risk_assessments
                        ORDER BY created_at DESC LIMIT ?""",
                     (limit,),
@@ -312,19 +312,19 @@ class RiskBasedApprovalRouter:
         def _do_query() -> Dict[str, Any]:
             conn = sqlite3.connect(self._db_path)
             try:
-                total = conn.execute(
+                total = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT COUNT(*) FROM risk_assessments"
                 ).fetchone()[0]
-                avg_score_row = conn.execute(
+                avg_score_row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT AVG(risk_score) FROM risk_assessments"
                 ).fetchone()[0]
                 avg_score = round(avg_score_row, 4) if avg_score_row is not None else 0.0
-                auto_count = conn.execute(
+                auto_count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT COUNT(*) FROM risk_assessments WHERE auto_approvable = 1"
                 ).fetchone()[0]
                 by_level: Dict[str, int] = {}
                 for level in RiskLevel:
-                    cnt = conn.execute(
+                    cnt = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT COUNT(*) FROM risk_assessments WHERE risk_level = ?",
                         (level.value,),
                     ).fetchone()[0]
@@ -436,7 +436,7 @@ class RiskBasedApprovalRouter:
 
         def _do_persist() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT INTO risk_assessments
                    (assessment_id, action_type, risk_score, risk_level,
                     recommended_role, auto_approvable, factors,

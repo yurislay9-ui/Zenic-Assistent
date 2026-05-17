@@ -155,7 +155,7 @@ func main() {{
 \tif err != nil {{
 \t\tpanic("failed to connect database")
 \t}}
-{chr(10).join([f"\tdb.AutoMigrate(&models.{e['name']}{{}})" for e in entities])}
+{chr(10).join([f"{chr(9)}db.AutoMigrate(&models.{e['name']}{{}})" for e in entities])}
 
 \tr := gin.Default()
 \tv1 := r.Group("/v1")

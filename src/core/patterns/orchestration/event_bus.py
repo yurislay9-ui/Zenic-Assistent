@@ -82,7 +82,7 @@ class EventHandler(ABC):
     """
 
     @abstractmethod
-    def handle(self, event: Event) -> None:
+    def handle(self, event: Event) -> Any:
         """
         Process the given event.
 

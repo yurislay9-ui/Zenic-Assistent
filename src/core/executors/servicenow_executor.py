@@ -27,7 +27,7 @@ import urllib.parse
 import urllib.request
 from typing import Any, Dict, List, Optional
 
-from .base import ActionExecutor, ActionResult, _HAS_AIOHTTP, _validate_url
+from .base import ActionExecutor, ActionResult, _HAS_AIOHTTP, _validate_url, _validate_url_ssrf
 
 logger = logging.getLogger(__name__)
 
@@ -344,8 +344,9 @@ class ServiceNowExecutor(ActionExecutor):
                 "client_secret": client_secret,
             }).encode("utf-8")
 
+            validated_token_url = _validate_url_ssrf(token_url)
             req = urllib.request.Request(
-                token_url,
+                validated_token_url,
                 data=token_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"},
                 method="POST",
@@ -532,12 +533,14 @@ class ServiceNowExecutor(ActionExecutor):
     ) -> Dict[str, Any]:
         """Execute request using urllib (sync, wrapped in to_thread)."""
 
+        validated_url = _validate_url_ssrf(url)
+
         def _do() -> Dict[str, Any]:
             data = None
             if json_data is not None:
                 data = json.dumps(json_data).encode("utf-8")
 
-            req = urllib.request.Request(url, data=data, headers=headers, method=method)
+            req = urllib.request.Request(validated_url, data=data, headers=headers, method=method)
 
             try:
                 with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310

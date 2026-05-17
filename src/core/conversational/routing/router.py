@@ -17,8 +17,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from ...types.base import Result, Ok, Err
-from ...types.intent import AssistantIntent, IntentCategory
+from ..types.base import Result, Ok, Err
+from ..types.intent import AssistantIntent, IntentCategory
 
 logger = logging.getLogger("zenic_agents.conversational.router")
 
@@ -182,7 +182,7 @@ class AssistantRouter:
         """Actualiza la disponibilidad del motor."""
         self._engine_available = available
 
-    def route(self, intent: AssistantIntent) -> Result[RouteResult]:
+    def route(self, intent: AssistantIntent) -> Result[RouteResult, Exception]:
         """
         Rutea una intencion al pipeline adecuado.
 

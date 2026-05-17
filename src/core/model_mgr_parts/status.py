@@ -4,6 +4,7 @@ import time
 from typing import Dict, Any
 
 from ._imports import logger, ENABLE_AUTO_UNLOAD
+import logging
 
 
 class StatusMixin:

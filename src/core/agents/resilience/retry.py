@@ -88,7 +88,7 @@ def with_agent_retry(
                             on_retry(attempt, e, delay)
                         time.sleep(delay)
             # All attempts exhausted — re-raise
-            raise last_exception
+            raise last_exception  # type: ignore[misc]
 
         wrapper._retry_config = config
         return wrapper

@@ -17,12 +17,12 @@ import threading
 import time
 from typing import Any
 
-from ...types.base import Result, Ok
-from ...types.memory import (
+from ..types.base import Result, Ok
+from ..types.memory import (
     MemoryEntry, MemoryQuery, MemoryResult,
     MemoryType, MemoryCategory, MemoryStats,
 )
-from ...config.constants import (
+from ..config.constants import (
     MEMORY_MAX_LONG_TERM,
     MEMORY_IMPORTANCE_THRESHOLD,
 )
@@ -64,7 +64,7 @@ class LongTermMemory:
             return True
         return entry.importance >= 0.9  # Muy importante
 
-    def promote(self, entry: MemoryEntry) -> Result[bool]:
+    def promote(self, entry: MemoryEntry) -> Result[bool, Exception]:
         """Promueve una entrada desde short-term a long-term."""
         if not self.should_promote(entry):
             return Ok(False)

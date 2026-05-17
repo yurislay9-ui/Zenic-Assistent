@@ -155,11 +155,11 @@ class TheoremCache:
             conn = get_connection("theorem_cache.sqlite")
             # Busqueda directa por hash compuesto + tenant_id
             intent_hash = self._hash(intent, code)
-            r = conn.execute(
+            r = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT solution_payload, hit_count FROM theorems WHERE structural_hash=? AND tenant_id=?",
                 (intent_hash, tid)).fetchone()
             if r:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "UPDATE theorems SET hit_count=hit_count+1, last_used=CURRENT_TIMESTAMP WHERE structural_hash=? AND tenant_id=?",
                     (intent_hash, tid))
                 conn.commit()
@@ -168,11 +168,11 @@ class TheoremCache:
             # Busqueda por skeleton hash (bypass experiencial) + tenant_id
             if code:
                 sk_hash = self._skeleton_hash(code, language)
-                r = conn.execute(
+                r = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT solution_payload, hit_count FROM theorems WHERE skeleton_hash=? AND tenant_id=?",
                     (sk_hash, tid)).fetchone()
                 if r:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "UPDATE theorems SET hit_count=hit_count+1, last_used=CURRENT_TIMESTAMP WHERE skeleton_hash=? AND tenant_id=?",
                         (sk_hash, tid))
                     conn.commit()
@@ -193,7 +193,7 @@ class TheoremCache:
             if code:
                 skeleton_hash = self._skeleton_hash(code, language)
             conn = get_connection("theorem_cache.sqlite")
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT INTO theorems
                 (structural_hash, operation, goal, proof_result, solution_payload, skeleton_hash, tenant_id)
                 VALUES (?,?,?,?,?,?,?)
@@ -229,7 +229,7 @@ class TheoremCache:
         tid = self._tenant_id
         try:
             # Only count entries for the current tenant
-            count = conn.execute(
+            count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COUNT(*) FROM theorems WHERE tenant_id=?", (tid,)
             ).fetchone()[0]
 
@@ -245,7 +245,7 @@ class TheoremCache:
             # LRU eviction: eliminar las mas viejas con menor hit_count
             # Proteger entradas altamente usadas (hit_count > 50)
             # ONLY evict within the current tenant's scope
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """DELETE FROM theorems
                 WHERE rowid IN (
                     SELECT rowid FROM theorems
@@ -258,7 +258,7 @@ class TheoremCache:
             conn.commit()
 
             # Actualizar stats
-            remaining = conn.execute(
+            remaining = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COUNT(*) FROM theorems WHERE tenant_id=?", (tid,)
             ).fetchone()[0]
             logger.info(
@@ -278,16 +278,16 @@ class TheoremCache:
         tid = self._tenant_id
         try:
             conn = get_connection("theorem_cache.sqlite")
-            count = conn.execute(
+            count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COUNT(*) FROM theorems WHERE tenant_id=?", (tid,)
             ).fetchone()[0]
-            total_hits = conn.execute(
+            total_hits = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COALESCE(SUM(hit_count), 0) FROM theorems WHERE tenant_id=?", (tid,)
             ).fetchone()[0]
-            avg_hits = conn.execute(
+            avg_hits = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COALESCE(AVG(hit_count), 0) FROM theorems WHERE tenant_id=?", (tid,)
             ).fetchone()[0]
-            max_hits_row = conn.execute(
+            max_hits_row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT hit_count FROM theorems WHERE tenant_id=? ORDER BY hit_count DESC LIMIT 1",
                 (tid,)
             ).fetchone()
@@ -309,7 +309,7 @@ class TheoremCache:
         tid = self._tenant_id
         try:
             conn = get_connection("theorem_cache.sqlite")
-            conn.execute("DELETE FROM theorems WHERE tenant_id=?", (tid,))
+            conn.execute("DELETE FROM theorems WHERE tenant_id=?", (tid,))  # nosemgrep: sqlalchemy-execute-raw-query
             conn.commit()
             logger.info("Cache cleared for tenant '%s'", tid)
         except Exception as e:

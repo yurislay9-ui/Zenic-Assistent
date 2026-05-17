@@ -33,6 +33,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import ipaddress
 import json
 import logging
 import os
@@ -40,6 +41,7 @@ import threading
 import time
 import urllib.parse
 from typing import Any, Dict, FrozenSet, List, Optional
+from urllib.parse import urlparse
 
 from .._formatter import (
     MessageFormatter,
@@ -62,6 +64,23 @@ from .._types import (
 )
 
 logger = logging.getLogger("zenic_agents.channels.twilio_sms")
+
+
+def _validate_url(url: str, allowed_schemes: tuple = ("http", "https")) -> str:
+    """Validate URL to prevent SSRF attacks."""
+    parsed = urlparse(url)
+    if parsed.scheme not in allowed_schemes:
+        raise ValueError(f"URL scheme '{parsed.scheme}' not allowed. Use: {allowed_schemes}")
+    if not parsed.hostname:
+        raise ValueError("URL must have a hostname")
+    try:
+        ip = ipaddress.ip_address(parsed.hostname)
+        if ip.is_private or ip.is_loopback or ip.is_reserved:
+            raise ValueError(f"Access to internal IPs is not allowed: {parsed.hostname}")
+    except ValueError:
+        pass  # hostname is not an IP, that's OK
+    return url
+
 
 # ── Optional Dependencies ─────────────────────────────────────
 
@@ -439,7 +458,7 @@ class TwilioSMSChannelProvider:
 
         Uses form-encoded data (Twilio's expected format).
         """
-        url = f"{self._api_base}/Accounts/{self._account_sid}/Messages.json"
+        url = _validate_url(f"{self._api_base}/Accounts/{self._account_sid}/Messages.json")
 
         for attempt in range(1, _MAX_RETRIES + 1):
             try:

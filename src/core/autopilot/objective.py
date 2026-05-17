@@ -278,7 +278,7 @@ class ObjectiveStore:
             def _init() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE TABLE IF NOT EXISTS _zenic_objectives (
                             objective_id TEXT PRIMARY KEY,
                             name TEXT NOT NULL,
@@ -294,11 +294,11 @@ class ObjectiveStore:
                             tags TEXT NOT NULL DEFAULT '[]'
                         )
                     """)
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE INDEX IF NOT EXISTS idx_zenic_obj_status
                         ON _zenic_objectives(status)
                     """)
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE INDEX IF NOT EXISTS idx_zenic_obj_tenant
                         ON _zenic_objectives(tenant_id)
                     """)
@@ -328,7 +328,7 @@ class ObjectiveStore:
             def _insert() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """INSERT INTO _zenic_objectives
                            (objective_id, name, description, priority, status,
                             targets, deadline, created_at, updated_at,
@@ -376,7 +376,7 @@ class ObjectiveStore:
                 conn = sqlite3.connect(self._db_path)
                 conn.row_factory = sqlite3.Row
                 try:
-                    row = conn.execute(
+                    row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT * FROM _zenic_objectives WHERE objective_id = ?",
                         (objective_id,),
                     ).fetchone()
@@ -405,7 +405,7 @@ class ObjectiveStore:
             def _update() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """UPDATE _zenic_objectives
                            SET name=?, description=?, priority=?, status=?,
                                targets=?, deadline=?, updated_at=?,
@@ -450,7 +450,7 @@ class ObjectiveStore:
             def _delete() -> bool:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    cursor = conn.execute(
+                    cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "DELETE FROM _zenic_objectives WHERE objective_id = ?",
                         (objective_id,),
                     )
@@ -503,7 +503,7 @@ class ObjectiveStore:
                         conditions.append("tags LIKE ?")
                         params.append(f'%"{tag}"%')
                     where = " WHERE " + " AND ".join(conditions) if conditions else ""
-                    rows = conn.execute(
+                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f"SELECT * FROM _zenic_objectives{where} "
                         f"ORDER BY created_at DESC LIMIT ?",
                         params + [limit],

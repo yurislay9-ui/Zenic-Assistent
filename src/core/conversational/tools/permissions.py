@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...types.tool_use import ToolPermission, ToolSpec
+from ..types.tool_use import ToolPermission, ToolSpec
 
 logger = logging.getLogger("zenic_agents.conversational.tools.permissions")
 

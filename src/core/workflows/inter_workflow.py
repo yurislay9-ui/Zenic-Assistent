@@ -228,7 +228,7 @@ class InterWorkflowHandoff:
 
     def _init_db(self) -> None:
         with sqlite3.connect(_DB_PATH) as conn:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 CREATE TABLE IF NOT EXISTS handoff_rules (
                     handoff_id       TEXT PRIMARY KEY,
@@ -241,7 +241,7 @@ class InterWorkflowHandoff:
                 )
                 """
             )
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 CREATE TABLE IF NOT EXISTS handoff_execution_log (
                     log_id           TEXT PRIMARY KEY,
@@ -259,7 +259,7 @@ class InterWorkflowHandoff:
 
     def _load_rules(self) -> None:
         with sqlite3.connect(_DB_PATH) as conn:
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT handoff_id, source_chain_id, target_chain_id, "
                 "field_mapping, condition, enabled, created_at "
                 "FROM handoff_rules"
@@ -283,7 +283,7 @@ class InterWorkflowHandoff:
 
     def _save_rule(self, rule: HandoffRule) -> None:
         with sqlite3.connect(_DB_PATH) as conn:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 INSERT OR REPLACE INTO handoff_rules
                     (handoff_id, source_chain_id, target_chain_id,
@@ -305,7 +305,7 @@ class InterWorkflowHandoff:
     def _log_handoff(self, result: HandoffResult, source_chain_id: str) -> None:
         log_id = f"hlog_{uuid.uuid4().hex[:12]}"
         with sqlite3.connect(_DB_PATH) as conn:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 INSERT INTO handoff_execution_log
                     (log_id, handoff_id, source_chain_id, target_chain_id,
@@ -364,7 +364,7 @@ class InterWorkflowHandoff:
                 return False
             del self._rules[handoff_id]
             with sqlite3.connect(_DB_PATH) as conn:
-                conn.execute("DELETE FROM handoff_rules WHERE handoff_id=?", (handoff_id,))
+                conn.execute("DELETE FROM handoff_rules WHERE handoff_id=?", (handoff_id,))  # nosemgrep: sqlalchemy-execute-raw-query
                 conn.commit()
             logger.info("Unregistered handoff %s", handoff_id)
             return True

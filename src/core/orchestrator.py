@@ -25,7 +25,7 @@ Decomposed into focused modules:
 - subtask_descriptor: SubtaskDescriptor class
 - abortive_protocol: AbortiveProtocol (auto-subdivision)
 - partial_reasoning: PartialReasoningManager (response contract)
-- code_generator: CodeGenerator (pipeline-driven code generation)
+- code_generator: REMOVED (module deleted)
 - code_transformer: CodeTransformer (refactoring, fixing, optimization)
 - analysis_utils: AnalysisUtils (quality reports, explanations, logging)
 """

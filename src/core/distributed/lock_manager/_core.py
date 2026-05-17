@@ -5,8 +5,9 @@ import threading
 import time
 import uuid
 from typing import Any, Dict, Optional
-from .backend import CoordinationBackend
+from ..backend import CoordinationBackend
 from ._lock import DistributedLock
+logger = logging.getLogger("core.distributed.lock_manager._core")
 
 class DistributedLockManager:
     """

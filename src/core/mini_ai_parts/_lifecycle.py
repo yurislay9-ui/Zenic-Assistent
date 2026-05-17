@@ -5,7 +5,6 @@ MiniAIEngine model lifecycle mixin: load_model, unload_model, stats, _call_llm, 
 import re
 import time
 import threading
-import logging
 import concurrent.futures
 from typing import Optional, Dict, Any
 
@@ -47,7 +46,7 @@ class ModelLifecycleMixin:
             return False
 
         try:
-            from llama_cpp import Llama
+            from llama_cpp import Llama  # type: ignore[import-unresolved]
             start = time.time()
             self._llm = Llama(
                 model_path=self._model_path,

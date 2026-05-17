@@ -22,7 +22,8 @@ export type { SdkToolConfig, SdkToolHandler, SdkExecutionContext, SdkToolResult,
 // Adapters
 export { registerOpenAITool, registerOpenAITools } from "./adapters/openai-adapter";
 export { registerNativeExecutors, ZENIC_EXECUTOR_TYPES } from "./adapters/native-adapter";
-export type { OpenAIFunction, OpenAITool, ZenicExecutorType } from "./adapters/native-adapter";
+export type { OpenAIFunction, OpenAITool } from "./adapters/openai-adapter";
+export type { ZenicExecutorType } from "./adapters/native-adapter";
 
 // Audit
 export { MerkleAuditService } from "./audit/merkle-audit";

@@ -14,14 +14,14 @@ import threading
 import time
 from typing import Any, AsyncIterator, Optional
 
-from ..types.base import Result
-from ..types.session import Session
-from ..types.intent import AssistantIntent, IntentCategory
-from ..types.response import (
+from .types.base import Result
+from .types.session import Session
+from .types.intent import AssistantIntent, IntentCategory
+from .types.response import (
     AssistantResponse, ResponseFormat, ResponseMetadata, StreamingChunk,
 )
-from ..types.personality import PersonalityProfile
-from ..types.memory import MemoryCategory
+from .types.personality import PersonalityProfile
+from .types.memory import MemoryCategory
 from .session_manager import SessionManager
 from .personality_manager import PersonalityManager
 from .zenic_bridge import ZenicBridge
@@ -208,7 +208,7 @@ class ConversationEngine:
 
     # ─── Public helpers ───────────────────────────────────────
 
-    async def execute_tool(self, tool_name: str, arguments: dict[str, Any], session_id: str = "") -> Result[Any]:
+    async def execute_tool(self, tool_name: str, arguments: dict[str, Any], session_id: str = "") -> Result[Any, Exception]:
         """Ejecuta una herramienta."""
         return await self._tools.execute_tool(tool_name, arguments, session_id)
 

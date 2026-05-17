@@ -20,7 +20,10 @@ import json
 import logging
 import os
 import time
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .schema import CertifiedBlueprint
 
 from .types import BlueprintSignature, BlueprintStatus
 

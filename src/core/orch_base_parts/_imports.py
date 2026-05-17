@@ -12,20 +12,20 @@ from src.core.level1_semantic_engine.parser import SemanticParser
 from src.core.level2_macro_router.router import MacroRouter
 from src.core.level3_graph_ast.engine import GraphASTEngine
 from src.core.level4_apa_planner.planner import APAPlanner
+
 # Level 5 & 6 modules removed in v3.0.0 integrity sweep
-# Structural swarm and reflexion sandbox were deprecated;
-# their functionality is now covered by agents.validation and agents.reasoning.
 try:
-    from src.core.level5_structural_swarm.scrap_agent import GitHubScrapAgent
-    from src.core.level5_structural_swarm.ast_surgeon import ASTSurgeon
+    from src.core.level5_structural_swarm.scrap_agent import GitHubScrapAgent  # type: ignore[import-unresolved]
+    from src.core.level5_structural_swarm.ast_surgeon import ASTSurgeon  # type: ignore[import-unresolved]
 except ImportError:
     GitHubScrapAgent = None  # type: ignore[misc,assignment]
     ASTSurgeon = None  # type: ignore[misc,assignment]
 
 try:
-    from src.core.level6_reflexion_sandbox.executor import ReflexionSandbox
+    from src.core.level6_reflexion_sandbox.executor import ReflexionSandbox  # type: ignore[import-unresolved]
 except ImportError:
     ReflexionSandbox = None  # type: ignore[misc,assignment]
+
 from src.core.level7_merkle_ledger.ledger import MerkleLedger
 from src.core.level8_theorem_cache.cache import TheoremCache
 from src.core.shared.sandbox_isolation import (
@@ -34,30 +34,33 @@ from src.core.shared.sandbox_isolation import (
 
 # Decomposed modules
 from src.core.subtask_descriptor import SubtaskDescriptor
+
+# AbortiveProtocol — module doesn't exist yet in v3.0.0
 try:
-    from src.core.abortive_protocol import AbortiveProtocol
+    from src.core.abortive_protocol import AbortiveProtocol  # type: ignore[import-unresolved]
 except ImportError:
     AbortiveProtocol = None  # type: ignore[misc,assignment]
-# PartialReasoningManager removed — partial_reasoning depends on deleted partial_reason_parts
-# from src.core.partial_reasoning import PartialReasoningManager
+
+# PartialReasoningManager — restored import with safe fallback
+try:
+    from src.core.partial_reasoning import PartialReasoningManager
+except ImportError:
+    PartialReasoningManager = None  # type: ignore[misc,assignment]
+
 # CodeGenerator and CodeTransformer removed — Zenic is an assistant agent, not a code generator
 from src.core.analysis_utils import AnalysisUtils
 
 # Extended AI Architecture
 from src.core.thinking_engine import ThinkingEngine, GenerationPlan
-# AppGenerator removed — not part of assistant agent concept
 from src.core.automation_engine import AutomationEngine
-# SchemaDesigner removed — code generation feature
 
 # Phase 7: Real Engines
 from src.core.action_executor import ExecutorRegistry, get_default_registry
 from src.core.logic_builder import LogicBuilder
-# AuthService: auth_parts removed — stub with fallback constants
 from src.core.auth_service import AuthService
 
 # Phase 8: Intelligence
 from src.core.reasoning_engine import ReasoningEngine, ReasoningMode, ReasoningResult
-# ChainValidator removed — code generation pipeline component
 
 # Agent Framework (F1-F5) — migrated to agents with compat adapters
 from src.core.agents.compat import (

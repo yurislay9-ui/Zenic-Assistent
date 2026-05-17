@@ -18,6 +18,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -26,6 +27,9 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+# SQL Injection protection: validate table names before interpolation
+_SAFE_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
 
 class IntegrityStatus(str, Enum):
@@ -83,7 +87,7 @@ class IntegrityVerifier:
         """Initialize the integrity verification database."""
         try:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS integrity_baselines (
                     component TEXT PRIMARY KEY,
                     hash TEXT NOT NULL,
@@ -92,7 +96,7 @@ class IntegrityVerifier:
                     metadata TEXT DEFAULT '{}'
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS integrity_checks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     component TEXT NOT NULL,
@@ -149,12 +153,16 @@ class IntegrityVerifier:
         component = component_name or f"db:{db_path}"
         try:
             conn = sqlite3.connect(db_path)
-            tables = conn.execute(
+            tables = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT name FROM sqlite_master WHERE type='table'",
             ).fetchall()
             checksum_parts: List[str] = []
             for (table_name,) in tables:
-                count = conn.execute(f"SELECT COUNT(*) FROM [{table_name}]").fetchone()[0]
+                # SECURITY: Validate table name from sqlite_master to prevent injection
+                if not _SAFE_IDENTIFIER_RE.match(table_name):
+                    logger.warning("Skipping suspicious table name: %r", table_name)
+                    continue
+                count = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()[0]  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
                 checksum_parts.append(f"{table_name}:{count}")
             conn.close()
             data = "|".join(checksum_parts).encode()
@@ -221,12 +229,16 @@ class IntegrityVerifier:
         component = component_name or f"db:{db_path}"
         try:
             conn = sqlite3.connect(db_path)
-            tables = conn.execute(
+            tables = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT name FROM sqlite_master WHERE type='table'",
             ).fetchall()
             checksum_parts: List[str] = []
             for (table_name,) in tables:
-                count = conn.execute(f"SELECT COUNT(*) FROM [{table_name}]").fetchone()[0]
+                # SECURITY: Validate table name from sqlite_master to prevent injection
+                if not _SAFE_IDENTIFIER_RE.match(table_name):
+                    logger.warning("Skipping suspicious table name: %r", table_name)
+                    continue
+                count = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()[0]  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
                 checksum_parts.append(f"{table_name}:{count}")
             conn.close()
             data = "|".join(checksum_parts).encode()
@@ -316,7 +328,7 @@ class IntegrityVerifier:
         """Persist a baseline to the database."""
         try:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT OR REPLACE INTO integrity_baselines
                    (component, hash, verified_at, metadata)
                    VALUES (?, ?, ?, ?)""",
@@ -331,7 +343,7 @@ class IntegrityVerifier:
         """Load a baseline from the database."""
         try:
             conn = sqlite3.connect(self._db_path)
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT hash FROM integrity_baselines WHERE component = ?",
                 (component,),
             ).fetchone()
@@ -344,7 +356,7 @@ class IntegrityVerifier:
         """Log an integrity check result."""
         try:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT INTO integrity_checks
                    (component, status, expected_hash, actual_hash, message, checked_at)
                    VALUES (?, ?, ?, ?, ?, ?)""",

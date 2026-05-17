@@ -19,7 +19,7 @@ import re
 import unicodedata
 from dataclasses import dataclass, field
 
-from ...types.base import Result, Ok, Err, Priority
+from ..types.base import Result, Ok, Err, Priority
 
 
 # ─── Config ──────────────────────────────────────────────────
@@ -86,7 +86,7 @@ class InputSanitizer:
     def __init__(self, config: SanitizerConfig | None = None) -> None:
         self._config = config or SanitizerConfig()
 
-    def sanitize(self, raw_input: str) -> Result[SanitizedInput]:
+    def sanitize(self, raw_input: str) -> Result[SanitizedInput, Exception]:
         """
         Sanitiza el input del usuario.
 

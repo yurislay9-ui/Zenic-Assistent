@@ -4,6 +4,7 @@ import os
 import time
 
 from ._imports import logger, PowerMode, HardwareState
+import logging
 
 
 class EvaluateMixin:

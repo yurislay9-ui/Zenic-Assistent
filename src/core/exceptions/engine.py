@@ -195,8 +195,8 @@ class ExceptionEngine:
     def _with_conn(self, fn: Callable[[sqlite3.Connection], Any]) -> Any:
         """Open a connection, execute *fn*, close the connection."""
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        conn.execute("PRAGMA journal_mode=WAL")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA busy_timeout=5000")  # nosemgrep: sqlalchemy-execute-raw-query
         try:
             return fn(conn)
         finally:
@@ -235,7 +235,7 @@ class ExceptionEngine:
         record = ExceptionRecord(signal=sig)
 
         def _persist(conn: sqlite3.Connection) -> None:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 INSERT INTO _zenic_exceptions
                     (record_id, signal_id, source, category, severity,
@@ -311,7 +311,7 @@ class ExceptionEngine:
         """Return unresolved exception records, optionally filtered by tenant."""
         def _query(conn: sqlite3.Connection) -> List[ExceptionRecord]:
             if tenant_id:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     SELECT record_id, signal_id, source, category, severity,
                            message, context_json, timestamp, routing_action,
@@ -323,7 +323,7 @@ class ExceptionEngine:
                     (tenant_id,),
                 ).fetchall()
             else:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     SELECT record_id, signal_id, source, category, severity,
                            message, context_json, timestamp, routing_action,
@@ -347,7 +347,7 @@ class ExceptionEngine:
         now = datetime.now(timezone.utc).isoformat()
 
         def _update(conn: sqlite3.Connection) -> bool:
-            cursor = conn.execute(
+            cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 UPDATE _zenic_exceptions
                 SET resolved = 1, resolved_at = ?, resolution_note = ?
@@ -376,7 +376,7 @@ class ExceptionEngine:
         cutoff = datetime.now(timezone.utc).timestamp() - window_seconds
 
         def _count(conn: sqlite3.Connection) -> int:
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 SELECT COUNT(*) FROM _zenic_exceptions
                 WHERE resolved = 0
@@ -401,26 +401,26 @@ class ExceptionEngine:
         """Return aggregate statistics: counts by category, severity, recent rate."""
         def _collect(conn: sqlite3.Connection) -> Dict[str, Any]:
             by_category: Dict[str, int] = {}
-            for row in conn.execute(
+            for row in conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT category, COUNT(*) FROM _zenic_exceptions "
                 "WHERE resolved = 0 GROUP BY category"
             ):
                 by_category[row[0]] = row[1]
 
             by_severity: Dict[str, int] = {}
-            for row in conn.execute(
+            for row in conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT severity, COUNT(*) FROM _zenic_exceptions "
                 "WHERE resolved = 0 GROUP BY severity"
             ):
                 by_severity[row[0]] = row[1]
 
-            total = conn.execute(
+            total = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COUNT(*) FROM _zenic_exceptions WHERE resolved = 0"
             ).fetchone()[0]
 
             # Recent rate: exceptions in the last hour
             one_hour_ago = datetime.now(timezone.utc).timestamp() - 3600
-            recent = conn.execute(
+            recent = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COUNT(*) FROM _zenic_exceptions "
                 "WHERE unixepoch(timestamp) >= ?",
                 (one_hour_ago,),

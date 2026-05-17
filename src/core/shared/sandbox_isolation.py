@@ -13,7 +13,7 @@ from typing import Any, Dict, Optional
 logger = logging.getLogger(__name__)
 
 try:
-    from .sandbox_parts import (
+    from .sandbox_parts import (  # type: ignore[import-unresolved]
         SandboxWorkspace, SandboxIsolationManager,
         get_isolation_manager, shutdown_isolation,
         create_sandbox_builtins, create_sandbox_globals,

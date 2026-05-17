@@ -20,9 +20,27 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import sqlite3
 from typing import Any, Optional
+
+# ──────────────────────────────────────────────────────────────
+#  SQL INJECTION PROTECTION: Identifier validation regex
+# ──────────────────────────────────────────────────────────────
+_SAFE_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+
+
+def _validate_identifier(name: str, context: str = "") -> None:
+    """Validate a SQL identifier (table/column name) to prevent injection.
+
+    Raises ValueError if the name contains characters that could enable
+    SQL injection (e.g., quotes, semicolons, whitespace).
+    """
+    if not _SAFE_IDENTIFIER_RE.match(name):
+        raise ValueError(
+            f"Invalid SQL identifier: {name!r} {context}"
+        )
 
 logger = logging.getLogger("zenic_agents.shared.sqlcipher")
 
@@ -194,16 +212,21 @@ def encrypt_database(source_path: str, passphrase: str) -> str:
         )
 
         # Step 4: copy schema + data via ATTACH
+        # SECURITY: source_path is validated by caller (must be existing file);
+        # we sanitize quotes to prevent breaking out of the string literal.
+        safe_path = source_path.replace("'", "''")
         enc_conn.execute(
-            f"ATTACH DATABASE '{source_path}' AS plain_db KEY ''"
+            f"ATTACH DATABASE '{safe_path}' AS plain_db KEY ''"
         )
         # Export: read from plain, write to encrypted
         tables = plain_conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
         ).fetchall()
         for (table_name,) in tables:
+            # SECURITY: Validate table_name from sqlite_master to prevent injection
+            _validate_identifier(table_name, "in encrypt_database table copy")
             enc_conn.execute(
-                f"CREATE TABLE IF NOT EXISTS {table_name} AS SELECT * FROM plain_db.{table_name}"
+                f"CREATE TABLE IF NOT EXISTS [{table_name}] AS SELECT * FROM plain_db.[{table_name}]"
             )
         enc_conn.execute("DETACH DATABASE plain_db")
         enc_conn.commit()
@@ -251,19 +274,32 @@ def _open_encrypted(
     conn = sqlcipher_module.connect(db_path)
 
     # Set the key — use hex notation for reliability across both libraries
+    # SECURITY: PRAGMA statements cannot use ? parameterization in sqlite3.
+    # We validate all inputs to prevent injection:
     hex_key = passphrase.encode("utf-8").hex()
-    conn.execute(f"PRAGMA key = \"x'{hex_key}'\"")
-    conn.execute(f"PRAGMA kdf_iter = {kdf_iterations}")
-    conn.execute(f"PRAGMA cipher_page_size = {cipher_page_size}")
-    conn.execute(f"PRAGMA cipher_hmac_algorithm = {_DEFAULT_CIPHER_HMAC}")
-    conn.execute(f"PRAGMA cipher_kdf_algorithm = {_DEFAULT_CIPHER_KDF}")
+    if not all(c in '0123456789abcdef' for c in hex_key):
+        raise ValueError("Invalid hex key derived from passphrase")
+    conn.execute(f"PRAGMA key = \"x'{hex_key}'\"")  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
+    if not isinstance(kdf_iterations, int) or kdf_iterations <= 0:
+        raise ValueError(f"Invalid kdf_iterations: {kdf_iterations}")
+    conn.execute(f"PRAGMA kdf_iter = {kdf_iterations}")  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
+    if not isinstance(cipher_page_size, int) or cipher_page_size <= 0:
+        raise ValueError(f"Invalid cipher_page_size: {cipher_page_size}")
+    conn.execute(f"PRAGMA cipher_page_size = {cipher_page_size}")  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
+    # SECURITY: Validate cipher algorithm names are module-level constants
+    # (not user-supplied). These are validated against a whitelist pattern.
+    for _algo in (_DEFAULT_CIPHER_HMAC, _DEFAULT_CIPHER_KDF):
+        if not _SAFE_IDENTIFIER_RE.match(_algo):
+            raise ValueError(f"Invalid cipher algorithm name: {_algo!r}")
+    conn.execute(f"PRAGMA cipher_hmac_algorithm = {_DEFAULT_CIPHER_HMAC}")  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
+    conn.execute(f"PRAGMA cipher_kdf_algorithm = {_DEFAULT_CIPHER_KDF}")  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
 
     if apply_pragmas:
         _apply_pragmas(conn)
 
     if verify:
         try:
-            conn.execute("SELECT count(*) FROM sqlite_master")
+            conn.execute("SELECT count(*) FROM sqlite_master")  # nosemgrep: sqlalchemy-execute-raw-query
         except Exception as exc:
             conn.close()
             raise RuntimeError(
@@ -298,6 +334,22 @@ def _open_plain(
 
 
 def _apply_pragmas(conn: Any) -> None:
-    """Apply default performance PRAGMAs to a connection."""
+    """Apply default performance PRAGMAs to a connection.
+
+    SECURITY: PRAGMA statements in sqlite3 do not support ? parameterization.
+    We validate each pragma name and value before interpolation to prevent
+    SQL injection. Pragma names must be valid identifiers; values must be
+    integers or known safe string constants.
+    """
     for pragma_name, pragma_value in _DEFAULT_SQLITE_PRAGMAS:
-        conn.execute(f"PRAGMA {pragma_name} = {pragma_value}")
+        _validate_identifier(pragma_name, "in _apply_pragmas")
+        if isinstance(pragma_value, str):
+            if not _SAFE_IDENTIFIER_RE.match(pragma_value):
+                raise ValueError(
+                    f"Invalid PRAGMA value: {pragma_value!r} for {pragma_name}"
+                )
+        elif not isinstance(pragma_value, int):
+            raise ValueError(
+                f"Invalid PRAGMA value type: {type(pragma_value)} for {pragma_name}"
+            )
+        conn.execute(f"PRAGMA {pragma_name} = {pragma_value}")  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier

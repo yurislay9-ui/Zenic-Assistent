@@ -15,7 +15,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...types.intent import IntentCategory
+from ..types.intent import IntentCategory
 from .state import ConversationState, ConversationTopic, ConversationPhase
 
 

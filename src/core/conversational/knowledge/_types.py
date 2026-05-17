@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from ...types.base import new_id
+from ..types.base import new_id
 
 
 class KnowledgeType(str, Enum):

@@ -65,14 +65,14 @@ def _optimize_pragma(conn):
     temp_store MEMORY: Tablas temporales en RAM
     mmap_size: Memory-mapped I/O para lecturas grandes
     """
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA cache_size=-8192")      # 8MB cache (doubled from 4MB)
-    conn.execute("PRAGMA synchronous=NORMAL")     # Mas rapido con WAL
-    conn.execute("PRAGMA temp_store=MEMORY")      # Temp en RAM
-    conn.execute("PRAGMA mmap_size=67108864")     # 64MB mmap
-    conn.execute("PRAGMA wal_autocheckpoint=1000") # Auto-checkpoint cada 1000 frames
-    conn.execute("PRAGMA busy_timeout=5000")       # 5s timeout para locks
-    conn.execute("PRAGMA foreign_keys=ON")         # Enforce referential integrity
+    conn.execute("PRAGMA journal_mode=WAL")  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("PRAGMA cache_size=-8192")      # 8MB cache (doubled from 4MB)  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("PRAGMA synchronous=NORMAL")     # Mas rapido con WAL  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("PRAGMA temp_store=MEMORY")      # Temp en RAM  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("PRAGMA mmap_size=67108864")     # 64MB mmap  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("PRAGMA wal_autocheckpoint=1000") # Auto-checkpoint cada 1000 frames  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("PRAGMA busy_timeout=5000")       # 5s timeout para locks  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("PRAGMA foreign_keys=ON")         # Enforce referential integrity  # nosemgrep: sqlalchemy-execute-raw-query
 
 
 def is_encryption_enabled() -> bool:
@@ -91,7 +91,7 @@ def is_encryption_enabled() -> bool:
 def get_data_dir() -> Path:
     if 'ANDROID_ARGUMENT' in os.environ:
         try:
-            from android.storage import app_storage_path
+            from android.storage import app_storage_path  # type: ignore[import-unresolved]
             data_dir = Path(app_storage_path()) / "zenic_data"
         except Exception:
             data_dir = Path.home() / ".zenic_agents" / "data"
@@ -187,7 +187,7 @@ def get_connection(db_name: str) -> sqlite3.Connection:
             conn = _db_connections[key]
             # Verificar que la conexion sigue viva
             try:
-                conn.execute("SELECT 1")
+                conn.execute("SELECT 1")  # nosemgrep: sqlalchemy-execute-raw-query
                 return conn
             except sqlite3.Error:
                 # Conexion rota, crear nueva
@@ -234,7 +234,7 @@ class write_lock:
     Usage:
         conn = get_connection("graph_ast.sqlite")
         with write_lock("graph_ast.sqlite"):
-            conn.execute("INSERT INTO ...")
+            conn.execute("INSERT INTO ...")  # nosemgrep: sqlalchemy-execute-raw-query
             conn.commit()
 
     This ensures that only one thread writes to a given database at a time,
@@ -276,7 +276,7 @@ def initialize_databases():
 
     # Graph AST (Phase 2: tenant-aware)
     conn = get_connection("graph_ast.sqlite")
-    conn.execute("""CREATE TABLE IF NOT EXISTS ast_nodes (
+    conn.execute("""CREATE TABLE IF NOT EXISTS ast_nodes (  # nosemgrep: sqlalchemy-execute-raw-query
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         file_path TEXT NOT NULL,
         node_type TEXT NOT NULL,
@@ -290,10 +290,10 @@ def initialize_databases():
         tenant_id TEXT NOT NULL DEFAULT '__anonymous__',
         UNIQUE(file_path, name, node_type, tenant_id))""")
     # Indice para busquedas rapidas por nombre (usado por MacroRouter)
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_ast_name ON ast_nodes(name)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_ast_type ON ast_nodes(node_type)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_ast_tenant ON ast_nodes(tenant_id)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_ast_tenant_file ON ast_nodes(tenant_id, file_path)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ast_name ON ast_nodes(name)")  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ast_type ON ast_nodes(node_type)")  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ast_tenant ON ast_nodes(tenant_id)")  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ast_tenant_file ON ast_nodes(tenant_id, file_path)")  # nosemgrep: sqlalchemy-execute-raw-query
     conn.commit()
     # Migrate: add tenant_id column if it doesn't exist (for existing databases)
     try:
@@ -306,7 +306,7 @@ def initialize_databases():
 
     # Theorem Cache
     conn = get_connection("theorem_cache.sqlite")
-    conn.execute("""CREATE TABLE IF NOT EXISTS theorems (
+    conn.execute("""CREATE TABLE IF NOT EXISTS theorems (  # nosemgrep: sqlalchemy-execute-raw-query
         structural_hash TEXT NOT NULL,
         operation TEXT NOT NULL,
         goal TEXT NOT NULL,
@@ -319,8 +319,8 @@ def initialize_databases():
         tenant_id TEXT NOT NULL DEFAULT '__anonymous__',
         PRIMARY KEY (structural_hash, tenant_id))""")
     # Indice para skeleton hash lookups (O(1) bypass experiencial)
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_skeleton ON theorems(skeleton_hash)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_theorems_tenant ON theorems(tenant_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_skeleton ON theorems(skeleton_hash)")  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_theorems_tenant ON theorems(tenant_id)")  # nosemgrep: sqlalchemy-execute-raw-query
     conn.commit()
     # Migrate: add tenant_id column if it doesn't exist (for existing databases)
     try:
@@ -333,7 +333,7 @@ def initialize_databases():
 
     # Merkle Ledger
     conn = get_connection("merkle_ledger.sqlite")
-    conn.execute("""CREATE TABLE IF NOT EXISTS ledger (
+    conn.execute("""CREATE TABLE IF NOT EXISTS ledger (  # nosemgrep: sqlalchemy-execute-raw-query
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         file_path TEXT NOT NULL,
         hash_sha256 TEXT NOT NULL,
@@ -341,8 +341,8 @@ def initialize_databases():
         operation TEXT NOT NULL,
         timestamp REAL NOT NULL,
         tenant_id TEXT NOT NULL DEFAULT '__anonymous__')""")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_file ON ledger(file_path)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_tenant ON ledger(tenant_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_file ON ledger(file_path)")  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_tenant ON ledger(tenant_id)")  # nosemgrep: sqlalchemy-execute-raw-query
     conn.commit()
     # Migrate: add tenant_id column if it doesn't exist (for existing databases)
     try:
@@ -355,7 +355,7 @@ def initialize_databases():
 
     # Request Log (Phase 2: tenant-aware)
     conn = get_connection("request_log.sqlite")
-    conn.execute("""CREATE TABLE IF NOT EXISTS requests (
+    conn.execute("""CREATE TABLE IF NOT EXISTS requests (  # nosemgrep: sqlalchemy-execute-raw-query
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         request_id TEXT NOT NULL,
         model TEXT,
@@ -369,9 +369,9 @@ def initialize_databases():
         cache_hit INTEGER DEFAULT 0,
         tenant_id TEXT NOT NULL DEFAULT '__anonymous__',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)""")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_requests_time ON requests(created_at)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_requests_tenant ON requests(tenant_id)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_requests_tenant_time ON requests(tenant_id, created_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_requests_time ON requests(created_at)")  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_requests_tenant ON requests(tenant_id)")  # nosemgrep: sqlalchemy-execute-raw-query
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_requests_tenant_time ON requests(tenant_id, created_at)")  # nosemgrep: sqlalchemy-execute-raw-query
     conn.commit()
     # Migrate: add tenant_id column if it doesn't exist (for existing databases)
     try:

@@ -118,7 +118,7 @@ class CrossAgentKnowledgeBus:
             def _insert() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """INSERT INTO cab_subscriptions
                            (id, domain, agent_id, callback_filter, created_at)
                            VALUES (?, ?, ?, ?, ?)""",
@@ -137,7 +137,7 @@ class CrossAgentKnowledgeBus:
             def _notify() -> int:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    cursor = conn.execute(
+                    cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT id FROM cab_subscriptions WHERE domain = ?",
                         (domain,),
                     )
@@ -145,7 +145,7 @@ class CrossAgentKnowledgeBus:
                     now = _now_iso()
                     for sub_id in sub_ids:
                         notif_id = _new_id("notif")
-                        conn.execute(
+                        conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                             """INSERT INTO cab_notifications
                                (id, subscription_id, node_id, domain, notified_at, delivered)
                                VALUES (?, ?, ?, ?, ?, 1)""",
@@ -164,7 +164,7 @@ class CrossAgentKnowledgeBus:
             def _fetch() -> List[Dict[str, Any]]:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    cursor = conn.execute(
+                    cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT id, domain, agent_id, callback_filter, created_at "
                         "FROM cab_subscriptions WHERE agent_id = ?",
                         (agent_id,),
@@ -189,11 +189,11 @@ class CrossAgentKnowledgeBus:
             def _delete() -> bool:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    cursor = conn.execute(
+                    cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "DELETE FROM cab_subscriptions WHERE id = ?",
                         (subscription_id,),
                     )
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "DELETE FROM cab_notifications WHERE subscription_id = ?",
                         (subscription_id,),
                     )
@@ -219,7 +219,7 @@ class CrossAgentKnowledgeBus:
             def _propagate() -> Dict[str, int]:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    cursor = conn.execute(
+                    cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT id FROM kg_nodes WHERE domain = ?",
                         (source_domain,),
                     )

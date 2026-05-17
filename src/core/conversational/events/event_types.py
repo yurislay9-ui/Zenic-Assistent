@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...types.events import (
+from ..types.events import (
     Event, EventType,
     MessageReceivedPayload,
     IntentClassifiedPayload,

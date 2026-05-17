@@ -188,7 +188,7 @@ class PluginLifecycleManager:
 
         try:
             module_path, _, attr = manifest.entry_point.partition(":")
-            module = importlib.import_module(module_path)
+            module = importlib.import_module(module_path)  # nosemgrep: non-literal-import  # SECURITY: module_path comes from validated plugin manifest
             if attr:
                 initializer = getattr(module, attr, None)
                 if initializer is not None and callable(initializer):

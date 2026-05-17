@@ -11,6 +11,7 @@ import logging
 from src.core.shared.contracts import OperationType, GoalType
 
 from ._other_lang_mixin import OtherLangMixin
+logger = logging.getLogger("core.code_gen_parts._contextual_mixin._core")
 
 
 class ContextualMixin(OtherLangMixin):

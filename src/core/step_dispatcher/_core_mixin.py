@@ -145,6 +145,10 @@ class StepDispatcherCoreMixin:
         self, step, intent, code, result_code, explanations, lang, ast_analysis, plan
     ):
         """Handle SCRAPE_PATTERNS action."""
+        if self._orch.scrap is None:
+            explanations.append("SmartScraper: Skipped — GitHubScrapAgent not available")
+            return result_code, code, explanations
+
         query = step.constraints.get("query", intent.scrap_query)
         # SmartScraper: Auto-routing multi-fuente
         smart_result = await self._orch.scrap.smart_fetch(query, lang)
@@ -194,7 +198,7 @@ class StepDispatcherCoreMixin:
         source = "template"
 
         # ── Strategy 1: M1 CodeAssembler (real code from templates) ──
-        if hasattr(self._orch, '_code_gen') and hasattr(self._orch._code_gen, 'generate_real_code'):
+        if hasattr(self._orch, '_code_gen') and self._orch._code_gen is not None and hasattr(self._orch._code_gen, 'generate_real_code'):
             try:
                 description = str(intent) if intent else ""
                 entity_info = None
@@ -265,7 +269,7 @@ class StepDispatcherCoreMixin:
                 _log.getLogger(__name__).debug("CodeAgent LLM generation failed: %s", e)
 
         # ── Strategy 3: M2 SmartPromptChain (fragmented for small LLMs) ──
-        if not generated_code and hasattr(self._orch, '_code_gen'):
+        if not generated_code and hasattr(self._orch, '_code_gen') and self._orch._code_gen is not None:
             smart_chain = getattr(self._orch._code_gen, '_smart_chain', None)
             if smart_chain:
                 try:
@@ -289,10 +293,13 @@ class StepDispatcherCoreMixin:
 
         # ── Strategy 4: Deterministic template fallback ──
         if not generated_code:
-            result_code = self._orch._code_gen.generate_contextual_code(
-                intent, ast_analysis, plan, lang
-            )
-            explanations.append(f"Code generated for {intent.op} (template fallback)")
+            if self._orch._code_gen is not None:
+                result_code = self._orch._code_gen.generate_contextual_code(
+                    intent, ast_analysis, plan, lang
+                )
+                explanations.append(f"Code generated for {intent.op} (template fallback)")
+            else:
+                explanations.append(f"Code generation skipped — CodeGenerator not available in v3.0.0")
         else:
             result_code = generated_code
 
@@ -303,34 +310,45 @@ class StepDispatcherCoreMixin:
     ):
         """Handle REPLACE_AST_NODE action."""
         if code and step.target_node_name:
-            solver_insights = (
-                self._orch._code_gen.extract_solver_insights(plan.solver_proof)
-                if plan else None
-            )
+            solver_insights = None
+            if self._orch._code_gen is not None and plan:
+                solver_insights = self._orch._code_gen.extract_solver_insights(plan.solver_proof)
             # MiniAI: sugerir patron de reemplazo
-            if self._orch._ai.is_loaded:
+            if self._orch._ai and self._orch._ai.is_loaded:
                 pattern = self._orch._ai.suggest_pattern(
                     step.target_node_name, str(intent)
                 )
                 explanations.append(f"MiniAI suggests pattern: {pattern}")
-            # FIX: Pass raw_code to optimizer so it can analyze the actual function
-            raw_code = code or getattr(intent, 'raw_code', None) or ""
-            new_snippet = self._orch._code_transform.optimize_function(
-                step.target_node_name, lang, ast_analysis, solver_insights,
-                raw_code=raw_code
-            )
-            result_code = self._orch.surgeon.mutate_node(
-                code, step.target_node_name, new_snippet, lang
-            )
-            explanations.append(
-                f"Function '{step.target_node_name}' replaced "
-                f"via AST surgery (optimizer received raw_code)"
-            )
+            # CodeTransformer + ASTSurgeon may not be available
+            if self._orch._code_transform is not None:
+                raw_code = code or getattr(intent, 'raw_code', None) or ""
+                new_snippet = self._orch._code_transform.optimize_function(
+                    step.target_node_name, lang, ast_analysis, solver_insights,
+                    raw_code=raw_code
+                )
+            else:
+                new_snippet = code
+                explanations.append("CodeTransformer not available — using raw code as snippet")
+            if self._orch.surgeon is not None:
+                result_code = self._orch.surgeon.mutate_node(
+                    code, step.target_node_name, new_snippet, lang
+                )
+                explanations.append(
+                    f"Function '{step.target_node_name}' replaced "
+                    f"via AST surgery (optimizer received raw_code)"
+                )
+            else:
+                explanations.append(
+                    f"ASTSurgeon not available — cannot replace '{step.target_node_name}'"
+                )
         else:
-            result_code = self._orch._code_gen.generate_contextual_code(
-                intent, ast_analysis, plan, lang
-            )
-            explanations.append("Optimized code generated")
+            if self._orch._code_gen is not None:
+                result_code = self._orch._code_gen.generate_contextual_code(
+                    intent, ast_analysis, plan, lang
+                )
+                explanations.append("Optimized code generated")
+            else:
+                explanations.append("Code generation not available in v3.0.0")
         return result_code, code, explanations
 
     async def _handle_delete_ast_node(
@@ -338,13 +356,18 @@ class StepDispatcherCoreMixin:
     ):
         """Handle DELETE_AST_NODE action."""
         if code and step.target_node_name:
-            result_code = self._orch.surgeon.delete_function(
-                code, step.target_node_name, lang
-            )
-            explanations.append(
-                f"Function '{step.target_node_name}' deleted "
-                f"via AST surgery"
-            )
+            if self._orch.surgeon is not None:
+                result_code = self._orch.surgeon.delete_function(
+                    code, step.target_node_name, lang
+                )
+                explanations.append(
+                    f"Function '{step.target_node_name}' deleted "
+                    f"via AST surgery"
+                )
+            else:
+                explanations.append(
+                    f"ASTSurgeon not available — cannot delete '{step.target_node_name}'"
+                )
         return result_code, code, explanations
 
     async def _handle_trace_execution(

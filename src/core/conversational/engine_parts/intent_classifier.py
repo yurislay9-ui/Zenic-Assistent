@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from ...types.session import Session
-from ...types.intent import AssistantIntent, IntentCategory, ConversationMode
+from ..types.session import Session
+from ..types.intent import AssistantIntent, IntentCategory, ConversationMode
 
 
 # ─── Patrones de intencion ────────────────────────────────────

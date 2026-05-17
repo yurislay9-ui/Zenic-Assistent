@@ -10,10 +10,7 @@ import threading
 import time
 from typing import Optional
 
-try:
-    from typing import Self
-except ImportError:
-    Self = None  # type: ignore[misc,assignment]  # Fallback for Python <3.11
+# Self not needed — using string annotation for __enter__
 
 
 class BulkheadFullError(Exception):
@@ -88,7 +85,7 @@ class AgentBulkhead:
         }
 
     # Context manager support
-    def __enter__(self) -> Self:
+    def __enter__(self) -> "AgentBulkhead":
         if not self.acquire():
             raise BulkheadFullError(f"Bulkhead {self.name} is at capacity")
         return self

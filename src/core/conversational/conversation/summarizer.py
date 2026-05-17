@@ -19,8 +19,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...types.session import Session, Message, MessageRole
-from ...types.intent import IntentCategory
+from ..types.session import Session, Message, MessageRole
+from ..types.intent import IntentCategory
 from .turn_tracker import TurnRecord
 
 logger = logging.getLogger("zenic_agents.conversational.summarizer")

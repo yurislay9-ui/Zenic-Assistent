@@ -75,8 +75,8 @@ class Event:
 
 # ─── Handler de eventos ──────────────────────────────────────
 
-type EventHandler = Callable[[Event], None]
-type AsyncEventHandler = Callable[[Event], Any]
+EventHandler = Callable[[Event], None]
+AsyncEventHandler = Callable[[Event], Any]
 
 
 # ─── Subscription ─────────────────────────────────────────────

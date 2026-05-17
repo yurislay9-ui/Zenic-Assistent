@@ -336,7 +336,9 @@ export class MemoryChipClient {
     mappingId: string,
     payload: Omit<MemoryApprovalPayload, 'mapping_id'>,
   ): Promise<{ success: boolean; merkle_hash?: string; yaml_rendered?: boolean }> {
-    const res = await fetch(`${this.baseUrl}/mappings/${mappingId}/approve`, {
+    // FIX: Use the correct API route — /approve with mapping_id in body
+    // (was incorrectly /mappings/${mappingId}/approve which 404'd)
+    const res = await fetch(`${this.baseUrl}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...payload, mapping_id: mappingId }),

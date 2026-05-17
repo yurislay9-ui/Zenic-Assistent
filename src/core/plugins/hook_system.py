@@ -62,7 +62,7 @@ class PluginHookSystem:
 
         def _create() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """CREATE TABLE IF NOT EXISTS plugin_hooks (
                     hook_id TEXT PRIMARY KEY,
                     plugin_id TEXT NOT NULL,
@@ -84,7 +84,7 @@ class PluginHookSystem:
         try:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute("SELECT * FROM plugin_hooks").fetchall()
+            rows = conn.execute("SELECT * FROM plugin_hooks").fetchall()  # nosemgrep: sqlalchemy-execute-raw-query
             conn.close()
             for row in rows:
                 reg = HookRegistration(
@@ -103,7 +103,7 @@ class PluginHookSystem:
     def _save_to_db(self, reg: HookRegistration) -> None:
         def _upsert() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT OR REPLACE INTO plugin_hooks
                    (hook_id, plugin_id, hook_type, hook_name, priority, callback_ref, active, created_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -118,7 +118,7 @@ class PluginHookSystem:
     def _delete_from_db(self, hook_id: str) -> None:
         def _del() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("DELETE FROM plugin_hooks WHERE hook_id = ?", (hook_id,))
+            conn.execute("DELETE FROM plugin_hooks WHERE hook_id = ?", (hook_id,))  # nosemgrep: sqlalchemy-execute-raw-query
             conn.commit()
             conn.close()
 

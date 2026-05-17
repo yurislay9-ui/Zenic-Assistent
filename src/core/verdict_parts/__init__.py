@@ -54,4 +54,5 @@ __all__ = [
     "ConsensusResult", "DeterministicResult", "VerdictConfidence",
     "EvidenceCollector", "ConsensusResolver", "DeterministicPipeline",
     "VerdictEngine",
-] + _RESILIENCE_EXPORTS
+]
+__all__.extend(_RESILIENCE_EXPORTS)  # type: ignore[misc]

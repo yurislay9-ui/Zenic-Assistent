@@ -126,7 +126,7 @@ class JustificationManager:
         """Create the justifications table if it does not exist."""
         def _do_init() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS justifications (
                     justification_id TEXT PRIMARY KEY,
                     request_id TEXT NOT NULL,
@@ -139,7 +139,7 @@ class JustificationManager:
                     content_hash TEXT NOT NULL
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_justification_request
                 ON justifications(request_id)
             """)
@@ -262,7 +262,7 @@ class JustificationManager:
         def _do_find() -> Optional[ApprovalJustification]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT * FROM justifications WHERE request_id = ?",
                 (request_id,),
             ).fetchone()
@@ -347,7 +347,7 @@ class JustificationManager:
         def _do_find() -> Optional[ApprovalJustification]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT * FROM justifications WHERE justification_id = ?",
                 (justification_id,),
             ).fetchone()
@@ -365,7 +365,7 @@ class JustificationManager:
         def _do_persist() -> None:
             conn = sqlite3.connect(self._db_path)
             if insert:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO justifications
                        (justification_id, request_id, reason,
                         risk_acknowledgment, compliance_check,
@@ -385,7 +385,7 @@ class JustificationManager:
                     ),
                 )
             else:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """UPDATE justifications SET
                        reason=?, risk_acknowledgment=?, compliance_check=?,
                        business_justification=?, created_by=?, content_hash=?

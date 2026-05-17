@@ -164,7 +164,7 @@ class MacroRouter:
             conn = get_connection("graph_ast.sqlite")
             # Security: Use shared escape utility to prevent LIKE injection
             escaped_name = escape_sql_like(target_name)
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT name, node_type, connections, complexity FROM ast_nodes WHERE name LIKE ? ESCAPE '\\'",
                 (f"%{escaped_name}%",)
             ).fetchall()

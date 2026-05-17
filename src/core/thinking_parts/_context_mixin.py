@@ -5,6 +5,7 @@ Context injection mixin for ThinkingEngine.
 import time
 
 from ._imports import logger, MAX_THINKING_TOKENS
+import logging
 
 
 class ContextMixin:

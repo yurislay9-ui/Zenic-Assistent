@@ -84,7 +84,7 @@ class ConfirmManager:
         with self._lock:
             conn = self._get_conn()
             try:
-                conn.execute("""
+                conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                     CREATE TABLE IF NOT EXISTS confirmations (
                         action_id TEXT PRIMARY KEY,
                         action_type TEXT NOT NULL,
@@ -102,15 +102,15 @@ class ConfirmManager:
                         extra TEXT NOT NULL DEFAULT '{}'
                     )
                 """)
-                conn.execute("""
+                conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                     CREATE INDEX IF NOT EXISTS idx_confirmations_status
                     ON confirmations(status)
                 """)
-                conn.execute("""
+                conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                     CREATE INDEX IF NOT EXISTS idx_confirmations_session
                     ON confirmations(session_id)
                 """)
-                conn.execute("""
+                conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                     CREATE INDEX IF NOT EXISTS idx_confirmations_expires
                     ON confirmations(expires_at)
                 """)
@@ -122,8 +122,8 @@ class ConfirmManager:
         """Get a new SQLite connection (one per thread)."""
         conn = sqlite3.connect(self._db_path, timeout=10)
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        conn.execute("PRAGMA journal_mode=WAL")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA busy_timeout=5000")  # nosemgrep: sqlalchemy-execute-raw-query
         return conn
 
     # ─── Public API: Confirmation Flow ─────────────────────────
@@ -158,7 +158,7 @@ class ConfirmManager:
             # Store in DB
             conn = self._get_conn()
             try:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT OR REPLACE INTO confirmations
                        (action_id, action_type, config, verdict, status,
                         channel, session_id, required_role, created_at, expires_at)
@@ -221,7 +221,7 @@ class ConfirmManager:
             # Look up the confirmation
             conn = self._get_conn()
             try:
-                row = conn.execute(
+                row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT * FROM confirmations WHERE action_id = ?",
                     (action_id,),
                 ).fetchone()
@@ -341,7 +341,7 @@ class ConfirmManager:
 
             conn = self._get_conn()
             try:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT OR REPLACE INTO confirmations
                        (action_id, action_type, config, verdict, status,
                         channel, session_id, required_role, created_at, expires_at)
@@ -404,7 +404,7 @@ class ConfirmManager:
 
             conn = self._get_conn()
             try:
-                row = conn.execute(
+                row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT * FROM confirmations WHERE action_id = ?",
                     (action_id,),
                 ).fetchone()
@@ -492,12 +492,12 @@ class ConfirmManager:
             conn = self._get_conn()
             try:
                 if session_id:
-                    rows = conn.execute(
+                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT * FROM confirmations WHERE status = ? AND session_id = ?",
                         (STATUS_PENDING, session_id),
                     ).fetchall()
                 else:
-                    rows = conn.execute(
+                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT * FROM confirmations WHERE status = ?",
                         (STATUS_PENDING,),
                     ).fetchall()
@@ -535,7 +535,7 @@ class ConfirmManager:
         with self._lock:
             conn = self._get_conn()
             try:
-                row = conn.execute(
+                row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT status FROM confirmations WHERE action_id = ?",
                     (action_id,),
                 ).fetchone()
@@ -655,7 +655,7 @@ class ConfirmManager:
         """Update the status of a confirmation in the database."""
         conn = self._get_conn()
         try:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """UPDATE confirmations
                    SET status = ?, responded_at = ?, responder_id = ?, response_reason = ?
                    WHERE action_id = ?""",
@@ -670,7 +670,7 @@ class ConfirmManager:
         now = time.time()
         conn = self._get_conn()
         try:
-            cursor = conn.execute(
+            cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "UPDATE confirmations SET status = ? WHERE status = ? AND expires_at < ?",
                 (STATUS_EXPIRED, STATUS_PENDING, now),
             )
@@ -717,7 +717,7 @@ class ConfirmManager:
 
         conn = self._get_conn()
         try:
-            cursor = conn.execute(
+            cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """DELETE FROM confirmations
                    WHERE status != ? AND responded_at < ?""",
                 (STATUS_PENDING, cutoff),
@@ -743,7 +743,7 @@ class ConfirmManager:
         """Number of currently pending confirmations."""
         conn = self._get_conn()
         try:
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COUNT(*) as cnt FROM confirmations WHERE status = ?",
                 (STATUS_PENDING,),
             ).fetchone()

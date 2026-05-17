@@ -478,7 +478,7 @@ class AutopilotPlanner:
             def _init() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE TABLE IF NOT EXISTS _zenic_autopilot_plans (
                             plan_id TEXT PRIMARY KEY,
                             objective_id TEXT NOT NULL,
@@ -488,7 +488,7 @@ class AutopilotPlanner:
                             priority INTEGER NOT NULL DEFAULT 0
                         )
                     """)
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE INDEX IF NOT EXISTS idx_zenic_plan_obj
                         ON _zenic_autopilot_plans(objective_id)
                     """)
@@ -568,7 +568,7 @@ class AutopilotPlanner:
             def _insert() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """INSERT INTO _zenic_autopilot_plans
                            (plan_id, objective_id, steps, created_at, status, priority)
                            VALUES (?,?,?,?,?,?)""",
@@ -609,7 +609,7 @@ class AutopilotPlanner:
                 conn = sqlite3.connect(self._db_path)
                 conn.row_factory = sqlite3.Row
                 try:
-                    row = conn.execute(
+                    row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT * FROM _zenic_autopilot_plans WHERE plan_id = ?",
                         (plan_id,),
                     ).fetchone()
@@ -638,14 +638,14 @@ class AutopilotPlanner:
                 conn.row_factory = sqlite3.Row
                 try:
                     if objective_id:
-                        rows = conn.execute(
+                        rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                             """SELECT * FROM _zenic_autopilot_plans
                                WHERE objective_id = ?
                                ORDER BY created_at DESC""",
                             (objective_id,),
                         ).fetchall()
                     else:
-                        rows = conn.execute(
+                        rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                             """SELECT * FROM _zenic_autopilot_plans
                                ORDER BY created_at DESC""",
                         ).fetchall()
@@ -690,7 +690,7 @@ class AutopilotPlanner:
             def _update() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """UPDATE _zenic_autopilot_plans
                            SET steps = ?, status = ?
                            WHERE plan_id = ?""",

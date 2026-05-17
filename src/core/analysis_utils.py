@@ -134,7 +134,7 @@ class AnalysisUtils:
             return
         try:
             conn = get_connection("request_log.sqlite")
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT INTO requests
                 (request_id, model, operation, goal, route, status,
                  processing_time_ms, solver_status, mcts_simulations, cache_hit)

@@ -24,11 +24,21 @@ class AssemblerGeneratorsMixin:
         param_str = ", ".join('"%s"' % f for f in field_names)
         search_col = field_names[0] if field_names else "name"
 
+        # Validate table_name at generation time to prevent injection in generated SQL
+        import re as _gen_re
+        if not _gen_re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+            raise ValueError(f"Invalid table name for code generation: {table_name!r}")
+        for fn in field_names:
+            if not _gen_re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', fn):
+                raise ValueError(f"Invalid field name for code generation: {fn!r}")
+
         # Use string formatting (not f-string) to avoid nested brace issues
         return '''
     def _process(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """CRUD operations for {entity} — REAL logic using sqlite3."""
         import sqlite3
+        import re as _sql_re
+        _SAFE_ID = _sql_re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
         action = payload.get("action", "list")
         db_path = payload.get("db_path", "{table}.sqlite")
 
@@ -68,6 +78,10 @@ class AssemblerGeneratorsMixin:
             data = payload.get("data", {{}})
             if not data:
                 return {{"success": False, "error": "No data provided for update"}}
+            # SECURITY: Validate all column names from user input before SQL interpolation
+            for k in data.keys():
+                if not _SAFE_ID.match(str(k)):
+                    return {{"success": False, "error": f"Invalid column name: {{k!r}}"}}
             set_parts = [str(k) + " = ?" for k in data.keys()]
             set_clause = ", ".join(set_parts)
             values = list(data.values()) + [item_id]
@@ -112,6 +126,9 @@ class AssemblerGeneratorsMixin:
         elif action == "search":
             query = payload.get("query", "")
             column = payload.get("search_column", "{search_col}")
+            # SECURITY: Validate column name from user input before SQL interpolation
+            if not _SAFE_ID.match(str(column)):
+                return {{"success": False, "error": f"Invalid column name: {{column!r}}"}}
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
             try:
@@ -147,11 +164,20 @@ class AssemblerGeneratorsMixin:
         num_names = [f.get("name", "count") for f in numeric_fields] or ["count"]
         default_metric = num_names[0]
 
+        # Validate table_name and metric at generation time to prevent injection
+        import re as _gen_re
+        if not _gen_re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+            raise ValueError(f"Invalid table name for code generation: {table_name!r}")
+        if not _gen_re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', default_metric):
+            raise ValueError(f"Invalid metric name for code generation: {default_metric!r}")
+
         # Use .format() to avoid nested f-string brace issues
         return '''
     def _process(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Analytics for {entity} — REAL aggregation using sqlite3."""
         import sqlite3
+        import re as _sql_re
+        _SAFE_ID = _sql_re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
         action = payload.get("action", "summary")
         db_path = payload.get("db_path", "{table}.sqlite")
 
@@ -167,6 +193,9 @@ class AssemblerGeneratorsMixin:
 
         elif action == "aggregate":
             metric = payload.get("metric", "{metric}")
+            # SECURITY: Validate metric name from user input before SQL interpolation
+            if not _SAFE_ID.match(str(metric)):
+                return {{"success": False, "error": f"Invalid metric name: {{metric!r}}"}}
             period = payload.get("period", "daily")
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
@@ -181,6 +210,9 @@ class AssemblerGeneratorsMixin:
 
         elif action == "distribution":
             column = payload.get("column", "status")
+            # SECURITY: Validate column name from user input before SQL interpolation
+            if not _SAFE_ID.match(str(column)):
+                return {{"success": False, "error": f"Invalid column name: {{column!r}}"}}
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
             try:
@@ -194,6 +226,9 @@ class AssemblerGeneratorsMixin:
 
         elif action == "trend":
             metric = payload.get("metric", "{metric}")
+            # SECURITY: Validate metric name from user input before SQL interpolation
+            if not _SAFE_ID.match(str(metric)):
+                return {{"success": False, "error": f"Invalid metric name: {{metric!r}}"}}
             days = payload.get("days", 30)
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row

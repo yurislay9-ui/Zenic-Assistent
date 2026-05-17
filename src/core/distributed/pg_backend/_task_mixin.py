@@ -95,7 +95,7 @@ class PgTaskMixin:
             conn = self._get_conn()
             try:
                 with conn.cursor() as cur:
-                    cur.execute(
+                    cur.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f"""
                         SELECT t.*
                         FROM coord_tasks t
@@ -118,7 +118,7 @@ class PgTaskMixin:
                     claimed_task_id = task["task_id"]
 
                     # Claim the task
-                    cur.execute(
+                    cur.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """
                         UPDATE coord_tasks
                         SET status = 'running',

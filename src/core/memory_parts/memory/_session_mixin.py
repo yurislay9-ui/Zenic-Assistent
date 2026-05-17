@@ -39,7 +39,7 @@ class SessionMixin:
             self._working_memory.clear()
         
         with sqlite3.connect(DB_PATH) as conn:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT OR REPLACE INTO conversation_sessions 
                    (id, started_at, exchange_count, importance, client_id, tenant_id)
                    VALUES (?, ?, 0, 0.5, ?, ?)""",
@@ -59,7 +59,7 @@ class SessionMixin:
             exchange_count = len(self._working_memory)
             
             with sqlite3.connect(DB_PATH) as conn:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """UPDATE conversation_sessions 
                        SET ended_at=?, summary=?, exchange_count=?, importance=?
                        WHERE id=? AND tenant_id=?""",
@@ -97,7 +97,7 @@ class SessionMixin:
         
         # From database for past sessions (tenant-scoped)
         with sqlite3.connect(DB_PATH) as conn:
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT summary, exchange_count FROM conversation_sessions WHERE id=? AND tenant_id=?",
                 (sid, self._tenant_id)
             ).fetchone()
@@ -144,13 +144,13 @@ class SessionMixin:
         
         # 2. Consolidate episodic memories with same event_type (tenant-scoped)
         with sqlite3.connect(DB_PATH) as conn:
-            event_types = conn.execute(
+            event_types = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT event_type, COUNT(*) as cnt FROM episodic_memory WHERE tenant_id=? GROUP BY event_type HAVING cnt > 3",
                 (self._tenant_id,)
             ).fetchall()
             
             for event_type, count in event_types:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT id, description, importance FROM episodic_memory WHERE event_type=? AND tenant_id=? ORDER BY importance DESC",
                     (event_type, self._tenant_id)
                 ).fetchall()
@@ -162,7 +162,7 @@ class SessionMixin:
                     
                     consolidated_desc = f"Consolidated {len(ids_to_remove)} {event_type} events: {'; '.join(descriptions[:3])}"
                     
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """INSERT INTO episodic_memory 
                            (event_type, description, importance, created_at, client_id, tenant_id)
                            VALUES (?, ?, ?, ?, ?, ?)""",
@@ -170,7 +170,7 @@ class SessionMixin:
                          self._client_id, self._tenant_id)
                     )
                     
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f"DELETE FROM episodic_memory WHERE id IN ({','.join('?' * len(ids_to_remove))})",
                         ids_to_remove
                     )

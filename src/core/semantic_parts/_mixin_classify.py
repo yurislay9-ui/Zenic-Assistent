@@ -6,6 +6,7 @@ Now _build_prototypes actually works when numpy is available.
 """
 
 from ._imports import SemanticResult, _get_numpy, HAS_NUMPY, logger
+import logging
 
 # Named constants (previously magic numbers)
 _KEYWORD_CONFIDENCE_DIVISOR = 10.0

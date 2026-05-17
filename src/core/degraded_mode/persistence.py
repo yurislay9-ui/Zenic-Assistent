@@ -79,11 +79,11 @@ class DegradationPersistence:
             try:
                 conn = self._get_conn()
                 conn.executescript(_SCHEMA)
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "INSERT OR IGNORE INTO schema_version (id, version) VALUES (1, ?)",
                     (_SCHEMA_VERSION,),
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "INSERT OR IGNORE INTO degradation_state "
                     "(id, level, reason, message, entered_at, updated_at) "
                     "VALUES (1, 0, 'none', '', 0.0, ?)",
@@ -100,7 +100,7 @@ class DegradationPersistence:
         with self._lock:
             try:
                 conn = self._get_conn()
-                row = conn.execute(
+                row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT * FROM degradation_state WHERE id = 1"
                 ).fetchone()
                 if row:
@@ -122,7 +122,7 @@ class DegradationPersistence:
         with self._lock:
             try:
                 conn = self._get_conn()
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "UPDATE degradation_state SET "
                     "level=?, reason=?, message=?, entered_at=?, "
                     "restricted_features=?, metadata=?, updated_at=? "
@@ -156,7 +156,7 @@ class DegradationPersistence:
         with self._lock:
             try:
                 conn = self._get_conn()
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "INSERT INTO degradation_history "
                     "(from_level, to_level, reason, message, "
                     "timestamp, operator, metadata) "
@@ -181,7 +181,7 @@ class DegradationPersistence:
         with self._lock:
             try:
                 conn = self._get_conn()
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT * FROM degradation_history "
                     "ORDER BY timestamp DESC LIMIT ?",
                     (limit,),
@@ -200,7 +200,7 @@ class DegradationPersistence:
         with self._lock:
             try:
                 conn = self._get_conn()
-                cur = conn.execute(
+                cur = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "DELETE FROM degradation_history WHERE timestamp < ?",
                     (cutoff,),
                 )

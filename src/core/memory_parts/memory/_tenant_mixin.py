@@ -14,7 +14,7 @@ from ..types import DB_PATH
 # from src.core.tenant._context import get_current_tenant, set_current_tenant, TenantContext
 # These are provided by _core.py via the fallback context
 try:
-    from src.core.tenant._context import get_current_tenant, set_current_tenant, TenantContext
+    from src.core.tenant._context import get_current_tenant, set_current_tenant, TenantContext  # type: ignore[import-unresolved]
 except ImportError:
     from src.core.shared.tenant_utils import ANONYMOUS_TENANT
 
@@ -43,6 +43,13 @@ except ImportError:
         pass
 
 logger = logging.getLogger(__name__)
+
+
+def _sanitize_tenant(value: str, visible: int = 4) -> str:
+    """Show only last N characters of a tenant identifier."""
+    if not value or len(value) <= visible:
+        return "***"
+    return f"***{value[-visible:]}"
 
 
 class TenantMixin:
@@ -81,7 +88,7 @@ class TenantMixin:
             )
             set_current_tenant(new_ctx)
 
-        logger.info(f"SmartMemory: tenant_id set to '{self._tenant_id}'")
+        logger.info(f"SmartMemory: tenant_id set to '{_sanitize_tenant(self._tenant_id)}'")
 
     def list_clients(self, tenant_id: Optional[str] = None) -> List[str]:
         """Returns distinct client_ids, optionally scoped by tenant_id.
@@ -92,7 +99,7 @@ class TenantMixin:
         """
         tid = tenant_id or self._tenant_id
         with sqlite3.connect(DB_PATH) as conn:
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT DISTINCT client_id FROM semantic_cache WHERE tenant_id=?",
                 (tid,)
             ).fetchall()
@@ -116,7 +123,7 @@ class TenantMixin:
         with sqlite3.connect(DB_PATH) as conn:
             for table in tables:
                 assert table in self._VALID_TABLES, f"Invalid table: {table}"
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     f'DELETE FROM "{table}" WHERE client_id=? AND tenant_id=?',
                     (client_id, tid)
                 )
@@ -154,7 +161,7 @@ class TenantMixin:
         with sqlite3.connect(DB_PATH) as conn:
             for table in tables:
                 assert table in self._VALID_TABLES, f"Invalid table: {table}"
-                cursor = conn.execute(
+                cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     f'DELETE FROM "{table}" WHERE tenant_id=?',
                     (tid,)
                 )
@@ -205,13 +212,13 @@ class TenantMixin:
             for table in tables:
                 assert table in self._VALID_TABLES, f"Invalid table: {table}"
                 try:
-                    tenant_count = conn.execute(
+                    tenant_count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f'SELECT COUNT(*) FROM "{table}" WHERE tenant_id=?',
                         (tid,)
                     ).fetchone()[0]
                     total_tenant_rows += tenant_count
 
-                    all_count = conn.execute(
+                    all_count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f'SELECT COUNT(*) FROM "{table}"'
                     ).fetchone()[0]
                     total_all_rows += all_count

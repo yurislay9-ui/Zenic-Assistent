@@ -18,9 +18,9 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...types.base import Result, Ok, Err
-from ...types.tool_use import ToolCall, ToolResult, ToolPermission
-from ...config.constants import TOOL_EXECUTION_TIMEOUT, TOOL_MAX_CONCURRENT
+from ..types.base import Result, Ok, Err
+from ..types.tool_use import ToolCall, ToolResult, ToolPermission
+from ..config.constants import TOOL_EXECUTION_TIMEOUT, TOOL_MAX_CONCURRENT
 from .registry import ToolRegistry
 
 logger = logging.getLogger("zenic_agents.conversational.tools.executor")
@@ -62,7 +62,7 @@ class ToolExecutor:
             "total_timeout": 0,
         }
 
-    async def execute(self, call: ToolCall) -> Result[ToolResult]:
+    async def execute(self, call: ToolCall) -> Result[ToolResult, Exception]:
         """
         Ejecuta una llamada a herramienta.
 
@@ -144,7 +144,7 @@ class ToolExecutor:
 
     async def execute_batch(
         self, calls: list[ToolCall]
-    ) -> list[Result[ToolResult]]:
+    ) -> list[Result[ToolResult, Exception]]:
         """Ejecuta multiples tools en paralelo (respetando concurrencia)."""
         tasks = [self.execute(call) for call in calls]
         return await asyncio.gather(*tasks)

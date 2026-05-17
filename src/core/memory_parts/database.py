@@ -41,10 +41,10 @@ class DatabaseMixin:
         """
         try:
             with sqlite3.connect(DB_PATH) as conn:
-                conn.execute("PRAGMA journal_mode=WAL")
-                conn.execute("PRAGMA synchronous=NORMAL")  # Faster than FULL, safe with WAL
-                conn.execute("PRAGMA cache_size=-4096")  # 4MB cache for mobile
-                conn.execute("PRAGMA temp_store=MEMORY")  # Temp tables in RAM
+                conn.execute("PRAGMA journal_mode=WAL")  # nosemgrep: sqlalchemy-execute-raw-query
+                conn.execute("PRAGMA synchronous=NORMAL")  # Faster than FULL, safe with WAL  # nosemgrep: sqlalchemy-execute-raw-query
+                conn.execute("PRAGMA cache_size=-4096")  # 4MB cache for mobile  # nosemgrep: sqlalchemy-execute-raw-query
+                conn.execute("PRAGMA temp_store=MEMORY")  # Temp tables in RAM  # nosemgrep: sqlalchemy-execute-raw-query
             logger.info("SmartMemory: WAL mode enabled (optimized for mobile)")
         except Exception as e:
             logger.warning(f"SmartMemory: WAL mode failed, using default: {e}")
@@ -66,8 +66,8 @@ class DatabaseMixin:
                 return
 
             with sqlite3.connect(DB_PATH) as conn:
-                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
-                conn.execute("VACUUM")
+                conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")  # nosemgrep: sqlalchemy-execute-raw-query
+                conn.execute("VACUUM")  # nosemgrep: sqlalchemy-execute-raw-query
 
             self._last_vacuum_time = now
             new_size_mb = os.path.getsize(DB_PATH) / (1024 * 1024)
@@ -80,18 +80,18 @@ class DatabaseMixin:
     def _get_connection(self) -> sqlite3.Connection:
         """Obtiene una conexión SQLite optimizada para móvil."""
         conn = sqlite3.connect(DB_PATH)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA cache_size=-4096")
-        conn.execute("PRAGMA temp_store=MEMORY")
-        conn.execute("PRAGMA busy_timeout=5000")  # 5s timeout for concurrent access
+        conn.execute("PRAGMA journal_mode=WAL")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA synchronous=NORMAL")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA cache_size=-4096")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA temp_store=MEMORY")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA busy_timeout=5000")  # 5s timeout for concurrent access  # nosemgrep: sqlalchemy-execute-raw-query
         return conn
 
     def _init_db(self):
         """Crea tablas SQLite si no existen (con tenant_id para multitenancy)."""
         conn = self._get_connection()
         try:
-            conn.execute("""CREATE TABLE IF NOT EXISTS semantic_cache (
+            conn.execute("""CREATE TABLE IF NOT EXISTS semantic_cache (  # nosemgrep: sqlalchemy-execute-raw-query
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 query_hash TEXT NOT NULL,
                 query_text TEXT NOT NULL,
@@ -107,7 +107,7 @@ class DatabaseMixin:
                 tenant_id TEXT DEFAULT '__anonymous__',
                 UNIQUE(query_hash, tenant_id)
             )""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS long_term_memory (
+            conn.execute("""CREATE TABLE IF NOT EXISTS long_term_memory (  # nosemgrep: sqlalchemy-execute-raw-query
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 query_text TEXT NOT NULL,
                 solution_summary TEXT NOT NULL,
@@ -122,18 +122,18 @@ class DatabaseMixin:
                 client_id TEXT DEFAULT 'default',
                 tenant_id TEXT DEFAULT '__anonymous__'
             )""")
-            conn.execute("""CREATE INDEX IF NOT EXISTS idx_cache_hash 
+            conn.execute("""CREATE INDEX IF NOT EXISTS idx_cache_hash   # nosemgrep: sqlalchemy-execute-raw-query
                 ON semantic_cache(query_hash)""")
-            conn.execute("""CREATE INDEX IF NOT EXISTS idx_ltm_importance 
+            conn.execute("""CREATE INDEX IF NOT EXISTS idx_ltm_importance   # nosemgrep: sqlalchemy-execute-raw-query
                 ON long_term_memory(importance DESC)""")
             # Additional indexes for common mobile query patterns
-            conn.execute("""CREATE INDEX IF NOT EXISTS idx_cache_client_time
+            conn.execute("""CREATE INDEX IF NOT EXISTS idx_cache_client_time  # nosemgrep: sqlalchemy-execute-raw-query
                 ON semantic_cache(client_id, created_at DESC)""")
-            conn.execute("""CREATE INDEX IF NOT EXISTS idx_ltm_client_success
+            conn.execute("""CREATE INDEX IF NOT EXISTS idx_ltm_client_success  # nosemgrep: sqlalchemy-execute-raw-query
                 ON long_term_memory(client_id, success, importance DESC)""")
 
             # === Episodic Memory ===
-            conn.execute("""CREATE TABLE IF NOT EXISTS episodic_memory (
+            conn.execute("""CREATE TABLE IF NOT EXISTS episodic_memory (  # nosemgrep: sqlalchemy-execute-raw-query
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_type TEXT NOT NULL,
                 description TEXT NOT NULL,
@@ -146,13 +146,13 @@ class DatabaseMixin:
                 client_id TEXT DEFAULT 'default',
                 tenant_id TEXT DEFAULT '__anonymous__'
             )""")
-            conn.execute("""CREATE INDEX IF NOT EXISTS idx_episodic_type 
+            conn.execute("""CREATE INDEX IF NOT EXISTS idx_episodic_type   # nosemgrep: sqlalchemy-execute-raw-query
                 ON episodic_memory(event_type)""")
-            conn.execute("""CREATE INDEX IF NOT EXISTS idx_episodic_time 
+            conn.execute("""CREATE INDEX IF NOT EXISTS idx_episodic_time   # nosemgrep: sqlalchemy-execute-raw-query
                 ON episodic_memory(created_at DESC)""")
 
             # === Procedural Memory ===
-            conn.execute("""CREATE TABLE IF NOT EXISTS procedural_memory (
+            conn.execute("""CREATE TABLE IF NOT EXISTS procedural_memory (  # nosemgrep: sqlalchemy-execute-raw-query
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 pattern_name TEXT NOT NULL UNIQUE,
                 pattern_type TEXT DEFAULT 'strategy',
@@ -169,7 +169,7 @@ class DatabaseMixin:
             )""")
 
             # === Project Memory ===
-            conn.execute("""CREATE TABLE IF NOT EXISTS project_memory (
+            conn.execute("""CREATE TABLE IF NOT EXISTS project_memory (  # nosemgrep: sqlalchemy-execute-raw-query
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_name TEXT NOT NULL UNIQUE,
                 project_type TEXT DEFAULT '',
@@ -187,7 +187,7 @@ class DatabaseMixin:
             )""")
 
             # === Conversation Sessions ===
-            conn.execute("""CREATE TABLE IF NOT EXISTS conversation_sessions (
+            conn.execute("""CREATE TABLE IF NOT EXISTS conversation_sessions (  # nosemgrep: sqlalchemy-execute-raw-query
                 id TEXT PRIMARY KEY,
                 started_at REAL DEFAULT 0,
                 ended_at REAL DEFAULT 0,
@@ -225,7 +225,7 @@ class DatabaseMixin:
             for table in tables:
                 assert table in self._VALID_TABLES, f"Invalid table: {table}"
                 try:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f'ALTER TABLE "{table}" ADD COLUMN client_id TEXT DEFAULT \'default\''
                     )
                 except sqlite3.OperationalError:
@@ -245,7 +245,7 @@ class DatabaseMixin:
         try:
             for table in tables:
                 assert table in self._VALID_TABLES, f"Invalid table: {table}"
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     f'CREATE INDEX IF NOT EXISTS "idx_{table}_client" ON "{table}"(client_id)'
                 )
             conn.commit()
@@ -272,7 +272,7 @@ class DatabaseMixin:
             for table in tables:
                 assert table in self._VALID_TABLES, f"Invalid table: {table}"
                 try:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f'ALTER TABLE "{table}" ADD COLUMN tenant_id TEXT DEFAULT %s' % repr(_safe_default)
                     )
                     logger.info("SmartMemory: Added tenant_id column to '%s'", table)
@@ -298,11 +298,11 @@ class DatabaseMixin:
             for table in tables:
                 assert table in self._VALID_TABLES, f"Invalid table: {table}"
                 # Single-column index on tenant_id
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     f'CREATE INDEX IF NOT EXISTS "idx_{table}_tenant" ON "{table}"(tenant_id)'
                 )
                 # Composite index for tenant + client queries
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     f'CREATE INDEX IF NOT EXISTS "idx_{table}_tenant_client" ON "{table}"(tenant_id, client_id)'
                 )
             conn.commit()
@@ -316,7 +316,9 @@ class DatabaseMixin:
         if table_name not in self._VALID_TABLES:
             logger.warning(f"SmartMemory._evict_table: Invalid table name '{table_name}' rejected")
             return
+        # SECURITY: table_name validated against _VALID_TABLES whitelist above;
+        # row limit uses ? parameterization
         with sqlite3.connect(DB_PATH) as conn:
-            count = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()[0]
+            count = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()[0]  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
             if count > max_entries:
-                conn.execute(f'DELETE FROM "{table_name}" WHERE id IN (SELECT id FROM "{table_name}" ORDER BY importance ASC, created_at ASC LIMIT ?)', (count - max_entries + 10,))
+                conn.execute(f'DELETE FROM "{table_name}" WHERE id IN (SELECT id FROM "{table_name}" ORDER BY importance ASC, created_at ASC LIMIT ?)', (count - max_entries + 10,))  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier

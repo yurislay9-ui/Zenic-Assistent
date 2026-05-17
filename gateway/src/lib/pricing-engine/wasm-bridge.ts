@@ -90,7 +90,14 @@ export async function initWasm(): Promise<boolean> {
 
   try {
     // Dynamic import of the WASM module from the Rust engine package
-    const wasmPkg = (await import("../../../rust-engine/pkg/zenic_pricing_engine.js")) as unknown as WasmModule;
+    // NOTE: rust-engine/ directory doesn't exist yet. This will fail
+    // gracefully and the TypeScript fallback will be used instead.
+    // When the Rust pricing engine is built with wasm-pack, this path
+    // should be updated to point to the generated pkg/ directory.
+    const wasmPkg = (await import(
+      /* webpackIgnore: true */
+      "../../../rust-engine/pkg/zenic_pricing_engine.js"
+    )) as unknown as WasmModule;
     wasmModule = wasmPkg;
     wasmLoadError = null;
     return true;

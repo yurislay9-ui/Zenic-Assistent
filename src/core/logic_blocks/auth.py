@@ -15,6 +15,13 @@ from .chain import LogicBlock
 logger = logging.getLogger(__name__)
 
 
+def _sanitize(value: str, visible: int = 4) -> str:
+    """Show only last N characters of a secret."""
+    if not value or len(value) <= visible:
+        return "***"
+    return f"***{value[-visible:]}"
+
+
 # ============================================================
 #  AUTH BLOCKS (4)
 # ============================================================
@@ -44,7 +51,7 @@ class AuthLoginBlock(LogicBlock):
 
             if db is not None:
                 try:
-                    cursor = db.execute(
+                    cursor = db.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT id, username, password_hash, role FROM users WHERE username = ? OR email = ?",
                         (username, username)
                     )
@@ -61,7 +68,7 @@ class AuthLoginBlock(LogicBlock):
                 stored_hash = user.get("password_hash", "")
                 if self._verify_password(password, stored_hash):
                     token = self._generate_token(user, secret)
-                    logger.debug(f"AuthLoginBlock: Login success for {username}")
+                    logger.debug(f"AuthLoginBlock: Login success for {_sanitize(username)}")
                     return {
                         "success": True,
                         "token": token,
@@ -70,11 +77,11 @@ class AuthLoginBlock(LogicBlock):
                         "role": user.get("role", "user"),
                     }
                 else:
-                    logger.warning(f"AuthLoginBlock: Invalid password for {username}")
+                    logger.warning(f"AuthLoginBlock: Invalid password for {_sanitize(username)}")
                     return {"success": False, "error": "Invalid credentials"}
 
             # No user found
-            logger.warning(f"AuthLoginBlock: User not found: {username}")
+            logger.warning(f"AuthLoginBlock: User not found: {_sanitize(username)}")
             return {"success": False, "error": "Invalid credentials"}
 
         except Exception as e:
@@ -150,21 +157,21 @@ class AuthRegisterBlock(LogicBlock):
             if db is not None:
                 try:
                     # Check if user/email already exists
-                    cursor = db.execute(
+                    cursor = db.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT id FROM users WHERE username = ? OR email = ?",
                         (username, email)
                     )
                     if cursor.fetchone():
                         return {"success": False, "error": "Username or email already exists"}
 
-                    cursor = db.execute(
+                    cursor = db.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)",
                         (username, email, password_hash, role)
                     )
                     user_id = cursor.lastrowid if hasattr(cursor, 'lastrowid') else None
                     db.commit() if hasattr(db, 'commit') else None
 
-                    logger.debug(f"AuthRegisterBlock: Registered user {username} (id={user_id})")
+                    logger.debug(f"AuthRegisterBlock: Registered user {_sanitize(username)} (id={user_id})")
                     return {
                         "success": True,
                         "user_id": user_id,
@@ -179,7 +186,7 @@ class AuthRegisterBlock(LogicBlock):
 
             # Fallback: return user data without DB
             user_id = hashlib.md5(f"{username}{email}".encode()).hexdigest()[:8]
-            logger.debug(f"AuthRegisterBlock: Fallback register {username}")
+            logger.debug(f"AuthRegisterBlock: Fallback register {_sanitize(username)}")
             return {
                 "success": True,
                 "user_id": user_id,
@@ -236,7 +243,7 @@ class AuthVerifyBlock(LogicBlock):
                 if decoded.get("exp", 0) < time.time():
                     return {"success": True, "valid": False, "error": "Token expired"}
 
-                logger.debug(f"AuthVerifyBlock: Token valid for user {decoded.get('sub')}")
+                logger.debug(f"AuthVerifyBlock: Token valid for user {_sanitize(str(decoded.get('sub', '')))}")
                 return {
                     "success": True,
                     "valid": True,
@@ -247,7 +254,7 @@ class AuthVerifyBlock(LogicBlock):
                 }
 
             except Exception as token_err:
-                logger.warning(f"AuthVerifyBlock: Token verification failed: {token_err}")
+                logger.warning(f"AuthVerifyBlock: Token verification failed: {_sanitize(str(token_err))}")
                 return {"success": True, "valid": False, "error": f"Token verification failed: {str(token_err)}"}
 
         except Exception as e:

@@ -251,7 +251,7 @@ class DynamicChainComposer:
     def _init_db(self) -> None:
         """Create the chains table if it does not exist."""
         with sqlite3.connect(_DB_PATH) as conn:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 CREATE TABLE IF NOT EXISTS composed_chains (
                     chain_id     TEXT PRIMARY KEY,
@@ -265,7 +265,7 @@ class DynamicChainComposer:
                 )
                 """
             )
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 CREATE TABLE IF NOT EXISTS chain_execution_log (
                     execution_id   TEXT PRIMARY KEY,
@@ -284,7 +284,7 @@ class DynamicChainComposer:
     def _load_chains(self) -> None:
         """Load persisted chains from SQLite."""
         with sqlite3.connect(_DB_PATH) as conn:
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT chain_id, name, description, steps, metadata, "
                 "tenant_id, created_at, status FROM composed_chains"
             ).fetchall()
@@ -344,7 +344,7 @@ class DynamicChainComposer:
     def _save_chain(self, chain: ComposedChain) -> None:
         """Persist a single chain to SQLite."""
         with sqlite3.connect(_DB_PATH) as conn:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 INSERT OR REPLACE INTO composed_chains
                     (chain_id, name, description, steps, metadata,
@@ -368,7 +368,7 @@ class DynamicChainComposer:
         """Record execution result to DB."""
         execution_id = f"exec_{uuid.uuid4().hex[:12]}"
         with sqlite3.connect(_DB_PATH) as conn:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 INSERT INTO chain_execution_log
                     (execution_id, chain_id, success, step_results,

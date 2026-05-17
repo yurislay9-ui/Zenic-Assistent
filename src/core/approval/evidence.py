@@ -107,7 +107,7 @@ class EvidenceManager:
         """Create the evidence table if it does not exist."""
         def _do_init() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS approval_evidence (
                     evidence_id TEXT PRIMARY KEY,
                     evidence_type TEXT NOT NULL,
@@ -118,7 +118,7 @@ class EvidenceManager:
                     request_id TEXT NOT NULL
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_evidence_request
                 ON approval_evidence(request_id, evidence_type)
             """)
@@ -180,7 +180,7 @@ class EvidenceManager:
         def _do_query() -> List[ApprovalEvidence]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT * FROM approval_evidence
                    WHERE request_id = ?
                    ORDER BY timestamp ASC""",
@@ -214,7 +214,7 @@ class EvidenceManager:
         def _do_query() -> List[ApprovalEvidence]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT * FROM approval_evidence
                    WHERE request_id = ? AND evidence_type = ?
                    ORDER BY timestamp ASC""",
@@ -238,7 +238,7 @@ class EvidenceManager:
 
             def _do_delete() -> None:
                 conn = sqlite3.connect(self._db_path)
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "DELETE FROM approval_evidence WHERE evidence_id = ?",
                     (evidence_id,),
                 )
@@ -257,7 +257,7 @@ class EvidenceManager:
         def _do_find() -> Optional[ApprovalEvidence]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT * FROM approval_evidence WHERE evidence_id = ?",
                 (evidence_id,),
             ).fetchone()
@@ -273,7 +273,7 @@ class EvidenceManager:
         def _do_persist() -> None:
             conn = sqlite3.connect(self._db_path)
             if insert:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO approval_evidence
                        (evidence_id, evidence_type, content, content_hash,
                         source, timestamp, request_id)
@@ -289,7 +289,7 @@ class EvidenceManager:
                     ),
                 )
             else:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """UPDATE approval_evidence SET
                        content=?, content_hash=?, source=?
                        WHERE evidence_id=?""",

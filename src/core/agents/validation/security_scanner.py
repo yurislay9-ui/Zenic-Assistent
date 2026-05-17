@@ -61,11 +61,11 @@ class SecurityScanner(BaseAgent[SecurityResult]):
     def __init__(self, **kwargs) -> None:
         super().__init__(name="A23_SecurityScanner", **kwargs)
         self._dangerous_compiled = [
-            (name, re.compile(pattern, re.IGNORECASE), msg)
+            (name, re.compile(pattern, re.IGNORECASE), msg)  # nosemgrep: detect-non-literal-regexp
             for name, pattern, msg in DANGEROUS_PATTERNS
         ]
         self._safe_compiled = [
-            (name, re.compile(pattern, re.IGNORECASE), msg)
+            (name, re.compile(pattern, re.IGNORECASE), msg)  # nosemgrep: detect-non-literal-regexp
             for name, pattern, msg in SAFE_PATTERNS
         ]
 

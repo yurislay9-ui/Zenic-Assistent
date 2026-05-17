@@ -8,7 +8,7 @@ Multi-Rol Colaborativo, Defense in Depth (6 capas) y Capa Conversacional.
 Compatible con Android (Termux + proot-distro).
 """
 
-__all__ = ["ZenicAgents", "DAGOrchestrator"]
+__all__ = []  # Lazy-loaded via __getattr__
 
 
 def __getattr__(name):
@@ -19,7 +19,7 @@ def __getattr__(name):
         from src.core.orchestrator import ZenicOrchestrator
         return ZenicOrchestrator
     if name == "DAGOrchestrator":
-        from zenic_core import Orchestrator as DAGOrchestrator  # Migrated to zenic-core (Rust)
+        from zenic_core import Orchestrator as DAGOrchestrator  # type: ignore[import-unresolved]  # Migrated to zenic-core (Rust)
         return DAGOrchestrator
     if name == "patterns":
         from src.core import patterns

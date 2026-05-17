@@ -144,8 +144,8 @@ export class ObservableGatewayEngine {
     }
 
     // ─── Ingest Spans (async, non-blocking) ────────────────
-    collector.ingestSpanBatch(completedSpans).catch(() => {
-      // Span ingestion failure should not affect the response
+    collector.ingestSpanBatch(completedSpans).catch((e) => {
+      console.warn("[Observability] Span ingestion failed:", e instanceof Error ? e.message : String(e));
     });
 
     // ─── Record Metrics (async, non-blocking) ──────────────

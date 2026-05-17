@@ -172,11 +172,19 @@ class SmartChainTemplatesMixin:
                 f"        self._timeout = 30\n"
             )
 
+        # SECURITY: Validate table_name at generation time
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+            raise ValueError(f"Invalid table name for code generation: {table_name!r}")
+
         # Default: CRUD service with real database
         return (
             f"\n\nclass {class_name}:\n"
             f'    \"\"\"CRUD service for {table_name} with real SQLite operations.\"\"\"\n\n'
+            f"    _SAFE_ID = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')\n\n"
             f"    def __init__(self, db_path: str = 'data.sqlite', table_name: str = '{table_name}'):\n"
+            f"        # SECURITY: Validate table_name to prevent SQL injection\n"
+            f"        if not self._SAFE_ID.match(table_name):\n"
+            f"            raise ValueError(f'Invalid table name: {{table_name!r}}')\n"
             f"        self._db_path = db_path\n"
             f"        self._table_name = table_name\n"
             f"        self._init_db()\n\n"
@@ -259,6 +267,10 @@ class SmartChainTemplatesMixin:
                 f"        try:\n"
                 f"            conn = get_connection(self._db_path)\n"
                 f"            columns = list(data.keys())\n"
+            f"            # SECURITY: Validate column names before SQL interpolation\n"
+            f"            for col in columns:\n"
+            f"                if not self._SAFE_ID.match(str(col)):\n"
+            f"                    return {{'success': False, 'error': f'Invalid column: {{col!r}}'}}\n"
                 f"            values = list(data.values())\n"
                 f"            placeholders = ', '.join(['?' for _ in columns])\n"
                 f"            col_str = ', '.join(columns)\n"
@@ -282,6 +294,7 @@ class SmartChainTemplatesMixin:
                 '        """Read a single item by ID."""\n'
                 "        try:\n"
                 "            conn = get_connection(self._db_path)\n"
+                "            # SECURITY: self._table_name validated in __init__\n"
                 "            row = conn.execute(f'SELECT * FROM {self._table_name} WHERE id = ?', (item_id,)).fetchone()\n"
                 "            conn.close()\n"
                 "            return dict(row) if row else None\n"
@@ -310,6 +323,10 @@ class SmartChainTemplatesMixin:
                 '        """Update an item by ID with parameterized SQL."""\n'
                 "        try:\n"
                 "            conn = get_connection(self._db_path)\n"
+                "            # SECURITY: Validate column names before SQL interpolation\n"
+                "            for k in data.keys():\n"
+                "                if not self._SAFE_ID.match(str(k)):\n"
+                "                    return {'success': False, 'error': f'Invalid column: {k!r}'}\n"
                 "            set_parts = [f'{k} = ?' for k in data.keys()]\n"
                 "            values = list(data.values()) + [item_id]\n"
                 "            conn.execute(f'UPDATE {self._table_name} SET {\", \".join(set_parts)} WHERE id = ?', values)\n"
@@ -323,6 +340,7 @@ class SmartChainTemplatesMixin:
                 '        """Delete an item by ID."""\n'
                 "        try:\n"
                 "            conn = get_connection(self._db_path)\n"
+                "            # SECURITY: self._table_name validated in __init__\n"
                 "            conn.execute(f'DELETE FROM {self._table_name} WHERE id = ?', (item_id,))\n"
                 "            conn.commit()\n"
                 "            conn.close()\n"
@@ -339,6 +357,7 @@ class SmartChainTemplatesMixin:
                 '        """Get aggregate summary statistics."""\n'
                 "        try:\n"
                 "            conn = get_connection(self._db_path)\n"
+                "            # SECURITY: self._table_name validated in __init__\n"
                 "            total = conn.execute(f'SELECT COUNT(*) FROM {self._table_name}').fetchone()[0]\n"
                 "            by_status = conn.execute(f'SELECT status, COUNT(*) as cnt FROM {self._table_name} GROUP BY status').fetchall()\n"
                 "            conn.close()\n"
@@ -350,10 +369,14 @@ class SmartChainTemplatesMixin:
                 '        """Get trend data over time."""\n'
                 "        try:\n"
                 "            conn = get_connection(self._db_path)\n"
+                "            # SECURITY: Validate metric name before SQL interpolation\n"
+                "            if not self._SAFE_ID.match(str(metric)):\n"
+                "                return []\n"
+                "            days = int(days)  # Ensure integer to prevent injection\n"
                 "            rows = conn.execute(\n"
                 "                f\"SELECT date(created_at) as period, COUNT(*) as {metric} FROM {self._table_name} \"\n"
-                "                f\"WHERE created_at >= datetime('now', '-{days} days') \"\n"
-                "                f\"GROUP BY period ORDER BY period\"\n"
+                "                f\"WHERE created_at >= datetime('now', '-' || ? || ' days') \"\n"
+                "                f\"GROUP BY period ORDER BY period\", (days,)\n"
                 "            ).fetchall()\n"
                 "            conn.close()\n"
                 "            return [dict(r) for r in rows]\n"

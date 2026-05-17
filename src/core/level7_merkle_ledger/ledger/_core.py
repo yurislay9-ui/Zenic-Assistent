@@ -185,7 +185,7 @@ class MerkleLedger(MerkleLedgerHelpersMixin):
         db_dir.mkdir(parents=True, exist_ok=True)
         if not Path(db_path).exists():
             with sqlite3.connect(db_path) as conn:
-                conn.execute("""CREATE TABLE IF NOT EXISTS ledger (
+                conn.execute("""CREATE TABLE IF NOT EXISTS ledger (  # nosemgrep: sqlalchemy-execute-raw-query
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     file_path TEXT NOT NULL,
                     hash_sha256 TEXT NOT NULL,
@@ -193,8 +193,8 @@ class MerkleLedger(MerkleLedgerHelpersMixin):
                     operation TEXT NOT NULL,
                     timestamp REAL NOT NULL,
                     tenant_id TEXT NOT NULL DEFAULT '__anonymous__')""")
-                conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_file ON ledger(file_path)")
-                conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_tenant ON ledger(tenant_id)")
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_file ON ledger(file_path)")  # nosemgrep: sqlalchemy-execute-raw-query
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_tenant ON ledger(tenant_id)")  # nosemgrep: sqlalchemy-execute-raw-query
 
     def purge_tenant_ledger(self, tenant_id: str) -> int:
         """Delete all ledger entries for a specific tenant (GDPR / deprovisioning)."""

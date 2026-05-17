@@ -135,20 +135,20 @@ def _setup_exporter(provider: Any, config: TracingConfig) -> None:
             from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
             if config.exporter == "otlp":
-                from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+                from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # type: ignore[import-unresolved]
                     OTLPSpanExporter,
                 )
                 endpoint = config.endpoint or "http://localhost:4317"
                 exporter = OTLPSpanExporter(endpoint=endpoint)
             else:
                 try:
-                    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+                    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # type: ignore[import-unresolved]
                         OTLPSpanExporter,
                     )
                     endpoint = config.endpoint or "http://localhost:4317"
                     exporter = OTLPSpanExporter(endpoint=endpoint)
                 except ImportError:
-                    from opentelemetry.exporter.jaeger.thrift import (
+                    from opentelemetry.exporter.jaeger.thrift import (  # type: ignore[import-unresolved]
                         JaegerExporter,
                     )
                     endpoint = config.endpoint or "http://localhost:14268/api/traces"

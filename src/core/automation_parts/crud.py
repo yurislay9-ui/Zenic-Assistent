@@ -32,7 +32,7 @@ class CoreCRUDMixin:
     def _init_db(self):
         """Crea tablas de automatización en SQLite."""
         with sqlite3.connect(_types.DB_PATH) as conn:
-            conn.execute("""CREATE TABLE IF NOT EXISTS workflows (
+            conn.execute("""CREATE TABLE IF NOT EXISTS workflows (  # nosemgrep: sqlalchemy-execute-raw-query
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 description TEXT DEFAULT '',
@@ -46,7 +46,7 @@ class CoreCRUDMixin:
                 run_count INTEGER DEFAULT 0,
                 status TEXT DEFAULT 'active'
             )""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS execution_log (
+            conn.execute("""CREATE TABLE IF NOT EXISTS execution_log (  # nosemgrep: sqlalchemy-execute-raw-query
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 workflow_id TEXT NOT NULL,
                 started_at REAL DEFAULT 0,
@@ -57,12 +57,12 @@ class CoreCRUDMixin:
                 output TEXT DEFAULT '',
                 error TEXT DEFAULT ''
             )""")
-            conn.execute("CREATE INDEX IF NOT EXISTS idx_exec_workflow ON execution_log(workflow_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_exec_workflow ON execution_log(workflow_id)")  # nosemgrep: sqlalchemy-execute-raw-query
 
     def _load_workflows(self):
         """Carga workflows desde SQLite."""
         with sqlite3.connect(_types.DB_PATH) as conn:
-            rows = conn.execute("SELECT * FROM workflows WHERE enabled=1").fetchall()
+            rows = conn.execute("SELECT * FROM workflows WHERE enabled=1").fetchall()  # nosemgrep: sqlalchemy-execute-raw-query
         for row in rows:
             wf = Workflow(
                 id=row[0],
@@ -257,7 +257,7 @@ class CoreCRUDMixin:
     def _save_workflow(self, wf: Workflow):
         """Guarda un workflow en SQLite."""
         with sqlite3.connect(_types.DB_PATH) as conn:
-            conn.execute("""INSERT OR REPLACE INTO workflows
+            conn.execute("""INSERT OR REPLACE INTO workflows  # nosemgrep: sqlalchemy-execute-raw-query
                 (id, name, description, trigger_type, trigger_config, conditions, actions, enabled, created_at, last_run, run_count, status)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (wf.id, wf.name, wf.description, wf.trigger.type.value,
@@ -268,7 +268,7 @@ class CoreCRUDMixin:
     def _log_execution(self, execution: WorkflowExecution):
         """Registra una ejecución en el log."""
         with sqlite3.connect(_types.DB_PATH) as conn:
-            conn.execute("""INSERT INTO execution_log
+            conn.execute("""INSERT INTO execution_log  # nosemgrep: sqlalchemy-execute-raw-query
                 (workflow_id, started_at, finished_at, status, actions_executed, actions_failed, output, error)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                 (execution.workflow_id, execution.started_at, execution.finished_at,

@@ -10,7 +10,10 @@ import os
 import threading
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ._collector import MetricsCollector
 
 logger = logging.getLogger(__name__)
 

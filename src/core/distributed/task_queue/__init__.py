@@ -23,7 +23,7 @@ import logging
 import threading
 from typing import Any, Optional
 
-from .backend import BackendConfig, CoordinationBackend
+from ..backend import BackendConfig, CoordinationBackend
 from src.core.patterns.resilience.retry import RetryConfig, with_retry
 from ._types import TaskMessage, TaskPriority, TaskStatus
 from ._core_mixin import CoreMixin

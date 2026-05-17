@@ -290,7 +290,7 @@ async def check_coordination_backend(backend: Any) -> HealthCheckResult:
 async def check_redis(redis_url: str = "redis://localhost:6379") -> HealthCheckResult:
     """Check Redis connectivity (if configured)."""
     try:
-        import aioredis
+        import aioredis  # type: ignore[import-unresolved]
         client = await aioredis.from_url(redis_url)
         await client.ping()
         await client.close()

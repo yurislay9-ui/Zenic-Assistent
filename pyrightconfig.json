@@ -1,0 +1,29 @@
+{
+  "include": ["src"],
+  "exclude": ["**/__pycache__", "**/node_modules"],
+  "typeCheckingMode": "basic",
+  "reportAttributeAccessIssue": false,
+  "reportPossiblyUnboundVariable": false,
+  "reportPropertyTypeMismatch": false,
+  "reportIncompatibleMethodOverride": false,
+  "reportIncompatibleVariableOverride": false,
+  "pythonVersion": "3.10",
+  "pythonPlatform": "Linux",
+  "extraPaths": ["/home/z/Zenic-Agents"],
+  "executionEnvironments": [
+    {
+      "root": "src",
+      "extraPaths": ["/home/z/Zenic-Agents"]
+    }
+  ],
+  "reportMissingImports": true,
+  "reportMissingModuleSource": false,
+  "reportUndefinedVariable": true,
+  "reportCallIssue": false,
+  "reportArgumentType": false,
+  "reportReturnType": false,
+  "reportAssignmentType": false,
+  "reportOperatorIssue": false,
+  "reportOptionalSubscript": false,
+  "reportOptionalMemberAccess": false
+}

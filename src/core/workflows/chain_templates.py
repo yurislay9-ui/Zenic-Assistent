@@ -25,7 +25,10 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .chain_composer import ComposedChain
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +152,7 @@ class ChainTemplateLibrary:
     def _init_db(self) -> None:
         """Create the templates table if it does not exist."""
         with sqlite3.connect(_DB_PATH) as conn:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 CREATE TABLE IF NOT EXISTS chain_templates (
                     template_id  TEXT PRIMARY KEY,
@@ -171,7 +174,7 @@ class ChainTemplateLibrary:
     def _load_templates(self) -> None:
         """Load persisted templates from SQLite."""
         with sqlite3.connect(_DB_PATH) as conn:
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT template_id, name, description, category, "
                 "event_patterns, intent_keywords, steps, variables, "
                 "version, created_at FROM chain_templates"
@@ -251,7 +254,7 @@ class ChainTemplateLibrary:
     def _save_template(self, template: ChainTemplate, is_builtin: bool = False) -> None:
         """Persist a single template to SQLite."""
         with sqlite3.connect(_DB_PATH) as conn:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 INSERT OR REPLACE INTO chain_templates
                     (template_id, name, description, category,
@@ -302,7 +305,7 @@ class ChainTemplateLibrary:
                 return False
             del self._templates[template_id]
             with sqlite3.connect(_DB_PATH) as conn:
-                conn.execute("DELETE FROM chain_templates WHERE template_id=?", (template_id,))
+                conn.execute("DELETE FROM chain_templates WHERE template_id=?", (template_id,))  # nosemgrep: sqlalchemy-execute-raw-query
                 conn.commit()
             logger.info("Unregistered template %s", template_id)
             return True

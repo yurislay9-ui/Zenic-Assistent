@@ -8,15 +8,7 @@ Removed (external API connections deleted):
   - TelegramAdapter, DiscordAdapter (adapters directory deleted)
 """
 
-__all__ = [
-    "SessionManager",
-    "ConversationManager",
-    "ConversationEngine",
-    "ZenicBridge",
-    "LLMTranslator",
-    "LLMDrafter",
-    "ConfirmManager",
-]
+__all__ = []  # Lazy-loaded via __getattr__
 
 def __getattr__(name):
     if name == "SessionManager":

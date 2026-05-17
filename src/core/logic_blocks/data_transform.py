@@ -275,9 +275,9 @@ class DataTransformBlock(LogicBlock):
             if isinstance(node, _ast.UnaryOp):
                 operand = _eval_node(node.operand)
                 if isinstance(node.op, _ast.USub):
-                    return -operand
+                    return -(operand or 0)
                 if isinstance(node.op, _ast.UAdd):
-                    return +operand
+                    return +(operand or 0)
             if isinstance(node, _ast.BinOp):
                 left = _eval_node(node.left)
                 right = _eval_node(node.right)

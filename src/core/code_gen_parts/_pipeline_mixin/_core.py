@@ -11,6 +11,7 @@ import logging
 from src.core.shared.contracts import OperationType, GoalType
 
 from ._process_builder import ProcessBuilderMixin
+logger = logging.getLogger("core.code_gen_parts._pipeline_mixin._core")
 
 
 class PipelineMixin(ProcessBuilderMixin):

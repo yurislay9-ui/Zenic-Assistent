@@ -16,7 +16,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...types.base import Result, Ok
+from ..types.base import Result, Ok
 
 
 # ─── Entidades extraidas ─────────────────────────────────────
@@ -109,7 +109,7 @@ class InputParser:
     sanitizado. Statelesss y determinista.
     """
 
-    def parse(self, text: str, language: str = "es") -> Result[ParsedInput]:
+    def parse(self, text: str, language: str = "es") -> Result[ParsedInput, Exception]:
         """
         Parsea el texto sanitizado.
 

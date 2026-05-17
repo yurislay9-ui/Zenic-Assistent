@@ -9,10 +9,10 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from ..types.intent import AssistantIntent
-from ..types.session import Session
-from ..types.response import AssistantResponse, ResponseFormat, ResponseMetadata
-from ..types.personality import PersonalityProfile
+from .types.intent import AssistantIntent
+from .types.session import Session
+from .types.response import AssistantResponse, ResponseFormat, ResponseMetadata
+from .types.personality import PersonalityProfile
 from .tools import ToolManager
 
 

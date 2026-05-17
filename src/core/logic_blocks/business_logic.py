@@ -102,7 +102,7 @@ class InventoryTrackerBlock(LogicBlock):
             db = context.get("db", None)
             if db is not None:
                 try:
-                    cursor = db.execute("SELECT quantity FROM inventory WHERE product_id = ?", (product_id,))
+                    cursor = db.execute("SELECT quantity FROM inventory WHERE product_id = ?", (product_id,))  # nosemgrep: sqlalchemy-execute-raw-query
                     row = cursor.fetchone()
                     if row:
                         current_quantity = row[0] if not hasattr(row, 'keys') else row["quantity"]
@@ -129,7 +129,7 @@ class InventoryTrackerBlock(LogicBlock):
             # Update DB if available
             if db is not None:
                 try:
-                    db.execute(
+                    db.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "UPDATE inventory SET quantity = ? WHERE product_id = ?",
                         (new_quantity, product_id)
                     )

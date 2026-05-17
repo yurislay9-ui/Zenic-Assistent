@@ -56,7 +56,7 @@ class KPathAnalyzer:
 
             # Buscar nodo(s) por nombre
             escaped = target_name.replace("%", "\\%").replace("_", "\\_")
-            target_rows = conn.execute(
+            target_rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT name, node_type, connections FROM ast_nodes WHERE name LIKE ? ESCAPE '\\'",
                 (f"%{escaped}%",)
             ).fetchall()
@@ -92,7 +92,7 @@ class KPathAnalyzer:
                 })
 
                 # Buscar conexiones del nodo actual
-                conn_rows = conn.execute(
+                conn_rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT name, connections FROM ast_nodes WHERE name = ?",
                     (current,)
                 ).fetchall()
@@ -110,7 +110,7 @@ class KPathAnalyzer:
                         else:
                             dep_name = conn_str
 
-                        dep_rows = conn.execute(
+                        dep_rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                             "SELECT name FROM ast_nodes WHERE name = ?",
                             (dep_name,)
                         ).fetchall()

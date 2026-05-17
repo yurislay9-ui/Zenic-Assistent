@@ -62,7 +62,7 @@ class SQLCipherAdapter:
     Usage:
         adapter = SQLCipherAdapter(db_path="data.db", passphrase="secret")
         with adapter.connection() as conn:
-            conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+            conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))  # nosemgrep: sqlalchemy-execute-raw-query
     """
 
     def __init__(
@@ -148,7 +148,7 @@ class SQLCipherAdapter:
             or 'affected_rows' and 'lastrowid' for DML.
         """
         with self.connection() as conn:
-            cursor = conn.execute(query, params)
+            cursor = conn.execute(query, params)  # nosemgrep: sqlalchemy-execute-raw-query
             if fetch and query.strip().upper().startswith("SELECT"):
                 columns = [desc[0] for desc in cursor.description] if cursor.description else []
                 rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -170,7 +170,7 @@ class SQLCipherAdapter:
     def table_exists(self, table_name: str) -> bool:
         """Check if a table exists in the database."""
         with self.connection() as conn:
-            cursor = conn.execute(
+            cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
                 (table_name,),
             )
@@ -178,8 +178,12 @@ class SQLCipherAdapter:
 
     def get_table_schema(self, table_name: str) -> List[Dict[str, Any]]:
         """Get the schema of a table."""
+        # SECURITY: Validate table_name before interpolation into PRAGMA
+        import re
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+            raise ValueError(f"Invalid table name: {table_name!r}")
         with self.connection() as conn:
-            cursor = conn.execute(f"PRAGMA table_info({table_name})")
+            cursor = conn.execute(f'PRAGMA table_info("{table_name}")')  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
             columns = ["cid", "name", "type", "notnull", "dflt_value", "pk"]
             return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
@@ -226,7 +230,7 @@ class SQLCipherAdapter:
         if len(self._pool) < self._pool_size:
             try:
                 # Verify connection is still alive
-                conn.execute("SELECT 1")
+                conn.execute("SELECT 1")  # nosemgrep: sqlalchemy-execute-raw-query
                 self._pool.append(conn)
                 return
             except Exception:
@@ -242,18 +246,18 @@ class SQLCipherAdapter:
         The key and cipher PRAGMAs are already set by sqlcipher_helper.
         Here we add WAL mode and ARM/mobile optimizations.
         """
-        conn.execute("PRAGMA journal_mode = WAL")
-        conn.execute("PRAGMA synchronous = NORMAL")
-        conn.execute("PRAGMA cache_size = -8000")  # 8MB
+        conn.execute("PRAGMA journal_mode = WAL")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA synchronous = NORMAL")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA cache_size = -8000")  # 8MB  # nosemgrep: sqlalchemy-execute-raw-query
         logger.info("SQLCipherAdapter: Encrypted connection established (%s)", self._db_path)
 
     def _setup_sqlite(self, conn: Any) -> None:
         """Configure standard SQLite PRAGMAs for unencrypted connection."""
-        conn.execute("PRAGMA journal_mode = WAL")
-        conn.execute("PRAGMA synchronous = NORMAL")
-        conn.execute("PRAGMA cache_size = -8000")
-        conn.execute("PRAGMA busy_timeout = 5000")
-        conn.execute("PRAGMA mmap_size = 67108864")  # 64MB
+        conn.execute("PRAGMA journal_mode = WAL")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA synchronous = NORMAL")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA cache_size = -8000")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA busy_timeout = 5000")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA mmap_size = 67108864")  # 64MB  # nosemgrep: sqlalchemy-execute-raw-query
         if not self._encrypted:
             logger.debug("SQLCipherAdapter: Unencrypted SQLite connection (%s)", self._db_path)
 

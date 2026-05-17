@@ -13,6 +13,7 @@ Provides:
 from __future__ import annotations
 
 import logging
+import re
 import time
 import uuid
 from contextlib import contextmanager
@@ -20,6 +21,9 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, Generator, List, Optional
 
 logger = logging.getLogger(__name__)
+
+# SQL Injection protection: validate savepoint names
+_SAFE_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
 
 
 # ──────────────────────────────────────────────────────────────
@@ -135,7 +139,7 @@ class TransactionManager:
             # Use stored connection
             conn = self._connections.get(tx.transaction_id)
             if conn:
-                cursor = conn.execute(query, params)
+                cursor = conn.execute(query, params)  # nosemgrep: sqlalchemy-execute-raw-query
                 if query.strip().upper().startswith("SELECT"):
                     columns = [d[0] for d in cursor.description] if cursor.description else []
                     rows = [dict(zip(columns, row)) for row in cursor.fetchall()]
@@ -152,11 +156,15 @@ class TransactionManager:
     def savepoint(self, tx: Transaction, name: str) -> None:
         """Create a savepoint within the transaction."""
         self._check_active(tx)
+        # SECURITY: Validate savepoint name to prevent SQL injection
+        # PRAGMA/SAVEPOINT cannot use ? parameterization in sqlite3
+        if not _SAFE_IDENTIFIER_RE.match(name):
+            raise ValueError(f"Invalid savepoint name: {name!r}")
         tx.savepoints.append(name)
 
         conn = self._connections.get(tx.transaction_id)
         if conn:
-            conn.execute(f"SAVEPOINT {name}")
+            conn.execute(f'SAVEPOINT "{name}"')  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
         logger.debug(
             "TransactionManager: Savepoint '%s' in tx %s", name, tx.transaction_id
         )
@@ -170,7 +178,8 @@ class TransactionManager:
 
         conn = self._connections.get(tx.transaction_id)
         if conn:
-            conn.execute(f"ROLLBACK TO SAVEPOINT {name}")
+            # SECURITY: name was validated when savepoint was created
+            conn.execute(f'ROLLBACK TO SAVEPOINT "{name}"')  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
         # Remove savepoints created after this one
         idx = tx.savepoints.index(name) + 1
         tx.savepoints = tx.savepoints[:idx]

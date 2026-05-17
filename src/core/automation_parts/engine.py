@@ -112,7 +112,7 @@ class AutomationEngine(CoreCRUDMixin, ExecutionMixin, ProjectGenMixin):
         if workflow_id in self._workflows:
             del self._workflows[workflow_id]
             with sqlite3.connect(_types.DB_PATH) as conn:
-                conn.execute("DELETE FROM workflows WHERE id=?", (workflow_id,))
+                conn.execute("DELETE FROM workflows WHERE id=?", (workflow_id,))  # nosemgrep: sqlalchemy-execute-raw-query
             return True
         return False
 
@@ -120,12 +120,12 @@ class AutomationEngine(CoreCRUDMixin, ExecutionMixin, ProjectGenMixin):
         """Obtiene historial de ejecuciones."""
         with sqlite3.connect(_types.DB_PATH) as conn:
             if workflow_id:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT * FROM execution_log WHERE workflow_id=? ORDER BY started_at DESC LIMIT ?",
                     (workflow_id, limit)
                 ).fetchall()
             else:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT * FROM execution_log ORDER BY started_at DESC LIMIT ?",
                     (limit,)
                 ).fetchall()

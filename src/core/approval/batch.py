@@ -115,7 +115,7 @@ class BatchApprovalEngine:
         """Create the batch_requests table if it does not exist."""
         def _do_init() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS batch_requests (
                     batch_id TEXT PRIMARY KEY,
                     action_type TEXT NOT NULL,
@@ -130,7 +130,7 @@ class BatchApprovalEngine:
                     created_at TEXT NOT NULL
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_batch_status
                 ON batch_requests(status, created_at DESC)
             """)
@@ -420,14 +420,14 @@ class BatchApprovalEngine:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
             if status:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """SELECT * FROM batch_requests
                        WHERE status = ?
                        ORDER BY created_at DESC LIMIT ?""",
                     (status, limit),
                 ).fetchall()
             else:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """SELECT * FROM batch_requests
                        ORDER BY created_at DESC LIMIT ?""",
                     (limit,),
@@ -442,18 +442,18 @@ class BatchApprovalEngine:
         def _do_query() -> Dict[str, Any]:
             conn = sqlite3.connect(self._db_path)
             try:
-                total = conn.execute(
+                total = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT COUNT(*) FROM batch_requests"
                 ).fetchone()[0]
-                total_approved = conn.execute(
+                total_approved = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT SUM(approved_count) FROM batch_requests"
                 ).fetchone()[0] or 0
-                total_rejected = conn.execute(
+                total_rejected = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT SUM(rejected_count) FROM batch_requests"
                 ).fetchone()[0] or 0
                 by_status: Dict[str, int] = {}
                 for st in ("pending", "approved", "rejected", "partial", "completed"):
-                    cnt = conn.execute(
+                    cnt = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT COUNT(*) FROM batch_requests WHERE status = ?",
                         (st,),
                     ).fetchone()[0]
@@ -476,7 +476,7 @@ class BatchApprovalEngine:
         def _do_find() -> Optional[BatchRequest]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT * FROM batch_requests WHERE batch_id = ?",
                 (batch_id,),
             ).fetchone()
@@ -492,7 +492,7 @@ class BatchApprovalEngine:
         def _do_persist() -> None:
             conn = sqlite3.connect(self._db_path)
             if insert:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO batch_requests
                        (batch_id, action_type, action_configs, requested_by,
                         required_role, status, total_count, approved_count,
@@ -509,7 +509,7 @@ class BatchApprovalEngine:
                     ),
                 )
             else:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """UPDATE batch_requests SET
                        status=?, approved_count=?, rejected_count=?, request_ids=?
                        WHERE batch_id=?""",

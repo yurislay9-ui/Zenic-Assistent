@@ -760,7 +760,7 @@ class ImpactPreviewEngine:
         def _count_rows() -> int:
             conn = sqlite3.connect(db_path)
             try:
-                cursor = conn.execute(count_query, params)
+                cursor = conn.execute(count_query, params)  # nosemgrep: sqlalchemy-execute-raw-query
                 row = cursor.fetchone()
                 return int(row[0]) if row else 0
             finally:
@@ -842,7 +842,7 @@ class ImpactPreviewEngine:
         def _count_rows() -> int:
             conn = sqlite3.connect(db_path)
             try:
-                cursor = conn.execute(count_query, where_params)
+                cursor = conn.execute(count_query, where_params)  # nosemgrep: sqlalchemy-execute-raw-query
                 row = cursor.fetchone()
                 return int(row[0]) if row else 0
             finally:
@@ -868,7 +868,7 @@ class ImpactPreviewEngine:
                     conn = sqlite3.connect(db_path)
                     conn.row_factory = sqlite3.Row
                     try:
-                        cursor = conn.execute(sample_query, where_params)
+                        cursor = conn.execute(sample_query, where_params)  # nosemgrep: sqlalchemy-execute-raw-query
                         row = cursor.fetchone()
                         return dict(row) if row else None
                     finally:
@@ -942,11 +942,19 @@ class ImpactPreviewEngine:
             return preview
 
         # Inspect table schema to validate constraints
+        # SECURITY: Validate table/index names before interpolation into PRAGMA
+        import re as _re
+        _safe_id_re = _re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+        if not _safe_id_re.match(table):
+            preview.warnings.append(f"Invalid table name: {table!r}")
+            preview.constraints_valid = False
+            return preview
+
         def _inspect_schema() -> List[Dict[str, Any]]:
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
             try:
-                cursor = conn.execute(f"PRAGMA table_info({table})")
+                cursor = conn.execute(f'PRAGMA table_info("{table}")')  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
                 return [dict(row) for row in cursor.fetchall()]
             finally:
                 conn.close()
@@ -996,13 +1004,16 @@ class ImpactPreviewEngine:
             def _get_unique_constraints() -> List[List[str]]:
                 conn = sqlite3.connect(db_path)
                 try:
-                    cursor = conn.execute(f"PRAGMA index_list({table})")
+                    cursor = conn.execute(f'PRAGMA index_list("{table}")')  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
                     indexes = cursor.fetchall()
                     unique_constraints: List[List[str]] = []
                     for idx_row in indexes:
                         if idx_row[2]:  # unique flag
                             idx_name = idx_row[1]
-                            col_cursor = conn.execute(f"PRAGMA index_info({idx_name})")
+                            # SECURITY: Validate index name from DB before interpolation
+                            if not _safe_id_re.match(str(idx_name)):
+                                continue
+                            col_cursor = conn.execute(f'PRAGMA index_info("{idx_name}")')  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
                             cols = [row[2] for row in col_cursor.fetchall()]
                             unique_constraints.append(cols)
                     return unique_constraints
@@ -1036,7 +1047,7 @@ class ImpactPreviewEngine:
                         def _check_unique() -> int:
                             conn = sqlite3.connect(db_path)
                             try:
-                                cursor = conn.execute(check_query, check_params)
+                                cursor = conn.execute(check_query, check_params)  # nosemgrep: sqlalchemy-execute-raw-query
                                 row = cursor.fetchone()
                                 return int(row[0]) if row else 0
                             finally:
@@ -1100,7 +1111,7 @@ class ImpactPreviewEngine:
             def _count_rows() -> int:
                 conn = sqlite3.connect(db_path)
                 try:
-                    cursor = conn.execute(count_query, params)
+                    cursor = conn.execute(count_query, params)  # nosemgrep: sqlalchemy-execute-raw-query
                     row = cursor.fetchone()
                     return int(row[0]) if row else 0
                 finally:

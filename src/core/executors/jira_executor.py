@@ -44,7 +44,7 @@ import threading
 import time
 from typing import Any, Dict, List, Optional
 
-from .base import ActionExecutor, ActionResult, _validate_url, _HAS_AIOHTTP
+from .base import ActionExecutor, ActionResult, _validate_url, _validate_url_ssrf, _HAS_AIOHTTP
 
 logger = logging.getLogger(__name__)
 
@@ -416,12 +416,14 @@ class JiraExecutor(ActionExecutor):
                 separator = "&" if "?" in url else "?"
                 url = f"{url}{separator}{urlencode(filtered)}"
 
+        validated_url = _validate_url_ssrf(url)
+
         def _sync_request() -> Dict[str, Any]:
             data = (
                 json.dumps(json_data).encode("utf-8") if json_data else None
             )
             req = urllib.request.Request(
-                url,
+                validated_url,
                 data=data,
                 headers=headers,
                 method=method.upper(),

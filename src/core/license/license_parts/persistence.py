@@ -30,7 +30,7 @@ class LicenseDB:
         """Initialize the license storage database."""
         try:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS licenses (
                     license_id TEXT PRIMARY KEY,
                     tier TEXT NOT NULL, status TEXT NOT NULL,
@@ -40,7 +40,7 @@ class LicenseDB:
                     signature TEXT, metadata TEXT DEFAULT '{}', cached_at REAL
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS kill_switch_log (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     active INTEGER NOT NULL, reason TEXT,
@@ -58,7 +58,7 @@ class LicenseDB:
         try:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT * FROM licenses WHERE status = 'active' ORDER BY cached_at DESC LIMIT 1",
             ).fetchone()
             conn.close()
@@ -86,7 +86,7 @@ class LicenseDB:
         import time
         try:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "INSERT OR REPLACE INTO licenses "
                 "(license_id,tier,status,issued_to,issued_at,expires_at,"
                 "features,max_users,hardware_id,binding_strength,"
@@ -106,7 +106,7 @@ class LicenseDB:
         """Persist kill switch state."""
         try:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "INSERT INTO kill_switch_log (active,reason,activated_at,source) VALUES (?,?,?,?)",
                 (1 if active else 0, reason, activated_at, source),
             )

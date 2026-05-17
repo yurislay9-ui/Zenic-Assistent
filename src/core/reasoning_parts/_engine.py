@@ -2,7 +2,10 @@
 ReasoningEngine — main class inheriting from mixins.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ._imports import ReasoningResult
 
 from ._imports import ReasoningMode
 from ._step_mixin import StepByStepMixin

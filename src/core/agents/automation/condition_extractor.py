@@ -56,7 +56,7 @@ class ConditionExtractor(BaseAgent[ConditionResult]):
     def __init__(self, **kwargs) -> None:
         super().__init__(name="A32_ConditionExtractor", **kwargs)
         self._compiled_patterns = [
-            re.compile(p, re.IGNORECASE) for p in CONDITION_INTRODUCERS
+            re.compile(p, re.IGNORECASE) for p in CONDITION_INTRODUCERS  # nosemgrep: detect-non-literal-regexp
         ]
 
     def execute(self, input_data: Any) -> ConditionResult:

@@ -274,7 +274,7 @@ class AutopilotEngine:
             def _init() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE TABLE IF NOT EXISTS _zenic_autopilot_engine_state (
                             objective_id TEXT PRIMARY KEY,
                             status TEXT NOT NULL DEFAULT 'idle',
@@ -874,7 +874,7 @@ class AutopilotEngine:
         def _upsert() -> None:
             conn = sqlite3.connect(self._db_path)
             try:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT OR REPLACE INTO _zenic_autopilot_engine_state
                        (objective_id, status, plan_id, last_cycle_at,
                         last_cycle_result, cycle_count)

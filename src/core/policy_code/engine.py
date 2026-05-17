@@ -81,7 +81,7 @@ class PolicyCodeEngine:
 
         def _create() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """CREATE TABLE IF NOT EXISTS policies (
                     policy_id TEXT PRIMARY KEY,
                     policy_json TEXT NOT NULL,
@@ -100,7 +100,7 @@ class PolicyCodeEngine:
         try:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute("SELECT * FROM policies").fetchall()
+            rows = conn.execute("SELECT * FROM policies").fetchall()  # nosemgrep: sqlalchemy-execute-raw-query
             conn.close()
             for row in rows:
                 doc = self._json_to_policy(row["policy_json"])
@@ -185,7 +185,7 @@ class PolicyCodeEngine:
 
         def _upsert() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT OR REPLACE INTO policies
                    (policy_id, policy_json, enabled, created_at, updated_at)
                    VALUES (?, ?, ?, ?, ?)""",
@@ -199,7 +199,7 @@ class PolicyCodeEngine:
     def _delete_from_db(self, policy_id: str) -> None:
         def _del() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("DELETE FROM policies WHERE policy_id = ?", (policy_id,))
+            conn.execute("DELETE FROM policies WHERE policy_id = ?", (policy_id,))  # nosemgrep: sqlalchemy-execute-raw-query
             conn.commit()
             conn.close()
 

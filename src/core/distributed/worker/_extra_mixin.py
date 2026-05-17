@@ -262,7 +262,7 @@ class DistributedWorkerExtraMixin:
                 "Worker %s: Topology deregistration failed: %s",
                 self._config.worker_id, exc,
             )
-    def _get_local_ip() -> str:
+    def _get_local_ip(self) -> str:
         """Get the local IP address (best effort)."""
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:

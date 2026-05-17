@@ -8,7 +8,6 @@ and retrying once often succeeds. Retry is only for ERROR results, not TIMEOUT
 
 import gc
 import time
-import logging
 
 from ._imports import (
     logger, HAS_Z3, Z3Solver, TimeoutEnforcer,

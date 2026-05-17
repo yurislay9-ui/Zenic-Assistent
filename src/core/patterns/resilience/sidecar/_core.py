@@ -29,6 +29,7 @@ from contextlib import contextmanager
 from typing import Any, Callable, Deque, Dict, List, Optional
 
 from ._types import _MiddlewareContext
+logger = logging.getLogger("core.patterns.resilience.sidecar._core")
 
 class Sidecar:
     """

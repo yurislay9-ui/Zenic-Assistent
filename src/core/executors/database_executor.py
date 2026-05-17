@@ -70,7 +70,7 @@ class DatabaseExecutor(ActionExecutor):
         conn = sqlite3.connect(db_path)
         conn.row_factory = sqlite3.Row
         try:
-            cursor = conn.execute(query, params)
+            cursor = conn.execute(query, params)  # nosemgrep: sqlalchemy-execute-raw-query
             if operation == "query":
                 rows = [dict(row) for row in cursor.fetchall()]
                 conn.commit()

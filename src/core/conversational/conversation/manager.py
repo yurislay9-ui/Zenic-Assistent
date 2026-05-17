@@ -18,10 +18,10 @@ import logging
 import threading
 from typing import Any, Optional
 
-from ...types.base import Result, Ok
-from ...types.session import Session, Message, MessageRole
-from ...types.intent import IntentCategory, ConversationMode
-from ...types.memory import MemoryEntry, MemoryQuery, MemoryCategory
+from ..types.base import Result, Ok
+from ..types.session import Session, Message, MessageRole
+from ..types.intent import IntentCategory, ConversationMode
+from ..types.memory import MemoryEntry, MemoryQuery, MemoryCategory
 from .state import ConversationState, ConversationPhase, ConversationTopic
 from .turn_tracker import TurnTracker
 from .summarizer import ContextSummarizer, SummarizerConfig
@@ -113,7 +113,7 @@ class ConversationManager:
         intent: IntentCategory = IntentCategory.UNKNOWN,
         confidence: float = 0.0,
         entities: list[str] | None = None,
-    ) -> Result[ConversationState]:
+    ) -> Result[ConversationState, Exception]:
         """
         Procesa un turno del usuario.
 

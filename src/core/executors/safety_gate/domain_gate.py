@@ -161,7 +161,7 @@ _PYTHON_DOMAIN_RULES: List[Dict[str, Any]] = [
 _COMPILED_DOMAIN_RULES: List[Dict[str, Any]] = []
 for _rule in _PYTHON_DOMAIN_RULES:
     _compiled = _rule.copy()
-    _compiled["compiled"] = re.compile(_rule["pattern"], re.IGNORECASE)
+    _compiled["compiled"] = re.compile(_rule["pattern"], re.IGNORECASE)  # nosemgrep: detect-non-literal-regexp
     _COMPILED_DOMAIN_RULES.append(_compiled)
 
 

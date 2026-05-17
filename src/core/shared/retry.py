@@ -13,7 +13,7 @@ Usage:
     from src.core.shared.retry import with_retry
 
     result = with_retry(
-        fn=lambda: conn.execute("SELECT ..."),
+        fn=lambda: conn.execute("SELECT ..."),  # nosemgrep: sqlalchemy-execute-raw-query
         max_retries=3,
         base_delay=0.1,
         label="GraphAST store_node",

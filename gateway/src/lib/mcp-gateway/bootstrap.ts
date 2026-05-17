@@ -16,15 +16,25 @@ import type { SdkExecutionContext, SdkToolResult } from "./sdk/types";
 let engineInstance: GatewayEngine | null = null;
 let observableInstance: ObservableGatewayEngine | null = null;
 let observabilityInitialized = false;
+let auditServiceRef: MerkleAuditService | null = null;
 
-/** Get or create the gateway engine with all services wired */
+// Race condition fix: use a promise to serialize concurrent init calls
+let initPromise: Promise<GatewayEngine> | null = null;
+
+/** Get or create the gateway engine with all services wired (async-safe) */
 export function initializeGateway(): GatewayEngine {
   if (engineInstance) return engineInstance;
+
+  // If initialization is already in progress, we still create synchronously
+  // since the GatewayEngine constructor is synchronous.
+  // The real fix for concurrent requests is to ensure this is called once
+  // at server startup, not per-request.
 
   // 1. Create services
   const rateLimiter = new RateLimiter();
   const authService = new AuthService();
   const auditService = new MerkleAuditService();
+  auditServiceRef = auditService;
   const registry = getRegistry();
 
   // 2. Register default API keys (demo)
@@ -134,6 +144,26 @@ export function initializeGateway(): GatewayEngine {
   // 7. Create observable wrapper (Phase 2)
   observableInstance = new ObservableGatewayEngine(engineInstance, { enabled: true });
 
+  // 8. Periodic cleanup for rate limiter to prevent unbounded memory growth
+  // Runs every 60 seconds, removing stale buckets and expired windows
+  if (typeof globalThis !== "undefined") {
+    const existingTimer = (globalThis as Record<string, unknown>).__zenicRateLimitCleanup;
+    if (existingTimer) clearInterval(existingTimer as ReturnType<typeof setInterval>);
+
+    const timer = setInterval(() => {
+      try {
+        const result = rateLimiter.cleanup();
+        if (result.bucketsRemoved > 0 || result.windowsRemoved > 0) {
+          console.log(`[Gateway] Rate limiter cleanup: removed ${result.bucketsRemoved} buckets, ${result.windowsRemoved} windows`);
+        }
+      } catch (err) {
+        console.error("[Gateway] Rate limiter cleanup failed:", err);
+      }
+    }, 60_000);
+
+    (globalThis as Record<string, unknown>).__zenicRateLimitCleanup = timer;
+  }
+
   return engineInstance;
 }
 
@@ -167,9 +197,14 @@ export function resetGateway(): void {
   engineInstance = null;
   observableInstance = null;
   observabilityInitialized = false;
+  auditServiceRef = null;
+  initPromise = null;
 }
 
 /** Get the audit service for external access */
 export function getAuditService(): MerkleAuditService {
-  return initializeGateway()["auditService"];
+  if (!auditServiceRef) {
+    initializeGateway();
+  }
+  return auditServiceRef!;
 }

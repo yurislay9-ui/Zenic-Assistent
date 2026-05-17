@@ -11,7 +11,7 @@ import threading
 import time
 from typing import Any
 
-from ...types.base import Result, Ok
+from ..types.base import Result, Ok
 from ._types import (
     KnowledgeEntry,
     KnowledgeQuery,
@@ -48,7 +48,7 @@ class KnowledgeBase:
 
     # ─── Store ─────────────────────────────────────────────────
 
-    def store(self, entry: KnowledgeEntry) -> Result[str]:
+    def store(self, entry: KnowledgeEntry) -> Result[str, Exception]:
         """Almacena una entrada y la indexa."""
         with self._lock:
             if len(self._entries) >= self._max_entries:
@@ -94,7 +94,7 @@ class KnowledgeBase:
         category: str = "general",
         tags: list[str] | None = None,
         keywords: list[str] | None = None,
-    ) -> Result[str]:
+    ) -> Result[str, Exception]:
         """Almacena un concepto."""
         # Auto-extraer keywords del contenido si no se proveen
         if not keywords:

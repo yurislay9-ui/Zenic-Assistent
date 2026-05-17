@@ -13,13 +13,13 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from ..types.base import Result, Ok
-from ..types.session import Session
-from ..types.intent import AssistantIntent, IntentCategory
-from ..types.response import (
+from .types.base import Result, Ok
+from .types.session import Session
+from .types.intent import AssistantIntent, IntentCategory
+from .types.response import (
     AssistantResponse, ResponseFormat, ResponseMetadata,
 )
-from ..types.personality import PersonalityProfile
+from .types.personality import PersonalityProfile
 from .engine_parts import ResponseGenerator, EngineFormatter
 from .zenic_bridge import ZenicBridge
 
@@ -155,7 +155,7 @@ class PipelineHandlers:
     @staticmethod
     async def fallback_handler(
         ctx: Any,
-    ) -> Result[AssistantResponse]:
+    ) -> Result[AssistantResponse, Exception]:
         """Handler de fallback conversacional garantizado."""
         lang = ctx.metadata.get("language", "es") if ctx.metadata else "es"
         if lang == "en":

@@ -3,7 +3,6 @@ Internal helpers and fallback methods mixin for ReasoningEngine.
 """
 
 import re
-import logging
 from typing import Optional, Dict, Any, List, Tuple
 
 from ._imports import (

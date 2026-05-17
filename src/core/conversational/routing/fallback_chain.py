@@ -15,8 +15,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable, Awaitable
 
-from ...types.base import Result, Ok, Err, PipelineContext
-from ...types.response import AssistantResponse, ResponseFormat, ResponseMetadata
+from ..types.base import Result, Ok, Err, PipelineContext
+from ..types.response import AssistantResponse, ResponseFormat, ResponseMetadata
 from .router import Pipeline
 
 logger = logging.getLogger("zenic_agents.conversational.fallback")
@@ -24,7 +24,7 @@ logger = logging.getLogger("zenic_agents.conversational.fallback")
 
 # ─── Fallback handler ────────────────────────────────────────
 
-type FallbackHandler = Callable[[PipelineContext], Awaitable[Result[AssistantResponse]]]
+FallbackHandler = Callable[[PipelineContext], Awaitable[Result[AssistantResponse, Exception]]]
 
 
 @dataclass
@@ -63,7 +63,7 @@ class FallbackChain:
         self,
         ctx: PipelineContext,
         failed_pipeline: Pipeline | None = None,
-    ) -> Result[AssistantResponse]:
+    ) -> Result[AssistantResponse, Exception]:
         """
         Ejecuta la cadena de fallback.
 

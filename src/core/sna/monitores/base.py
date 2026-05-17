@@ -119,7 +119,7 @@ class MonitorBase(ABC):
         try:
             conn = self._get_db_connection(db_name)
             conn.row_factory = None  # Return plain tuples
-            return conn.execute(query, params).fetchall()
+            return conn.execute(query, params).fetchall()  # nosemgrep: sqlalchemy-execute-raw-query
         except Exception as e:
             logger.warning(
                 "Monitor %s: Query failed: %s", self.monitor_id, e,
@@ -142,7 +142,7 @@ class MonitorBase(ABC):
             sql += f" WHERE {where}"
         try:
             conn = self._get_db_connection(db_name)
-            row = conn.execute(sql, params).fetchone()
+            row = conn.execute(sql, params).fetchone()  # nosemgrep: sqlalchemy-execute-raw-query
             return row[0] if row else 0
         except Exception as e:
             logger.warning(

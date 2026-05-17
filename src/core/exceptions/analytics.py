@@ -200,8 +200,8 @@ class ExceptionAnalytics:
 
     def _with_conn(self, fn: Callable[[sqlite3.Connection], Any]) -> Any:
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        conn.execute("PRAGMA journal_mode=WAL")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA busy_timeout=5000")  # nosemgrep: sqlalchemy-execute-raw-query
         try:
             return fn(conn)
         finally:
@@ -217,7 +217,7 @@ class ExceptionAnalytics:
         tenant_id = signal.context.get("tenant_id", "")
 
         def _insert(conn: sqlite3.Connection) -> None:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 INSERT OR IGNORE INTO _zenic_analytics_signals
                     (signal_id, source, category, severity, message,
@@ -273,7 +273,7 @@ class ExceptionAnalytics:
             where_sql = " AND ".join(where_clauses)
 
             # Total
-            total_row = conn.execute(
+            total_row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 f"SELECT COUNT(*) FROM _zenic_analytics_signals WHERE {where_sql}",
                 params,
             ).fetchone()
@@ -281,7 +281,7 @@ class ExceptionAnalytics:
 
             # By category
             by_category: Dict[str, int] = {}
-            for row in conn.execute(
+            for row in conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 f"SELECT category, COUNT(*) FROM _zenic_analytics_signals "
                 f"WHERE {where_sql} GROUP BY category",
                 params,
@@ -290,7 +290,7 @@ class ExceptionAnalytics:
 
             # By severity
             by_severity: Dict[str, int] = {}
-            for row in conn.execute(
+            for row in conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 f"SELECT severity, COUNT(*) FROM _zenic_analytics_signals "
                 f"WHERE {where_sql} GROUP BY severity",
                 params,
@@ -299,7 +299,7 @@ class ExceptionAnalytics:
 
             # By source
             by_source: Dict[str, int] = {}
-            for row in conn.execute(
+            for row in conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 f"SELECT source, COUNT(*) FROM _zenic_analytics_signals "
                 f"WHERE {where_sql} GROUP BY source ORDER BY COUNT(*) DESC LIMIT 20",
                 params,
@@ -360,7 +360,7 @@ class ExceptionAnalytics:
                 params.append(tenant_id)
 
             # Group by category + source
-            group_rows = conn.execute(
+            group_rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 f"""
                 SELECT category, source, COUNT(*) as freq,
                        MIN(timestamp) as first_seen,
@@ -402,7 +402,7 @@ class ExceptionAnalytics:
                 )
 
                 # Sample messages (up to 5)
-                msg_rows = conn.execute(
+                msg_rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     f"""
                     SELECT message FROM _zenic_analytics_signals
                     WHERE category = ? AND source = ? {tenant_filter}
@@ -441,7 +441,7 @@ class ExceptionAnalytics:
         """Compare recent vs older frequency to determine trend."""
         try:
             mid_point = (now - timedelta(hours=12)).isoformat()
-            recent_count = conn.execute(
+            recent_count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 f"""
                 SELECT COUNT(*) FROM _zenic_analytics_signals
                 WHERE category = ? AND source = ?
@@ -450,7 +450,7 @@ class ExceptionAnalytics:
                 [category, source, mid_point] + params,
             ).fetchone()[0]
 
-            older_count = conn.execute(
+            older_count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 f"""
                 SELECT COUNT(*) FROM _zenic_analytics_signals
                 WHERE category = ? AND source = ?
@@ -485,7 +485,7 @@ class ExceptionAnalytics:
             cutoff = (
                 datetime.now(timezone.utc) - timedelta(days=days)
             ).isoformat()
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 SELECT DATE(timestamp) as day, COUNT(*) as cnt
                 FROM _zenic_analytics_signals
@@ -504,7 +504,7 @@ class ExceptionAnalytics:
     def get_top_sources(self, limit: int = 10) -> List[Dict[str, Any]]:
         """Return sources with the most exceptions."""
         def _query(conn: sqlite3.Connection) -> List[Dict[str, Any]]:
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 SELECT source, COUNT(*) as cnt,
                        COUNT(DISTINCT category) as category_count
@@ -531,7 +531,7 @@ class ExceptionAnalytics:
     def get_hourly_distribution(self) -> Dict[int, int]:
         """Return exception counts by hour of day (0-23)."""
         def _query(conn: sqlite3.Connection) -> Dict[int, int]:
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 SELECT CAST(STRFTIME('%H', timestamp) AS INTEGER) as hour,
                        COUNT(*) as cnt

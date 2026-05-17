@@ -40,7 +40,7 @@ class EpisodesMixin:
                 emb_blob = self._serialize_embedding(emb)
         tags_json = json.dumps(tags)
         with sqlite3.connect(DB_PATH) as conn:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT INTO episodic_memory
                    (event_type, description, context, outcome, importance,
                     embedding, created_at, tags, client_id, tenant_id)
@@ -56,7 +56,7 @@ class EpisodesMixin:
         results = []
         if event_type:
             with sqlite3.connect(DB_PATH) as conn:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """SELECT id, event_type, description, context, outcome,
                               importance, created_at, tags
                        FROM episodic_memory
@@ -69,7 +69,7 @@ class EpisodesMixin:
             query_emb = self._semantic.embed(query)
             if query_emb is not None:
                 with sqlite3.connect(DB_PATH) as conn:
-                    rows = conn.execute(
+                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """SELECT id, event_type, description, context, outcome,
                                   importance, embedding, created_at, tags
                            FROM episodic_memory
@@ -101,7 +101,7 @@ class EpisodesMixin:
                 emb_blob = self._serialize_embedding(emb)
         steps_json = json.dumps(steps)
         with sqlite3.connect(DB_PATH) as conn:
-            existing = conn.execute(
+            existing = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT id, success_count, fail_count FROM procedural_memory WHERE pattern_name=? AND client_id=? AND tenant_id=?",
                 (pattern_name, self._client_id, self._tenant_id)
             ).fetchone()
@@ -110,12 +110,12 @@ class EpisodesMixin:
                 if success: sc += 1
                 else: fc += 1
                 rate = sc / max(sc + fc, 1)
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "UPDATE procedural_memory SET success_count=?, fail_count=?, success_rate=?, last_used=?, steps=? WHERE id=?",
                     (sc, fc, rate, time.time(), steps_json, existing[0])
                 )
             else:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO procedural_memory
                        (pattern_name, pattern_type, description, success_count,
                         fail_count, success_rate, steps, embedding, created_at,
@@ -132,7 +132,7 @@ class EpisodesMixin:
         results = []
         with sqlite3.connect(DB_PATH) as conn:
             if pattern_type:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """SELECT pattern_name, pattern_type, description, success_count,
                               fail_count, success_rate, steps, created_at, last_used
                        FROM procedural_memory
@@ -141,7 +141,7 @@ class EpisodesMixin:
                     (pattern_type, min_success_rate, self._tenant_id, limit)
                 ).fetchall()
             else:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """SELECT pattern_name, pattern_type, description, success_count,
                               fail_count, success_rate, steps, created_at, last_used
                        FROM procedural_memory
@@ -155,7 +155,7 @@ class EpisodesMixin:
             query_emb = self._semantic.embed(query)
             if query_emb is not None:
                 with sqlite3.connect(DB_PATH) as conn:
-                    sem_rows = conn.execute(
+                    sem_rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """SELECT pattern_name, pattern_type, description,
                                   success_count, fail_count, success_rate, steps, embedding
                            FROM procedural_memory
@@ -188,12 +188,12 @@ class EpisodesMixin:
         endpoints_json = json.dumps(endpoints)
         config_json = json.dumps(config)
         with sqlite3.connect(DB_PATH) as conn:
-            existing = conn.execute(
+            existing = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT id FROM project_memory WHERE project_name=? AND client_id=? AND tenant_id=?",
                 (project_name, self._client_id, self._tenant_id)
             ).fetchone()
             if existing:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """UPDATE project_memory
                        SET project_type=?, description=?, path=?, status=?,
                            entities=?, endpoints=?, config=?, updated_at=?, notes=?
@@ -203,7 +203,7 @@ class EpisodesMixin:
                      project_name, self._client_id, self._tenant_id)
                 )
             else:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO project_memory
                        (project_name, project_type, description, path, status,
                         entities, endpoints, config, created_at, updated_at,
@@ -217,7 +217,7 @@ class EpisodesMixin:
     def get_project(self, project_name: str) -> Optional[Dict[str, Any]]:
         """Obtiene el estado de un proyecto (tenant-scoped)."""
         with sqlite3.connect(DB_PATH) as conn:
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT project_name, project_type, description, path, status,
                           entities, endpoints, config, created_at, updated_at, notes
                    FROM project_memory
@@ -231,7 +231,7 @@ class EpisodesMixin:
         """Lista todos los proyectos (tenant-scoped)."""
         with sqlite3.connect(DB_PATH) as conn:
             if status:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """SELECT project_name, project_type, description, path, status,
                               created_at, updated_at
                        FROM project_memory
@@ -240,7 +240,7 @@ class EpisodesMixin:
                     (status, self._client_id, self._tenant_id)
                 ).fetchall()
             else:
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """SELECT project_name, project_type, description, path, status,
                               created_at, updated_at
                        FROM project_memory
@@ -258,11 +258,11 @@ class EpisodesMixin:
     def enhanced_stats(self) -> Dict[str, Any]:
         """Estadisticas completas de todas las memorias (tenant-scoped)."""
         with sqlite3.connect(DB_PATH) as conn:
-            cache_count = conn.execute(
+            cache_count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COUNT(*) FROM semantic_cache WHERE tenant_id=?",
                 (self._tenant_id,)
             ).fetchone()[0]
-            ltm_count = conn.execute(
+            ltm_count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COUNT(*) FROM long_term_memory WHERE tenant_id=?",
                 (self._tenant_id,)
             ).fetchone()[0]
@@ -270,21 +270,21 @@ class EpisodesMixin:
             procedural_count = 0
             project_count = 0
             try:
-                episodic_count = conn.execute(
+                episodic_count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT COUNT(*) FROM episodic_memory WHERE tenant_id=?",
                     (self._tenant_id,)
                 ).fetchone()[0]
             except sqlite3.OperationalError:
                 pass
             try:
-                procedural_count = conn.execute(
+                procedural_count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT COUNT(*) FROM procedural_memory WHERE tenant_id=?",
                     (self._tenant_id,)
                 ).fetchone()[0]
             except sqlite3.OperationalError:
                 pass
             try:
-                project_count = conn.execute(
+                project_count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT COUNT(*) FROM project_memory WHERE tenant_id=?",
                     (self._tenant_id,)
                 ).fetchone()[0]

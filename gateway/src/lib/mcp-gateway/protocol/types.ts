@@ -136,6 +136,8 @@ export interface McpToolCallParams {
     tenantId?: string;
     traceId?: string;
     executorId?: string;
+    sessionId?: string;
+    decisionId?: string;
   };
 }
 

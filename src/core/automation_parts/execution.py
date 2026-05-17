@@ -24,6 +24,13 @@ from .types import (
 logger = logging.getLogger(__name__)
 
 
+def _sanitize(value: str, visible: int = 4) -> str:
+    """Show only last N characters of a secret."""
+    if not value or len(value) <= visible:
+        return "***"
+    return f"***{value[-visible:]}"
+
+
 class ExecutionMixin:
     """Execution logic methods for AutomationEngine."""
 
@@ -213,7 +220,7 @@ class ExecutionMixin:
             logger.info("Automation: Data sync")
             return True
         elif action.type == ActionType.HTTP_REQUEST:
-            logger.info(f"Automation: HTTP {action.config.get('method', 'GET')} {action.config.get('url', 'N/A')}")
+            logger.info(f"Automation: HTTP {action.config.get('method', 'GET')} {_sanitize(action.config.get('url', 'N/A'))}")
             return True
         elif action.type == ActionType.FILE_OPERATION:
             logger.info(f"Automation: File operation - {action.config.get('operation', 'N/A')}")

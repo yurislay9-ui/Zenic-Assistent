@@ -29,7 +29,7 @@ from .constraint_solver import Constraint, ConstraintSolver
 from .z3_solver import Z3Solver, HAS_Z3
 from .timeout import TimeoutEnforcer
 try:
-    from .code_constraints import CodeConstraintBuilder
+    from .code_constraints import CodeConstraintBuilder  # type: ignore[import-unresolved]
 except ImportError:
     CodeConstraintBuilder = None  # type: ignore[misc,assignment]
 from .symbolic_executor import SymbolicValue, SymbolicPath, SymbolicExecutor

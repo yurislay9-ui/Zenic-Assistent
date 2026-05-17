@@ -5,6 +5,7 @@ import threading
 import gc
 
 from ._imports import logger, resource
+import logging
 
 
 class MonitorMixin:

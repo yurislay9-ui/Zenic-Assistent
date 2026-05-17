@@ -359,7 +359,7 @@ class DiffPreviewEngine:
             conn = sqlite3.connect(db_path)
             conn.row_factory = sqlite3.Row
             try:
-                cursor = conn.execute(select_query, select_params)
+                cursor = conn.execute(select_query, select_params)  # nosemgrep: sqlalchemy-execute-raw-query
                 return [dict(row) for row in cursor.fetchall()]
             finally:
                 conn.close()

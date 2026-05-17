@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from ..types.personality import (
+from .types.personality import (
     PersonalityProfile,
     ToneLevel,
     LanguagePreference,

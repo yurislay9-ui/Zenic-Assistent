@@ -56,7 +56,7 @@ class CommandBusCoreMixin:
         bus.add_validator(require_target)
 
     Thread Safety:
-        All operations are protected by threading.Lock.
+        All operations are protected by a threading lock.
     """
 
     def register(self, command_type: str, handler: CommandHandler) -> None:

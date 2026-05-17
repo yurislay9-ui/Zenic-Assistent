@@ -7,9 +7,9 @@ de intencion: chat, preguntas, comandos, config, feedback.
 
 from __future__ import annotations
 
-from ...types.session import Session
-from ...types.intent import IntentCategory
-from ...types.personality import PersonalityProfile
+from ..types.session import Session
+from ..types.intent import IntentCategory
+from ..types.personality import PersonalityProfile
 
 
 class ResponseGenerator:

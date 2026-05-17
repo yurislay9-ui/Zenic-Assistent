@@ -195,7 +195,7 @@ class KPITracker:
             def _init() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE TABLE IF NOT EXISTS _zenic_kpi_measurements (
                             measurement_id TEXT PRIMARY KEY,
                             objective_id TEXT NOT NULL,
@@ -208,11 +208,11 @@ class KPITracker:
                             delta_from_last REAL NOT NULL DEFAULT 0.0
                         )
                     """)
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE INDEX IF NOT EXISTS idx_zenic_kpi_obj_metric
                         ON _zenic_kpi_measurements(objective_id, metric_name)
                     """)
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE INDEX IF NOT EXISTS idx_zenic_kpi_timestamp
                         ON _zenic_kpi_measurements(timestamp)
                     """)
@@ -274,7 +274,7 @@ class KPITracker:
             def _insert() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """INSERT INTO _zenic_kpi_measurements
                            (measurement_id, objective_id, metric_name, value,
                             target_value, unit, timestamp, source, delta_from_last)
@@ -341,7 +341,7 @@ class KPITracker:
                 conn = sqlite3.connect(self._db_path)
                 conn.row_factory = sqlite3.Row
                 try:
-                    rows = conn.execute(
+                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """SELECT * FROM _zenic_kpi_measurements
                            WHERE objective_id = ? AND metric_name = ?
                            ORDER BY timestamp DESC LIMIT ?""",
@@ -381,7 +381,7 @@ class KPITracker:
                 conn = sqlite3.connect(self._db_path)
                 conn.row_factory = sqlite3.Row
                 try:
-                    rows = conn.execute(
+                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """SELECT * FROM _zenic_kpi_measurements
                            WHERE objective_id = ? AND metric_name = ?
                            ORDER BY timestamp ASC""",
@@ -543,7 +543,7 @@ class KPITracker:
             def _get_metrics() -> List[str]:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    cursor = conn.execute(
+                    cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """SELECT DISTINCT metric_name FROM _zenic_kpi_measurements
                            WHERE objective_id = ?""",
                         (objective_id,),
@@ -607,7 +607,7 @@ class KPITracker:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
             try:
-                row = conn.execute(
+                row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """SELECT * FROM _zenic_kpi_measurements
                        WHERE objective_id = ? AND metric_name = ?
                        ORDER BY timestamp DESC LIMIT 1""",

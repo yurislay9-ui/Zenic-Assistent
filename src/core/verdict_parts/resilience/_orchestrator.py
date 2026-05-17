@@ -4,9 +4,9 @@ import logging
 import time
 from typing import Any, Dict, Optional
 
-from ._types import VerdictCircuitState, VerdictHealthSnapshot
-from ._circuit_breaker import VerdictCircuitBreaker, VerdictRetryConfig
-from ._health_audit import VerdictHealthMonitor, VerdictAuditor
+from ._types import VerdictCircuitState
+from ._circuit_breaker import VerdictCircuitBreaker, VerdictRetryConfig, VerdictHealthSnapshot
+from ._health_audit import VerdictHealthMonitor, VerdictAuditor, VerdictAuditEntry
 
 logger = logging.getLogger("zenic_agents.verdict_parts.resilience")
 

@@ -238,7 +238,7 @@ class TriggerMap:
         os.makedirs(os.path.dirname(self._db_path), exist_ok=True)
         conn = sqlite3.connect(self._db_path)
         try:
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS trigger_mappings (
                     trigger_id    TEXT PRIMARY KEY,
                     event_pattern TEXT NOT NULL,
@@ -249,7 +249,7 @@ class TriggerMap:
                     created_at    REAL NOT NULL
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_event_pattern
                 ON trigger_mappings(event_pattern)
             """)
@@ -263,7 +263,7 @@ class TriggerMap:
         conn = sqlite3.connect(self._db_path)
         conn.row_factory = sqlite3.Row
         try:
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT * FROM trigger_mappings"
             ).fetchall()
             with self._lock:
@@ -326,7 +326,7 @@ class TriggerMap:
             self._mappings[trigger_id] = mapping
             conn = sqlite3.connect(self._db_path)
             try:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """
                     INSERT INTO trigger_mappings
                         (trigger_id, event_pattern, automation_id, priority,
@@ -368,7 +368,7 @@ class TriggerMap:
                 return False
             conn = sqlite3.connect(self._db_path)
             try:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "DELETE FROM trigger_mappings WHERE trigger_id = ?",
                     (trigger_id,),
                 )

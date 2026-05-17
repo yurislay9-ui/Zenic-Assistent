@@ -15,8 +15,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from ...types.base import Result, Ok, PipelineContext, Priority
-from ...types.session import Session, MessageRole
+from ..types.base import Result, Ok, PipelineContext, Priority
+from ..types.session import Session, MessageRole
 from .sanitizer import SanitizedInput
 from .parser import ParsedInput
 
@@ -113,7 +113,7 @@ class InputEnricher:
         parsed: ParsedInput,
         session: Session | None = None,
         memory_entries: list[dict[str, Any]] | None = None,
-    ) -> Result[EnrichedInput]:
+    ) -> Result[EnrichedInput, Exception]:
         """
         Enriquece el input con contexto de sesion y memoria.
 

@@ -18,12 +18,12 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from ...types.base import Result, Ok, Err
-from ...types.memory import (
+from ..types.base import Result, Ok, Err
+from ..types.memory import (
     MemoryEntry, MemoryQuery, MemoryResult,
     MemoryType, MemoryCategory, MemoryStats,
 )
-from ...config.constants import MEMORY_MAX_WORKING
+from ..config.constants import MEMORY_MAX_WORKING
 
 
 @dataclass
@@ -49,7 +49,7 @@ class WorkingMemory:
 
     # ─── Store ────────────────────────────────────────────────
 
-    def store(self, entry: MemoryEntry) -> Result[bool]:
+    def store(self, entry: MemoryEntry) -> Result[bool, Exception]:
         """
         Almacena una entrada en working memory.
 

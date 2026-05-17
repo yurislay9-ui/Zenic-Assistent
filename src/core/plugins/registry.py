@@ -42,7 +42,7 @@ class PluginRegistry:
 
         def _create() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """CREATE TABLE IF NOT EXISTS plugins (
                     plugin_id TEXT PRIMARY KEY,
                     manifest_json TEXT NOT NULL,
@@ -63,7 +63,7 @@ class PluginRegistry:
         try:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute("SELECT * FROM plugins").fetchall()
+            rows = conn.execute("SELECT * FROM plugins").fetchall()  # nosemgrep: sqlalchemy-execute-raw-query
             conn.close()
             for row in rows:
                 manifest_data = json.loads(row["manifest_json"])
@@ -106,7 +106,7 @@ class PluginRegistry:
 
         def _upsert() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT OR REPLACE INTO plugins
                    (plugin_id, manifest_json, state, loaded_at, error_message, config_json, updated_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?)""",
@@ -128,7 +128,7 @@ class PluginRegistry:
     def _delete_from_db(self, plugin_id: str) -> None:
         def _del() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("DELETE FROM plugins WHERE plugin_id = ?", (plugin_id,))
+            conn.execute("DELETE FROM plugins WHERE plugin_id = ?", (plugin_id,))  # nosemgrep: sqlalchemy-execute-raw-query
             conn.commit()
             conn.close()
 

@@ -37,12 +37,14 @@ Design invariants:
 from __future__ import annotations
 
 import base64
+import ipaddress
 import json
 import logging
 import os
 import threading
 import time
 from typing import Any, Dict, FrozenSet, List, Optional, Set
+from urllib.parse import urlparse
 
 from .._formatter import MessageFormatter, truncate, sanitize_plain_text
 from .._protocol import ChannelProvider
@@ -56,6 +58,23 @@ from .._types import (
 )
 
 logger = logging.getLogger("zenic_agents.channels.push")
+
+
+def _validate_url(url: str, allowed_schemes: tuple = ("http", "https")) -> str:
+    """Validate URL to prevent SSRF attacks."""
+    parsed = urlparse(url)
+    if parsed.scheme not in allowed_schemes:
+        raise ValueError(f"URL scheme '{parsed.scheme}' not allowed. Use: {allowed_schemes}")
+    if not parsed.hostname:
+        raise ValueError("URL must have a hostname")
+    try:
+        ip = ipaddress.ip_address(parsed.hostname)
+        if ip.is_private or ip.is_loopback or ip.is_reserved:
+            raise ValueError(f"Access to internal IPs is not allowed: {parsed.hostname}")
+    except ValueError:
+        pass  # hostname is not an IP, that's OK
+    return url
+
 
 # ── Optional Dependencies ─────────────────────────────────────
 
@@ -1306,9 +1325,11 @@ class PushChannelProvider:
         """Send FCM message via urllib (sync, wrapped in asyncio.to_thread)."""
         import asyncio
 
+        validated_url = _validate_url(url)
+
         def _sync_post() -> ChannelResponse:
             req = urllib.request.Request(
-                url, data=data, headers=headers, method="POST",
+                validated_url, data=data, headers=headers, method="POST",
             )
             try:
                 with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT) as resp:
@@ -1730,9 +1751,11 @@ class PushChannelProvider:
         """Send Web Push via urllib (sync, wrapped in asyncio.to_thread)."""
         import asyncio
 
+        validated_endpoint = _validate_url(endpoint)
+
         def _sync_post() -> ChannelResponse:
             req = urllib.request.Request(
-                endpoint, data=data, headers=headers, method="POST",
+                validated_endpoint, data=data, headers=headers, method="POST",
             )
             try:
                 with urllib.request.urlopen(
@@ -1838,9 +1861,11 @@ class PushChannelProvider:
                 elif _HAS_URLLIB:
                     import asyncio
 
+                    validated_url = _validate_url(url)
+
                     def _sync_post() -> Dict[str, Any]:
                         req = urllib.request.Request(
-                            url, data=encoded, headers=headers, method="POST",
+                            validated_url, data=encoded, headers=headers, method="POST",
                         )
                         with urllib.request.urlopen(
                             req, timeout=_HTTP_TIMEOUT,

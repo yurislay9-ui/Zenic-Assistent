@@ -84,11 +84,11 @@ def err(error: E) -> Err[E]:
 
 # ─── Identificadores tipados ─────────────────────────────────
 
-type SessionId = str
-type MessageId = str
-type ToolCallId = str
-type EventId = str
-type MemoryId = str
+SessionId = str
+MessageId = str
+ToolCallId = str
+EventId = str
+MemoryId = str
 
 
 def new_id(prefix: str = "") -> str:
@@ -123,7 +123,7 @@ class Severity(str, Enum):
 class Processor(Protocol):
     """Protocolo base para cualquier procesador del pipeline."""
 
-    async def process(self, data: Any) -> Result[Any]:
+    async def process(self, data: Any) -> Result[Any, Exception]:
         """Procesa datos y retorna Result."""
         ...
 
@@ -132,7 +132,7 @@ class Processor(Protocol):
 class Classifier(Protocol):
     """Protocolo para clasificadores (intencion, categoria, etc)."""
 
-    def classify(self, text: str, context: dict[str, Any] | None = None) -> Result[Any]:
+    def classify(self, text: str, context: dict[str, Any] | None = None) -> Result[Any, Exception]:
         """Clasifica texto con contexto opcional."""
         ...
 
@@ -141,7 +141,7 @@ class Classifier(Protocol):
 class Router(Protocol):
     """Protocolo para routers (seleccion de pipeline)."""
 
-    def route(self, intent: Any, context: dict[str, Any]) -> Result[str]:
+    def route(self, intent: Any, context: dict[str, Any]) -> Result[str, Exception]:
         """Rutea basado en intencion y contexto."""
         ...
 
@@ -150,7 +150,7 @@ class Router(Protocol):
 class Generator(Protocol):
     """Protocolo para generadores de respuesta."""
 
-    async def generate(self, prompt: str, context: dict[str, Any]) -> Result[Any]:
+    async def generate(self, prompt: str, context: dict[str, Any]) -> Result[Any, Exception]:
         """Genera respuesta basada en prompt y contexto."""
         ...
 
@@ -159,15 +159,15 @@ class Generator(Protocol):
 class Store(Protocol):
     """Protocolo para almacenamiento (memoria, cache, etc)."""
 
-    async def store(self, key: str, value: Any, ttl: float | None = None) -> Result[bool]:
+    async def store(self, key: str, value: Any, ttl: float | None = None) -> Result[bool, Exception]:
         """Almacena un valor con TTL opcional."""
         ...
 
-    async def retrieve(self, key: str) -> Result[Any]:
+    async def retrieve(self, key: str) -> Result[Any, Exception]:
         """Recupera un valor por clave."""
         ...
 
-    async def delete(self, key: str) -> Result[bool]:
+    async def delete(self, key: str) -> Result[bool, Exception]:
         """Elimina un valor por clave."""
         ...
 
@@ -231,6 +231,6 @@ class PipelineContext:
 
 # ─── Callbacks ────────────────────────────────────────────────
 
-type AsyncCallback = Callable[..., Any]
-type StreamCallback = Callable[[str], None]
-type ErrorCallback = Callable[[Exception], None]
+AsyncCallback = Callable[..., Any]
+StreamCallback = Callable[[str], None]
+ErrorCallback = Callable[[Exception], None]

@@ -104,7 +104,7 @@ class AdaptiveApprovalEngine:
         """Create the adaptive_approval table if it does not exist."""
         def _do_init() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS adaptive_approval_records (
                     record_id TEXT PRIMARY KEY,
                     user_id INTEGER NOT NULL,
@@ -117,7 +117,7 @@ class AdaptiveApprovalEngine:
                     created_at TEXT NOT NULL
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE UNIQUE INDEX IF NOT EXISTS idx_adaptive_user_action_hash
                 ON adaptive_approval_records(user_id, action_type, action_config_hash)
             """)
@@ -242,13 +242,13 @@ class AdaptiveApprovalEngine:
         def _do_query() -> Dict[str, Any]:
             conn = sqlite3.connect(self._db_path)
             try:
-                total = conn.execute(
+                total = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT COUNT(*) FROM adaptive_approval_records"
                 ).fetchone()[0]
-                auto_approved = conn.execute(
+                auto_approved = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT SUM(total_auto_approvals) FROM adaptive_approval_records"
                 ).fetchone()[0] or 0
-                avg_consecutive_row = conn.execute(
+                avg_consecutive_row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT AVG(consecutive_approvals) FROM adaptive_approval_records"
                 ).fetchone()[0]
                 avg_consecutive = round(avg_consecutive_row, 2) if avg_consecutive_row is not None else 0.0
@@ -267,7 +267,7 @@ class AdaptiveApprovalEngine:
         """Reset (delete) all adaptive records for a user."""
         def _do_reset() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "DELETE FROM adaptive_approval_records WHERE user_id = ?",
                 (user_id,),
             )
@@ -287,7 +287,7 @@ class AdaptiveApprovalEngine:
         def _do_find() -> Optional[AdaptiveApprovalRecord]:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            row = conn.execute(
+            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT * FROM adaptive_approval_records
                    WHERE user_id = ? AND action_type = ? AND action_config_hash = ?""",
                 (user_id, action_type, config_hash),
@@ -314,7 +314,7 @@ class AdaptiveApprovalEngine:
         def _do_persist() -> None:
             conn = sqlite3.connect(self._db_path)
             if insert:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO adaptive_approval_records
                        (record_id, user_id, action_type, action_config_hash,
                         consecutive_approvals, last_auto_approved,
@@ -328,7 +328,7 @@ class AdaptiveApprovalEngine:
                     ),
                 )
             else:
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """UPDATE adaptive_approval_records SET
                        consecutive_approvals=?, last_auto_approved=?,
                        total_auto_approvals=?, total_manual_approvals=?

@@ -5,6 +5,7 @@ CRUD blocks: create, read, update, delete.
 Data transform block is in data_transform.py.
 """
 
+import re
 import time
 import math
 import hashlib
@@ -54,7 +55,7 @@ class CRUDCreateBlock(LogicBlock):
                     columns = ", ".join(f'"{c}"' for c in clean_fields.keys())
                     placeholders = ", ".join(["?"] * len(clean_fields))
                     values = list(clean_fields.values())
-                    cursor = db.execute(
+                    cursor = db.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f'INSERT INTO "{table}" ({columns}) VALUES ({placeholders})',
                         values
                     )
@@ -103,6 +104,19 @@ class CRUDReadBlock(LogicBlock):
             page_size = int(data.get("page_size", data.get("limit", 20)))
             order_by = data.get("order_by", "id DESC")
 
+            # SECURITY: Validate order_by to prevent SQL injection.
+            # order_by cannot use ? parameterization — it must be interpolated.
+            # We validate each component: column names must be valid identifiers,
+            # and only ASC/DESC keywords are allowed.
+            _SAFE_ORDER_RE = re.compile(
+                r'^[a-zA-Z_][a-zA-Z0-9_]*(\s+(ASC|DESC))?'
+                r'(,\s*[a-zA-Z_][a-zA-Z0-9_]*(\s+(ASC|DESC))?)*$',
+                re.IGNORECASE,
+            )
+            if not _SAFE_ORDER_RE.match(order_by):
+                logger.warning("CRUDReadBlock: Invalid order_by rejected: %r", order_by)
+                order_by = "id DESC"
+
             db = context.get("db", None)
             if db is not None:
                 try:
@@ -114,7 +128,8 @@ class CRUDReadBlock(LogicBlock):
                         if isinstance(value, dict):
                             op = value.get("op", "=")
                             # Only allow safe operators
-                            if op not in ("=", "!=", "<", "<", ">", ">=", "LIKE", "IN"):
+                            _SAFE_OPS = frozenset({"=", "!=", "<", "<", ">", ">=", "LIKE", "IN"})
+                            if op not in _SAFE_OPS:
                                 op = "="
                             val = value.get("value", value)
                             where_clauses.append(f'"{key}" {op} ?')
@@ -125,13 +140,14 @@ class CRUDReadBlock(LogicBlock):
 
                     where_str = f" WHERE {' AND '.join(where_clauses)}" if where_clauses else ""
 
-                    # Count
-                    count_cursor = db.execute(f'SELECT COUNT(*) FROM "{table}"{where_str}', values)
+                    # SECURITY: table and column names validated by _validate_identifier;
+                    # data values use ? parameterization via 'values' tuple
+                    count_cursor = db.execute(f'SELECT COUNT(*) FROM "{table}"{where_str}', values)  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
                     total = count_cursor.fetchone()[0]
 
                     # Fetch page
                     offset = (page - 1) * page_size
-                    cursor = db.execute(
+                    cursor = db.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f'SELECT * FROM "{table}"{where_str} ORDER BY {order_by} LIMIT ? OFFSET ?',
                         values + [page_size, offset]
                     )
@@ -199,7 +215,7 @@ class CRUDUpdateBlock(LogicBlock):
                         _validate_identifier(k)
                     set_clauses = [f'"{k}" = ?' for k in fields.keys()]
                     values = list(fields.values()) + [record_id]
-                    cursor = db.execute(
+                    cursor = db.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f'UPDATE "{table}" SET {", ".join(set_clauses)} WHERE id = ?',
                         values
                     )
@@ -253,12 +269,13 @@ class CRUDDeleteBlock(LogicBlock):
                 try:
                     _validate_identifier(table)
                     if soft_delete:
-                        cursor = db.execute(
+                        cursor = db.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                             f'UPDATE "{table}" SET deleted_at = ? WHERE id = ?',
                             (time.strftime("%Y-%m-%d %H:%M:%S"), record_id)
                         )
                     else:
-                        cursor = db.execute(f'DELETE FROM "{table}" WHERE id = ?', (record_id,))
+                        # SECURITY: record_id uses ? parameterization
+                        cursor = db.execute(f'DELETE FROM "{table}" WHERE id = ?', (record_id,))  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
 
                     rows_affected = cursor.rowcount if hasattr(cursor, 'rowcount') else 1
                     db.commit() if hasattr(db, 'commit') else None

@@ -11,6 +11,14 @@ import hashlib
 import logging
 from typing import Optional, Dict, Any, List
 from ..types import DB_DIR, DB_PATH, MemoryEntry, logger, IMPORTANCE_THRESHOLD
+
+
+def _sanitize_client(value: str, visible: int = 4) -> str:
+    """Show only last N characters of a client identifier."""
+    if not value or len(value) <= visible:
+        return "***"
+    return f"***{value[-visible:]}"
+
 from ..database import DatabaseMixin
 from ..cache import CacheMixin
 from ..longterm import LongTermMixin
@@ -68,8 +76,8 @@ class SmartMemory(DatabaseMixin, CacheMixin, LongTermMixin, EpisodesMixin, Tenan
         ctx = get_current_tenant()
         self._tenant_id: str = ctx.effective_tenant_id
         logger.info(
-            f"SmartMemory: Initialized with tenant_id='{self._tenant_id}', "
-            f"client_id='{self._client_id}'"
+            f"SmartMemory: Initialized with tenant_id='{_sanitize_client(self._tenant_id)}', "
+            f"client_id='{_sanitize_client(self._client_id)}'"
         )
 
         # Initialize DB with WAL mode for better mobile performance
@@ -87,7 +95,7 @@ class SmartMemory(DatabaseMixin, CacheMixin, LongTermMixin, EpisodesMixin, Tenan
         if not isinstance(client_id, str) or not client_id.strip():
             raise ValueError("client_id must be a non-empty string")
         self._client_id = client_id.strip()
-        logger.info(f"SmartMemory: client_id set to '{self._client_id}'")
+        logger.info(f"SmartMemory: client_id set to '{_sanitize_client(self._client_id)}'")
 
 # Re-export threading for the class
 import threading

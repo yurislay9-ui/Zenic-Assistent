@@ -46,15 +46,10 @@ from src.core.shared._version import ZENIC_VERSION_STR, ZENIC_FULL_NAME
 _ZENIC_USE_SNA = os.environ.get("ZENIC_USE_SNA", "1") == "1"
 _ZENIC_USE_BLUEPRINTS = os.environ.get("ZENIC_USE_BLUEPRINTS", "1") == "1"
 
-# Use DAGOrchestrator as primary, with ZenicOrchestrator as fallback
-try:
-    from src.core.dag_orchestrator import DAGOrchestrator
-    _ORCHESTRATOR_CLASS = DAGOrchestrator
-    _ORCHESTRATOR_NAME = f"DAGOrchestrator ({ZENIC_VERSION_STR})"
-except ImportError:
-    from src.core.orchestrator import ZenicOrchestrator
-    _ORCHESTRATOR_CLASS = ZenicOrchestrator
-    _ORCHESTRATOR_NAME = f"ZenicOrchestrator ({ZENIC_VERSION_STR})"
+# dag_orchestrator migrated to Rust — use ZenicOrchestrator directly
+from src.core.orchestrator import ZenicOrchestrator
+_ORCHESTRATOR_CLASS = ZenicOrchestrator
+_ORCHESTRATOR_NAME = f"ZenicOrchestrator ({ZENIC_VERSION_STR})"
 
 # Server module removed — no more HTTP server imports
 # from src.server import (ZenicHTTPHandler, ThreadedHTTPServer, ...)

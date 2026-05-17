@@ -117,7 +117,7 @@ class PgSagaMixin:
             try:
                 with conn.cursor() as cur:
                     # Insert saga
-                    cur.execute(
+                    cur.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """
                         INSERT INTO coord_sagas (saga_id, name, status, context_data, created_at, updated_at)
                         VALUES (%s, %s, 'PENDING', %s, %s, %s)
@@ -132,7 +132,7 @@ class PgSagaMixin:
 
                     # Insert steps
                     for i, step in enumerate(steps):
-                        cur.execute(
+                        cur.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                             """
                             INSERT INTO coord_saga_steps
                                 (saga_id, step_name, step_order, status, timeout_seconds, updated_at)

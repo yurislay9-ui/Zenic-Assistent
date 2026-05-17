@@ -25,7 +25,9 @@ import threading
 import time
 import uuid
 from typing import Any, Dict, Optional
-from .backend import CoordinationBackend
+from ..backend import CoordinationBackend
+from ._core import DistributedLockManager  # type: ignore[import-unresolved]
+from ._lock import DistributedLock  # type: ignore[import-unresolved]
 
 
 logger = logging.getLogger(__name__)

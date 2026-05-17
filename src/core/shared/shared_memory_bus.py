@@ -30,7 +30,7 @@ Architecture:
     └──────────────────────────────────────────────────────────────┘
 
 Performance targets:
-    - send()        < 0.05ms  (in-memory deque + async SQLite)
+    - send()        < 0.05ms  (in-memory collections.deque + async SQLite)
     - receive()     < 0.05ms  (in-memory heapq pop)
     - set_state()   < 0.05ms  (in-memory dict + async SQLite)
     - get_state()   < 0.02ms  (in-memory dict lookup)

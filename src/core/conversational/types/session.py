@@ -17,7 +17,7 @@ from typing import Any
 
 # ─── Identificadores ──────────────────────────────────────────
 
-type SessionId = str  # UUID v4 string
+SessionId = str  # UUID v4 string
 
 
 def new_session_id() -> SessionId:

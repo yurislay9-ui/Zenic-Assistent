@@ -3,7 +3,10 @@ DNALoader — main class inheriting from mixins.
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ._imports import LogicModule, DomainRule
 
 from ._imports import logger, DNA_ROOT, YAML_AVAILABLE
 from ._loaders_mixin import LoadersMixin

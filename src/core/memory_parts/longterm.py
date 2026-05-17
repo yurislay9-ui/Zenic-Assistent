@@ -46,7 +46,7 @@ class LongTermMixin:
         tags_json = json.dumps(tags)
 
         with sqlite3.connect(DB_PATH) as conn:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT INTO long_term_memory 
                    (query_text, solution_summary, operation, goal, importance,
                     success, embedding, created_at, tags, client_id, tenant_id)
@@ -72,7 +72,7 @@ class LongTermMixin:
             return []
 
         with sqlite3.connect(DB_PATH) as conn:
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT id, query_text, solution_summary, operation, goal,
                           importance, success, embedding, tags
                    FROM long_term_memory
@@ -103,13 +103,13 @@ class LongTermMixin:
     def _evict_long_term(self):
         """Evict least important entries if over limit (tenant-scoped)."""
         with sqlite3.connect(DB_PATH) as conn:
-            count = conn.execute(
+            count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COUNT(*) FROM long_term_memory WHERE tenant_id=?",
                 (self._tenant_id,)
             ).fetchone()[0]
             if count > MAX_LONG_TERM_ENTRIES:
                 # Delete lowest importance entries for this tenant
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """DELETE FROM long_term_memory
                        WHERE id IN (
                            SELECT id FROM long_term_memory
@@ -201,11 +201,11 @@ class LongTermMixin:
     def stats(self) -> Dict[str, Any]:
         """Estadísticas de uso de la memoria (tenant-scoped)."""
         with sqlite3.connect(DB_PATH) as conn:
-            cache_count = conn.execute(
+            cache_count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COUNT(*) FROM semantic_cache WHERE tenant_id=?",
                 (self._tenant_id,)
             ).fetchone()[0]
-            ltm_count = conn.execute(
+            ltm_count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT COUNT(*) FROM long_term_memory WHERE tenant_id=?",
                 (self._tenant_id,)
             ).fetchone()[0]

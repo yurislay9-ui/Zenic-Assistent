@@ -119,7 +119,7 @@ class IntentClassifier(BaseAgent[IntentResult]):
             compiled = []
             for kw in kws:
                 # Word boundary match
-                compiled.append(re.compile(r'\b' + re.escape(kw) + r'\b', re.IGNORECASE))
+                compiled.append(re.compile(r'\b' + re.escape(kw) + r'\b', re.IGNORECASE))  # nosemgrep: detect-non-literal-regexp
             patterns[key] = (kws, compiled)
         return patterns
 

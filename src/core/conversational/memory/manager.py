@@ -21,13 +21,13 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-from ...types.base import Result, Ok
-from ...types.memory import (
+from ..types.base import Result, Ok
+from ..types.memory import (
     MemoryEntry, MemoryQuery, MemoryResult, MemoryStats,
     MemoryType, MemoryCategory,
 )
-from ...types.intent import IntentCategory
-from ...config.constants import MEMORY_MAX_WORKING, MEMORY_MAX_LONG_TERM
+from ..types.intent import IntentCategory
+from ..config.constants import MEMORY_MAX_WORKING, MEMORY_MAX_LONG_TERM
 from .working_memory import WorkingMemory
 from .short_term import ShortTermMemory
 from .long_term import LongTermMemory
@@ -129,7 +129,7 @@ class MemoryManager:
         source: str = "user",
         tags: list[str] | None = None,
         importance_override: float | None = None,
-    ) -> Result[MemoryEntry]:
+    ) -> Result[MemoryEntry, Exception]:
         """
         Almacena informacion en el nivel de memoria apropiado.
 
@@ -173,7 +173,7 @@ class MemoryManager:
         key: str,
         value: str,
         session_id: str = "",
-    ) -> Result[MemoryEntry]:
+    ) -> Result[MemoryEntry, Exception]:
         """Almacena una preferencia del usuario (alta importancia)."""
         return self.store(
             content=f"{key}: {value}",
@@ -188,7 +188,7 @@ class MemoryManager:
         self,
         correction: str,
         session_id: str = "",
-    ) -> Result[MemoryEntry]:
+    ) -> Result[MemoryEntry, Exception]:
         """Almacena una correccion del usuario (muy importante)."""
         return self.store(
             content=correction,
@@ -204,7 +204,7 @@ class MemoryManager:
         fact: str,
         session_id: str = "",
         tags: list[str] | None = None,
-    ) -> Result[MemoryEntry]:
+    ) -> Result[MemoryEntry, Exception]:
         """Almacena un hecho o dato."""
         return self.store(
             content=fact,

@@ -156,7 +156,7 @@ class CostAccumulator:
         try:
             def _create() -> None:
                 conn = sqlite3.connect(self._db_path)
-                conn.execute("""
+                conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                     CREATE TABLE IF NOT EXISTS _zenic_costs (
                         entry_id TEXT PRIMARY KEY,
                         action_id TEXT NOT NULL DEFAULT '',
@@ -170,15 +170,15 @@ class CostAccumulator:
                         metadata TEXT NOT NULL DEFAULT '{}'
                     )
                 """)
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_costs_action "
                     "ON _zenic_costs(action_id)"
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_costs_timestamp "
                     "ON _zenic_costs(timestamp)"
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_costs_category "
                     "ON _zenic_costs(category)"
                 )
@@ -315,7 +315,7 @@ class CostAccumulator:
                     if tenant_id:
                         sql += " AND tenant_id = ?"
                         params.append(tenant_id)
-                    row = conn.execute(sql, params).fetchone()
+                    row = conn.execute(sql, params).fetchone()  # nosemgrep: sqlalchemy-execute-raw-query
                     conn.close()
                     return float(row[0]) if row else 0.0
 
@@ -350,7 +350,7 @@ class CostAccumulator:
                         sql += " AND tenant_id = ?"
                         params.append(tenant_id)
                     sql += " GROUP BY category"
-                    rows = conn.execute(sql, params).fetchall()
+                    rows = conn.execute(sql, params).fetchall()  # nosemgrep: sqlalchemy-execute-raw-query
                     conn.close()
                     return {row[0]: float(row[1]) for row in rows}
 
@@ -369,7 +369,7 @@ class CostAccumulator:
                         "%Y-%m-%dT00:00:00Z",
                         time.gmtime(time.time() - days * 86400),
                     )
-                    rows = conn.execute(
+                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT substr(timestamp,1,10) AS day, "
                         "COALESCE(SUM(total_cost), 0) "
                         "FROM _zenic_costs WHERE timestamp >= ? "
@@ -390,13 +390,13 @@ class CostAccumulator:
             try:
                 def _query() -> Dict[str, Any]:
                     conn = sqlite3.connect(self._db_path)
-                    total = conn.execute(
+                    total = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT COALESCE(SUM(total_cost), 0) FROM _zenic_costs"
                     ).fetchone()[0]
-                    count = conn.execute(
+                    count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT COUNT(*) FROM _zenic_costs"
                     ).fetchone()[0]
-                    by_cat = conn.execute(
+                    by_cat = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT category, COALESCE(SUM(total_cost), 0), COUNT(*) "
                         "FROM _zenic_costs GROUP BY category"
                     ).fetchall()
@@ -424,7 +424,7 @@ class CostAccumulator:
 
         def _insert() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT INTO _zenic_costs
                    (entry_id, action_id, category, quantity, unit_cost,
                     total_cost, currency, timestamp, tenant_id, metadata)

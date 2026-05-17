@@ -12,7 +12,7 @@ import logging
 from typing import Any, Callable, Dict, List, Set
 
 try:
-    import z3 as z3_module
+    import z3 as z3_module  # type: ignore[import-unresolved]
     HAS_Z3 = True
 except ImportError:
     HAS_Z3 = False

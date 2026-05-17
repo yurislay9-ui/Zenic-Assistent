@@ -7,11 +7,16 @@ to minimise fsync overhead.
 
 import json
 import logging
+import re
 import sqlite3
 import threading
 from typing import List, Tuple
 
 from .types import BusMessage, _DB_CACHE_SIZE, _DB_MMAP_SIZE, _FLUSH_BATCH_SIZE
+
+# SQL Injection protection: validate identifiers before interpolation
+_SAFE_IDENTIFIER_RE = re.compile(r'^[a-zA-Z_][a-zA-Z0-9_]*$')
+_SAFE_TABLES = frozenset({"mailbox_messages", "shared_state", "ring_buffer_snapshots"})
 
 logger = logging.getLogger(__name__)
 
@@ -82,11 +87,16 @@ class PersistenceLayer:
     def _open(self) -> sqlite3.Connection:
         """Open a connection with WAL-mode and tuned PRAGMAs."""
         conn = sqlite3.connect(self._db_path, check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute(f"PRAGMA cache_size={_DB_CACHE_SIZE}")
-        conn.execute(f"PRAGMA mmap_size={_DB_MMAP_SIZE}")
-        conn.execute("PRAGMA synchronous=NORMAL")
-        conn.execute("PRAGMA temp_store=MEMORY")
+        conn.execute("PRAGMA journal_mode=WAL")  # nosemgrep: sqlalchemy-execute-raw-query
+        # SECURITY: PRAGMA statements cannot use ? parameterization in sqlite3.
+        # _DB_CACHE_SIZE and _DB_MMAP_SIZE are module-level integer constants
+        # validated by type (int). No user input flows here.
+        assert isinstance(_DB_CACHE_SIZE, int), f"Invalid cache_size: {_DB_CACHE_SIZE}"
+        assert isinstance(_DB_MMAP_SIZE, int), f"Invalid mmap_size: {_DB_MMAP_SIZE}"
+        conn.execute(f"PRAGMA cache_size={_DB_CACHE_SIZE}")  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
+        conn.execute(f"PRAGMA mmap_size={_DB_MMAP_SIZE}")  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
+        conn.execute("PRAGMA synchronous=NORMAL")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA temp_store=MEMORY")  # nosemgrep: sqlalchemy-execute-raw-query
         return conn
 
     def _init_schema(self) -> None:
@@ -201,9 +211,11 @@ class PersistenceLayer:
         with self._db_lock:
             total = 0
             for table in ("mailbox_messages", "shared_state", "ring_buffer_snapshots"):
+                # SECURITY: Validate table name against whitelist before interpolation
+                assert table in _SAFE_TABLES, f"Invalid table name: {table}"
                 try:
                     cursor = self._conn.execute(
-                        f"DELETE FROM {table} WHERE tenant_id=?", (tenant_id,)
+                        f'DELETE FROM "{table}" WHERE tenant_id=?', (tenant_id,)
                     )
                     total += cursor.rowcount
                 except Exception:

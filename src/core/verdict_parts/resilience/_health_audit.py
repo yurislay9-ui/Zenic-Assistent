@@ -1,10 +1,14 @@
 """Verdict Resilience - Health Monitor & Auditor."""
 
 import logging
+import threading
 import time
+from collections import deque
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from ._types import VerdictCircuitState, VerdictHealthSnapshot, VerdictAuditEntry
+from ._types import VerdictCircuitState
+from ._circuit_breaker import VerdictHealthSnapshot
 
 logger = logging.getLogger("zenic_agents.verdict_parts.resilience")
 

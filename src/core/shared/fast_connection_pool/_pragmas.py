@@ -39,7 +39,7 @@ def _apply_pragmas(conn: sqlite3.Connection) -> None:
     """Apply optimized PRAGMA settings to a connection."""
     for pragma in _ARM_PRAGMAS:
         try:
-            conn.execute(pragma)
+            conn.execute(pragma)  # nosemgrep: sqlalchemy-execute-raw-query
         except sqlite3.Error as e:
             logger.debug("PRAGMA failed: %s — %s", pragma, e)
 

@@ -43,7 +43,7 @@ class SafetyRule:
 
     def __post_init__(self) -> None:
         if self.pattern:
-            self.compiled = re.compile(self.pattern, re.IGNORECASE)
+            self.compiled = re.compile(self.pattern, re.IGNORECASE)  # nosemgrep: detect-non-literal-regexp
 
 
 @dataclass

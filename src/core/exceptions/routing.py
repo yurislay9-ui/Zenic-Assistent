@@ -198,8 +198,8 @@ class ExceptionRouter:
 
     def _with_conn(self, fn: Callable[[sqlite3.Connection], Any]) -> Any:
         conn = sqlite3.connect(self._db_path, timeout=10)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=5000")
+        conn.execute("PRAGMA journal_mode=WAL")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("PRAGMA busy_timeout=5000")  # nosemgrep: sqlalchemy-execute-raw-query
         try:
             return fn(conn)
         finally:
@@ -208,7 +208,7 @@ class ExceptionRouter:
     def _load_rules_from_db(self) -> None:
         """Load persisted rules into the in-memory list."""
         def _query(conn: sqlite3.Connection) -> List[RoutingRule]:
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT rule_id, category, min_severity, max_severity, "
                 "action, conditions_json, priority, enabled "
                 "FROM _zenic_routing_rules ORDER BY priority DESC"
@@ -242,7 +242,7 @@ class ExceptionRouter:
     def add_rule(self, rule: RoutingRule) -> None:
         """Persist a routing rule."""
         def _insert(conn: sqlite3.Connection) -> None:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """
                 INSERT OR REPLACE INTO _zenic_routing_rules
                     (rule_id, category, min_severity, max_severity,
@@ -271,7 +271,7 @@ class ExceptionRouter:
     def remove_rule(self, rule_id: str) -> bool:
         """Remove a rule by ID.  Returns ``True`` if found and deleted."""
         def _delete(conn: sqlite3.Connection) -> bool:
-            cursor = conn.execute(
+            cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "DELETE FROM _zenic_routing_rules WHERE rule_id = ?",
                 (rule_id,),
             )

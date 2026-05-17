@@ -34,9 +34,10 @@ class InitMixin:
         self.router = MacroRouter()
         self.ast_engine = GraphASTEngine()
         self.planner = APAPlanner()
-        self.scrap = GitHubScrapAgent()
-        self.surgeon = ASTSurgeon()
-        self.sandbox = ReflexionSandbox()
+        # Level 5 & 6 modules may not exist — guard against None
+        self.scrap = GitHubScrapAgent() if GitHubScrapAgent is not None else None
+        self.surgeon = ASTSurgeon() if ASTSurgeon is not None else None
+        self.sandbox = ReflexionSandbox() if ReflexionSandbox is not None else None
         self.ledger = MerkleLedger()
         self.cache = TheoremCache()
 
@@ -131,8 +132,8 @@ class InitMixin:
 
     def _init_decomposed_modules(self) -> None:
         """Initialize abortive, partial, code_gen, code_transform, analysis."""
-        self._abortive = AbortiveProtocol(self)
-        self._partial_reasoning = PartialReasoningManager(self)
+        self._abortive = AbortiveProtocol(self) if AbortiveProtocol is not None else None
+        self._partial_reasoning = PartialReasoningManager(self) if PartialReasoningManager is not None else None
         # CodeGenerator and CodeTransformer removed — Zenic is an assistant agent
         self._code_gen = None
         self._code_transform = None
@@ -236,7 +237,7 @@ class InitMixin:
         self._niche_auto_scraper = None
         self._niche_cron = None
         try:
-            from src.core.niche_auto_scraper import NicheAutoUpdater, NicheCronScheduler
+            from src.core.niche_auto_scraper import NicheAutoUpdater, NicheCronScheduler  # type: ignore[import-unresolved]
             if self._template_engine:
                 niche_loader = self._template_engine._get_niche_loader()
                 if niche_loader:
@@ -254,7 +255,7 @@ class InitMixin:
 
         self._context_pointer_engine = None
         try:
-            from src.core.context_pointer_engine import SignatureIndex
+            from src.core.context_pointer_engine import SignatureIndex  # type: ignore[import-unresolved]
             self._context_pointer_engine = SignatureIndex(project_root=self.p_dir)
             logger.info("Orchestrator: ContextPointerEngine initialized")
         except ImportError as e:

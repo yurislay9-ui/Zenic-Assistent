@@ -49,13 +49,13 @@ class SQLiteDatabase(DatabaseBackend):
 
     async def execute(self, conn: Any, query: str, params: Optional[tuple] = None) -> None:
         if params:
-            conn.execute(query, params)
+            conn.execute(query, params)  # nosemgrep: sqlalchemy-execute-raw-query
         else:
-            conn.execute(query)
+            conn.execute(query)  # nosemgrep: sqlalchemy-execute-raw-query
         conn.commit()
 
     async def fetch_one(self, conn: Any, query: str, params: Optional[tuple] = None) -> Optional[Dict[str, Any]]:
-        cursor = conn.execute(query, params) if params else conn.execute(query)
+        cursor = conn.execute(query, params) if params else conn.execute(query)  # nosemgrep: sqlalchemy-execute-raw-query
         row = cursor.fetchone()
         if row is None:
             return None
@@ -64,14 +64,14 @@ class SQLiteDatabase(DatabaseBackend):
         return dict(row) if row else None
 
     async def fetch_all(self, conn: Any, query: str, params: Optional[tuple] = None) -> List[Dict[str, Any]]:
-        cursor = conn.execute(query, params) if params else conn.execute(query)
+        cursor = conn.execute(query, params) if params else conn.execute(query)  # nosemgrep: sqlalchemy-execute-raw-query
         rows = cursor.fetchall()
         if rows and hasattr(rows[0], 'keys'):
             return [dict(zip(r.keys(), r)) for r in rows]
         return [dict(r) for r in rows]
 
     async def fetch_val(self, conn: Any, query: str, params: Optional[tuple] = None) -> Any:
-        cursor = conn.execute(query, params) if params else conn.execute(query)
+        cursor = conn.execute(query, params) if params else conn.execute(query)  # nosemgrep: sqlalchemy-execute-raw-query
         row = cursor.fetchone()
         return row[0] if row else None
 

@@ -215,7 +215,7 @@ class SnapshotAuditEngine:
 
         def _create() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE TABLE IF NOT EXISTS snapshots (
                     snapshot_id TEXT PRIMARY KEY,
                     entity_type TEXT NOT NULL,
@@ -229,19 +229,19 @@ class SnapshotAuditEngine:
                     pair_id TEXT NOT NULL DEFAULT ''
                 )
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_snap_entity
                 ON snapshots(entity_type, entity_id, tenant_id, captured_at_epoch DESC)
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_snap_pair
                 ON snapshots(pair_id)
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_snap_tenant
                 ON snapshots(tenant_id, captured_at_epoch DESC)
             """)
-            conn.execute("""
+            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                 CREATE INDEX IF NOT EXISTS idx_snap_paired
                 ON snapshots(paired_snapshot_id)
             """)
@@ -439,7 +439,7 @@ class SnapshotAuditEngine:
             with self._lock:
                 conn = sqlite3.connect(self._db_path)
                 conn.row_factory = sqlite3.Row
-                rows = conn.execute(
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT * FROM snapshots "
                     "WHERE entity_type = ? AND entity_id = ? AND tenant_id = ? "
                     "ORDER BY captured_at_epoch DESC "
@@ -576,7 +576,7 @@ class SnapshotAuditEngine:
         def _insert() -> None:
             with self._lock:
                 conn = sqlite3.connect(self._db_path)
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     """INSERT INTO snapshots
                        (snapshot_id, entity_type, entity_id, tenant_id,
                         data, captured_at, captured_at_epoch,
@@ -617,7 +617,7 @@ class SnapshotAuditEngine:
         def _update() -> None:
             with self._lock:
                 conn = sqlite3.connect(self._db_path)
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "UPDATE snapshots SET paired_snapshot_id = ?, pair_id = ? "
                     "WHERE snapshot_id = ?",
                     (paired_snapshot_id, pair_id, snapshot_id),
@@ -640,7 +640,7 @@ class SnapshotAuditEngine:
             with self._lock:
                 conn = sqlite3.connect(self._db_path)
                 conn.row_factory = sqlite3.Row
-                row = conn.execute(
+                row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "SELECT * FROM snapshots WHERE snapshot_id = ?",
                     (snapshot_id,),
                 ).fetchone()

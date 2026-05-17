@@ -1,7 +1,10 @@
 """CoordinationBackend - Core methods."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..backend import CoordinationBackend
 
 from ._types import BackendConfig, BackendType
 
@@ -24,7 +27,8 @@ class CoordinationBackendCoreMixin:
     def is_connected(self) -> bool:
         """Whether the backend is currently connected."""
         return self._connected
-    def create(config: BackendConfig) -> "CoordinationBackend":
+    @classmethod
+    def create(cls, config: BackendConfig) -> "CoordinationBackend":
         """
         Factory method: create the appropriate backend from config.
 
@@ -39,7 +43,7 @@ class CoordinationBackendCoreMixin:
         """
         if config.backend_type == BackendType.POSTGRESQL:
             try:
-                from .pg_backend import PgBackend
+                from .pg_backend import PgBackend  # type: ignore[import-unresolved]
                 backend = PgBackend(config)
                 logger.info(
                     "CoordinationBackend: Created PostgreSQL backend "
@@ -58,7 +62,7 @@ class CoordinationBackendCoreMixin:
                 )
 
         # Memory backend (explicit or fallback)
-        from .memory_backend import MemoryBackend
+        from .memory_backend import MemoryBackend  # type: ignore[import-unresolved]
         logger.info(
             "CoordinationBackend: Created Memory backend "
             "(node_id=%s)", config.node_id,

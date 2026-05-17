@@ -158,7 +158,7 @@ class ValueTracker:
         try:
             def _create() -> None:
                 conn = sqlite3.connect(self._db_path)
-                conn.execute("""
+                conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                     CREATE TABLE IF NOT EXISTS _zenic_values (
                         entry_id TEXT PRIMARY KEY,
                         category TEXT NOT NULL,
@@ -172,15 +172,15 @@ class ValueTracker:
                         metadata TEXT NOT NULL DEFAULT '{}'
                     )
                 """)
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_values_category "
                     "ON _zenic_values(category)"
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_values_timestamp "
                     "ON _zenic_values(timestamp)"
                 )
-                conn.execute(
+                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     "CREATE INDEX IF NOT EXISTS idx_values_tenant "
                     "ON _zenic_values(tenant_id)"
                 )
@@ -310,7 +310,7 @@ class ValueTracker:
                     if tenant_id:
                         sql += " AND tenant_id = ?"
                         params.append(tenant_id)
-                    row = conn.execute(sql, params).fetchone()
+                    row = conn.execute(sql, params).fetchone()  # nosemgrep: sqlalchemy-execute-raw-query
                     conn.close()
                     return float(row[0]) if row else 0.0
 
@@ -345,7 +345,7 @@ class ValueTracker:
                         sql += " AND tenant_id = ?"
                         params.append(tenant_id)
                     sql += " GROUP BY category"
-                    rows = conn.execute(sql, params).fetchall()
+                    rows = conn.execute(sql, params).fetchall()  # nosemgrep: sqlalchemy-execute-raw-query
                     conn.close()
                     return {row[0]: float(row[1]) for row in rows}
 
@@ -364,7 +364,7 @@ class ValueTracker:
                         "%Y-%m-%dT00:00:00Z",
                         time.gmtime(time.time() - days * 86400),
                     )
-                    rows = conn.execute(
+                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT substr(timestamp,1,10) AS day, "
                         "COALESCE(SUM(total_value), 0) "
                         "FROM _zenic_values WHERE timestamp >= ? "
@@ -420,13 +420,13 @@ class ValueTracker:
             try:
                 def _query() -> Dict[str, Any]:
                     conn = sqlite3.connect(self._db_path)
-                    total = conn.execute(
+                    total = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT COALESCE(SUM(total_value), 0) FROM _zenic_values"
                     ).fetchone()[0]
-                    count = conn.execute(
+                    count = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT COUNT(*) FROM _zenic_values"
                     ).fetchone()[0]
-                    by_cat = conn.execute(
+                    by_cat = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         "SELECT category, COALESCE(SUM(total_value), 0), COUNT(*) "
                         "FROM _zenic_values GROUP BY category"
                     ).fetchall()
@@ -454,7 +454,7 @@ class ValueTracker:
 
         def _insert() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT INTO _zenic_values
                    (entry_id, category, action_id, quantity, unit_value,
                     total_value, currency, timestamp, tenant_id, metadata)

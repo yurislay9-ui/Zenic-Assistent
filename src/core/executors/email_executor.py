@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 # ── Optional: aiosmtplib ──────────────────────────────────────────
 
 try:
-    import aiosmtplib
+    import aiosmtplib  # type: ignore[import-unresolved]
     _HAS_AIOSMTPLIB_LOCAL = True
 except ImportError:
     _HAS_AIOSMTPLIB_LOCAL = False

@@ -25,10 +25,13 @@ class PartialMixin:
         orch = self._orchestrator
         elapsed = int((time.time() - start_time) * 1000)
         k_path_eval = trial.paths_explored
-        k_path_limit = orch.sandbox.k_path_limit
+        k_path_limit = orch.sandbox.k_path_limit if orch.sandbox is not None else 0
 
         # Generar subtareas para el tool_call
-        subtasks = orch._abortive.generate_subtasks(intent, ast_analysis, plan)
+        if orch._abortive is not None:
+            subtasks = orch._abortive.generate_subtasks(intent, ast_analysis, plan)
+        else:
+            subtasks = []
 
         subtask_1 = "Levantamiento algoritmico de interfaces genericas de aislamiento (Mock Boundaries)."
         subtask_2 = "Despliegue quirurgico condicionado de la logica central evaluado independientemente."

@@ -752,7 +752,8 @@ def format_email_html(message: ChannelMessage) -> str:
     # Image
     if message.image_url:
         alt_text = html_module.escape(message.title or "Image")
-        parts.append(f'<img src="{message.image_url}" alt="{alt_text}" style="max-width:100%;margin:0 0 12px 0;" />')
+        safe_url = html_module.escape(message.image_url, quote=True)
+        parts.append(f'<img src="{safe_url}" alt="{alt_text}" style="max-width:100%;margin:0 0 12px 0;" />')
 
     # Footer
     if message.footer:
@@ -833,6 +834,7 @@ def format_push_payload(message: ChannelMessage) -> Dict[str, Any]:
         payload["image"] = message.image_url
 
     # Priority
+    from ._types import ChannelPriority
     priority_map = {
         ChannelPriority.LOW: "normal",
         ChannelPriority.NORMAL: "normal",
@@ -840,7 +842,6 @@ def format_push_payload(message: ChannelMessage) -> Dict[str, Any]:
         ChannelPriority.URGENT: "high",
         ChannelPriority.EMERGENCY: "high",
     }
-    from ._types import ChannelPriority as CP
     payload["priority"] = priority_map.get(message.priority, "normal")
 
     return payload

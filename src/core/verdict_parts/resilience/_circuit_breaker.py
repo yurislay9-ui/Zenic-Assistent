@@ -1,9 +1,13 @@
 """Verdict Resilience - Circuit Breaker & Retry Config."""
 
 import logging
+import threading
 import time
 import random
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
+
+from ._types import VerdictCircuitState
 
 logger = logging.getLogger("zenic_agents.verdict_parts.resilience")
 

@@ -21,7 +21,7 @@ import threading
 import time
 from typing import Any
 
-from ...types.events import (
+from ..types.events import (
     Event, EventType, Subscription, EventHandler, AsyncEventHandler,
 )
 

@@ -21,16 +21,12 @@ from .executors import (
     _HAS_APSCHEDULER,
     get_default_registry,
     reset_default_registry,
-    # Executors (9)
+    # Executors
     EmailExecutor,
-    HttpExecutor,
     DatabaseExecutor,
     FileExecutor,
-    NotificationExecutor,
-    WebhookExecutor,
     TransformExecutor,
     ScheduleExecutor,
-    DiscordExecutor,
     # Safety Gate
     SafetyGate,
     SafetyVerdict,
@@ -73,12 +69,10 @@ from .executors import (
     CRUDValidator,
     TransactionManager,
     Transaction,
-    # Notification Parts
-    ChannelRouter,
-    ChannelConfig,
-    ChannelPriority,
-    NotificationRateLimiter,
 )
+
+# Notification Parts — imported from channels package
+from .channels import ChannelRouter, ChannelPriority
 
 __all__ = [
     # Base
@@ -94,16 +88,12 @@ __all__ = [
     "_HAS_APSCHEDULER",
     "get_default_registry",
     "reset_default_registry",
-    # Executors (9)
+    # Executors
     "EmailExecutor",
-    "HttpExecutor",
     "DatabaseExecutor",
     "FileExecutor",
-    "NotificationExecutor",
-    "WebhookExecutor",
     "TransformExecutor",
     "ScheduleExecutor",
-    "DiscordExecutor",
     # Safety Gate
     "SafetyGate",
     "SafetyVerdict",
@@ -146,9 +136,7 @@ __all__ = [
     "CRUDValidator",
     "TransactionManager",
     "Transaction",
-    # Notification Parts
+    # Notification Parts (from channels)
     "ChannelRouter",
-    "ChannelConfig",
     "ChannelPriority",
-    "NotificationRateLimiter",
 ]

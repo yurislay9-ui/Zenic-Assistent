@@ -68,7 +68,7 @@ class AuditPersistence:
         self._ensure_init()
         conn = sqlite3.connect(self._db_path)
         try:
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT OR REPLACE INTO executor_audit
                    (entry_id, action_type, operation, executor_class, verdict,
                     success, duration_ms, user_id, tenant_id, session_id,
@@ -128,7 +128,7 @@ class AuditPersistence:
         conn = sqlite3.connect(self._db_path)
         conn.row_factory = sqlite3.Row
         try:
-            rows = conn.execute(sql, params).fetchall()
+            rows = conn.execute(sql, params).fetchall()  # nosemgrep: sqlalchemy-execute-raw-query
             return [self._row_to_entry(r) for r in rows]
         finally:
             conn.close()
@@ -138,7 +138,7 @@ class AuditPersistence:
         self._ensure_init()
         conn = sqlite3.connect(self._db_path)
         try:
-            cursor = conn.execute(
+            cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "DELETE FROM executor_audit WHERE timestamp < ?",
                 (older_than_timestamp,),
             )

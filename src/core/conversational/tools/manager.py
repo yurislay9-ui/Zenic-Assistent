@@ -15,6 +15,7 @@ Integra ToolRegistry, ToolExecutor y PermissionManager.
 from __future__ import annotations
 
 import asyncio
+import ast
 import logging
 import math
 import threading
@@ -23,11 +24,11 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Callable, Awaitable
 
-from ...types.base import Result, Ok, Err
-from ...types.tool_use import (
+from ..types.base import Result, Ok, Err
+from ..types.tool_use import (
     ToolSpec, ToolCall, ToolResult, ToolPermission, BUILTIN_TOOLS,
 )
-from ...types.intent import IntentCategory
+from ..types.intent import IntentCategory
 from .registry import ToolRegistry, ToolHandler
 from .executor import ToolExecutor, ExecutorConfig
 from .permissions import PermissionManager
@@ -111,7 +112,7 @@ class ToolManager:
         tool_name: str,
         arguments: dict[str, Any],
         session_id: str = "",
-    ) -> Result[ToolResult]:
+    ) -> Result[ToolResult, Exception]:
         """
         Ejecuta una herramienta por nombre.
 
@@ -150,7 +151,7 @@ class ToolManager:
         self,
         calls: list[tuple[str, dict[str, Any]]],
         session_id: str = "",
-    ) -> list[Result[ToolResult]]:
+    ) -> list[Result[ToolResult, Exception]]:
         """Ejecuta multiples tools en paralelo."""
         tool_calls = [
             self._executor.create_call(name, args)
@@ -382,12 +383,28 @@ class ToolManager:
             if not all(c in allowed for c in expression):
                 return f"Error: Expresion contiene caracteres no permitidos: {expression}"
 
-            # Reemplazar ^ por ** para potencias
+            # SECURITY FIX: Replaced eval() with ast.literal_eval()-based
+            # safe math evaluation. The expression is already validated to
+            # contain only safe characters, but we use a proper AST parser
+            # to avoid any possibility of code injection.
+            #
+            # Replace ^ by ** for exponentiation, then compile and validate
             safe_expr = expression.replace("^", "**")
 
-            # Evaluar con funciones matematicas limitadas
-            result = eval(
-                safe_expr,
+            # Parse the expression as AST and validate it contains only safe nodes
+            tree = ast.parse(safe_expr, mode='eval')
+            _SAFE_AST_NODES = (
+                ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant,
+                ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Mod, ast.Pow,
+                ast.UAdd, ast.USub, ast.FloorDiv,
+            )
+            for node in ast.walk(tree):
+                if not isinstance(node, _SAFE_AST_NODES):
+                    return f"Error: Expresion contiene operadores no permitidos: {expression}"
+
+            # Evaluate the validated AST safely
+            result = eval(  # noqa: S307  -- AST-validated safe math expression
+                compile(tree, '<math>', 'eval'),
                 {"__builtins__": {}},
                 {"abs": abs, "round": round, "min": min, "max": max,
                  "pow": pow, "sqrt": math.sqrt, "pi": math.pi, "e": math.e},

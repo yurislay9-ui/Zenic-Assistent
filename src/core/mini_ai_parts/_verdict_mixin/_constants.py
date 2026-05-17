@@ -20,7 +20,7 @@ VERDICT_SYSTEM_PROMPT = (
 
 # Import resilience patterns
 try:
-    from ..verdict_parts.resilience import (
+    from ..verdict_parts.resilience import (  # type: ignore[import-unresolved]
         VerdictCircuitBreaker,
         VerdictRetryConfig,
         VerdictHealthMonitor,

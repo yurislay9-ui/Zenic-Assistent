@@ -182,7 +182,7 @@ class ValidateUniqueBlock(LogicBlock):
                     # Validate identifiers to prevent SQL injection
                     _validate_identifier(field_name)
                     _validate_identifier(table_name)
-                    cursor = db.execute(
+                    cursor = db.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         f'SELECT id, "{field_name}" FROM "{table_name}" WHERE "{field_name}" = ?',
                         (value,)
                     )

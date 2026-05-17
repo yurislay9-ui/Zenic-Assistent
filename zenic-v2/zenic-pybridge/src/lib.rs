@@ -123,7 +123,10 @@ fn _zenic_native(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(safety_gate::approve_action, m)?)?;
     m.add_function(wrap_pyfunction!(safety_gate::is_confirmed, m)?)?;
     m.add_function(wrap_pyfunction!(safety_gate::is_approved, m)?)?;
-    m.add_function(wrap_pyfunction!(safety_gate::reset_safety_gate, m)?)?;
+    // ⚠️ SECURITY: reset_safety_gate removed from Python exports.
+    // It was #[cfg(test)] only but was accidentally registered here,
+    // causing release build failures and violating the DENY invariant.
+    // If needed for testing, call it directly from Rust test code.
 
     // Licensing & Anti-tampering — Security-critical license operations
     m.add_class::<license::LicenseTier>()?;

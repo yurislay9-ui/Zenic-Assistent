@@ -75,7 +75,7 @@ class LifecycleMixin:
         last_error = None
         for attempt in range(1, _MAX_LOAD_ATTEMPTS + 1):
             try:
-                from fastembed import TextEmbedding
+                from fastembed import TextEmbedding  # type: ignore[import-unresolved]
                 import warnings
                 start = time.time()
                 with warnings.catch_warnings():

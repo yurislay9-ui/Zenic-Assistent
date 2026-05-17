@@ -193,7 +193,7 @@ class ClosedLoopFeedback:
             def _init() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE TABLE IF NOT EXISTS _zenic_feedback_cycles (
                             cycle_id TEXT PRIMARY KEY,
                             objective_id TEXT NOT NULL,
@@ -206,11 +206,11 @@ class ClosedLoopFeedback:
                             timestamp TEXT NOT NULL DEFAULT ''
                         )
                     """)
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE INDEX IF NOT EXISTS idx_zenic_fb_obj
                         ON _zenic_feedback_cycles(objective_id)
                     """)
-                    conn.execute("""
+                    conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
                         CREATE INDEX IF NOT EXISTS idx_zenic_fb_obj_ts
                         ON _zenic_feedback_cycles(objective_id, timestamp)
                     """)
@@ -294,7 +294,7 @@ class ClosedLoopFeedback:
             def _insert() -> None:
                 conn = sqlite3.connect(self._db_path)
                 try:
-                    conn.execute(
+                    conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """INSERT INTO _zenic_feedback_cycles
                            (cycle_id, objective_id, plan_id, cycle_number,
                             kpi_before, kpi_after, action_taken, analysis, timestamp)
@@ -342,7 +342,7 @@ class ClosedLoopFeedback:
                 conn = sqlite3.connect(self._db_path)
                 conn.row_factory = sqlite3.Row
                 try:
-                    rows = conn.execute(
+                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                         """SELECT * FROM _zenic_feedback_cycles
                            WHERE objective_id = ?
                            ORDER BY cycle_number DESC LIMIT ?""",

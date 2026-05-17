@@ -10,6 +10,10 @@ and processes tasks from the configured queues.
 """
 
 import logging
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .worker import DistributedWorker
 import os
 import signal
 import sys
@@ -172,19 +176,10 @@ def _register_handlers(worker: "DistributedWorker") -> None:
     except ImportError:
         logger.debug("Worker: DAGOrchestrator not available for pipeline tasks")
 
-    # Try to register code generation handler
-    try:
-        from src.core.code_generator import CodeGenerator  # CodeGenerator removed — module deleted
-        worker.register_handler("code_generation", _handle_generic)
-    except ImportError:
-        logger.debug("Worker: CodeGenerator not available")
-
-    # Try to register app generation handler
-    try:
-        from src.core.app_generator import AppGenerator  # AppGenerator removed — module deleted
-        worker.register_handler("app_generation", _handle_generic)
-    except ImportError:
-        logger.debug("Worker: AppGenerator not available")
+    # code_generator & app_generator modules deleted — handlers removed
+    # DEAD IMPORT REMOVED: from src.core.code_generator import CodeGenerator
+    # DEAD IMPORT REMOVED: from src.core.app_generator import AppGenerator
+    logger.debug("Worker: CodeGenerator/AppGenerator not available (modules deleted)")
 
     # Try to register reasoning handler
     try:

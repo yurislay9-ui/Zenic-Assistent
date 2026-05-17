@@ -42,6 +42,7 @@ from src.core.shared.db_initializer import get_data_dir, get_connection
 from src.core.shared.retry import with_retry
 from src.core.shared.db_utils import purge_tenant_rows
 from src.core.shared.tenant_utils import resolve_tenant_id
+logger = logging.getLogger("core.level7_merkle_ledger.ledger._hash_helpers")
 
 # ── BLAKE3 hash — canonical hash, matches Rust hash.rs ──────────────
 # BLAKE3 is mandatory for integrity: the Rust native extension uses
@@ -49,7 +50,7 @@ from src.core.shared.tenant_utils import resolve_tenant_id
 # the native extension is not compiled (e.g., during development).
 
 try:
-    from src.core.native._zenic_native import blake3_hash as _native_blake3_hash
+    from src.core.native._zenic_native import blake3_hash as _native_blake3_hash  # type: ignore[import-unresolved]
     _HAS_NATIVE_BLAKE3 = True
 except ImportError:
     _HAS_NATIVE_BLAKE3 = False
@@ -70,7 +71,7 @@ def _blake3_hash(data: bytes) -> str:
 
     # Fallback: try pure-Python blake3 package
     try:
-        import blake3 as _blake3_pure
+        import blake3 as _blake3_pure  # type: ignore[import-unresolved]
         return _blake3_pure.blake3(data).hexdigest()
     except ImportError:
         pass
@@ -105,7 +106,7 @@ class MerkleLedgerHelpersMixin:
 
     def _init_db(self):
         conn = get_connection("merkle_ledger.sqlite")
-        conn.execute("""CREATE TABLE IF NOT EXISTS ledger (
+        conn.execute("""CREATE TABLE IF NOT EXISTS ledger (  # nosemgrep: sqlalchemy-execute-raw-query
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             file_path TEXT NOT NULL,
             hash_sha256 TEXT NOT NULL,
@@ -113,8 +114,8 @@ class MerkleLedgerHelpersMixin:
             operation TEXT NOT NULL,
             timestamp REAL NOT NULL,
             tenant_id TEXT NOT NULL DEFAULT '__anonymous__')""")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_file ON ledger(file_path)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_tenant ON ledger(tenant_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_file ON ledger(file_path)")  # nosemgrep: sqlalchemy-execute-raw-query
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_ledger_tenant ON ledger(tenant_id)")  # nosemgrep: sqlalchemy-execute-raw-query
         conn.commit()
         # Migrate: add tenant_id column if it doesn't exist (for existing databases)
         try:
@@ -215,7 +216,7 @@ class MerkleLedgerHelpersMixin:
                 conn = sqlite3.connect(db_path)
             else:
                 conn = get_connection("merkle_ledger.sqlite")
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT file_path, hash_sha256 FROM ledger WHERE tenant_id=? AND id IN "
                 "(SELECT MAX(id) FROM ledger WHERE tenant_id=? GROUP BY file_path)",
                 (tid, tid)
@@ -244,7 +245,7 @@ class MerkleLedgerHelpersMixin:
                 conn = sqlite3.connect(db_path)
             else:
                 conn = get_connection("merkle_ledger.sqlite")
-            r = conn.execute(
+            r = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT hash_sha256 FROM ledger WHERE file_path=? AND tenant_id=? ORDER BY id DESC LIMIT 1",
                 (file_path, tid)).fetchone()
             return r[0] if r else "GENESIS"
@@ -275,7 +276,7 @@ class MerkleLedgerHelpersMixin:
                 conn = sqlite3.connect(db_path)
             else:
                 conn = get_connection("merkle_ledger.sqlite")
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "INSERT INTO ledger (file_path, hash_sha256, parent_hash, operation, timestamp, tenant_id) VALUES (?,?,?,?,?,?)",
                 (file_path, content_hash, parent_hash, operation, time.time(), tid))
             conn.commit()

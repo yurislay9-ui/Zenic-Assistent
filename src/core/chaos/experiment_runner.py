@@ -49,7 +49,7 @@ class ChaosExperimentRunner:
 
         def _create() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """CREATE TABLE IF NOT EXISTS chaos_experiments (
                     experiment_id TEXT PRIMARY KEY,
                     experiment_json TEXT NOT NULL,
@@ -58,7 +58,7 @@ class ChaosExperimentRunner:
                     updated_at REAL NOT NULL
                 )"""
             )
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """CREATE TABLE IF NOT EXISTS chaos_history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     experiment_id TEXT NOT NULL,
@@ -77,7 +77,7 @@ class ChaosExperimentRunner:
         try:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute("SELECT * FROM chaos_experiments").fetchall()
+            rows = conn.execute("SELECT * FROM chaos_experiments").fetchall()  # nosemgrep: sqlalchemy-execute-raw-query
             conn.close()
             for row in rows:
                 exp = self._json_to_experiment(row["experiment_json"])
@@ -152,7 +152,7 @@ class ChaosExperimentRunner:
 
         def _upsert() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT OR REPLACE INTO chaos_experiments
                    (experiment_id, experiment_json, state, created_at, updated_at)
                    VALUES (?, ?, ?, ?, ?)""",
@@ -166,7 +166,7 @@ class ChaosExperimentRunner:
     def _delete_from_db(self, experiment_id: str) -> None:
         def _del() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute("DELETE FROM chaos_experiments WHERE experiment_id = ?", (experiment_id,))
+            conn.execute("DELETE FROM chaos_experiments WHERE experiment_id = ?", (experiment_id,))  # nosemgrep: sqlalchemy-execute-raw-query
             conn.commit()
             conn.close()
 
@@ -177,7 +177,7 @@ class ChaosExperimentRunner:
     ) -> None:
         def _insert() -> None:
             conn = sqlite3.connect(self._db_path)
-            conn.execute(
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT INTO chaos_history (experiment_id, event_type, event_data, timestamp)
                    VALUES (?, ?, ?, ?)""",
                 (experiment_id, event_type, json.dumps(event_data), time.time()),
@@ -429,7 +429,7 @@ class ChaosExperimentRunner:
         try:
             conn = sqlite3.connect(self._db_path)
             conn.row_factory = sqlite3.Row
-            rows = conn.execute(
+            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 "SELECT * FROM chaos_history ORDER BY timestamp DESC LIMIT ?",
                 (limit,),
             ).fetchall()

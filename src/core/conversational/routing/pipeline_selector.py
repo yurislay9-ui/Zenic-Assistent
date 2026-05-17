@@ -13,7 +13,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from ...types.base import Result, Ok, Err, PipelineContext
+from ..types.base import Result, Ok, Err, PipelineContext
 from .router import Pipeline
 
 logger = logging.getLogger("zenic_agents.conversational.pipeline")
@@ -29,7 +29,7 @@ class PipelineStep(Protocol):
     def name(self) -> str:
         ...
 
-    async def execute(self, ctx: PipelineContext) -> Result[PipelineContext]:
+    async def execute(self, ctx: PipelineContext) -> Result[PipelineContext, Exception]:
         ...
 
 
@@ -98,7 +98,7 @@ class PipelineSelector:
         self,
         pipeline_type: Pipeline,
         ctx: PipelineContext,
-    ) -> Result[PipelineResult]:
+    ) -> Result[PipelineResult, Exception]:
         """
         Ejecuta un pipeline completo.
 
