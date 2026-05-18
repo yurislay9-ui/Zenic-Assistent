@@ -19,20 +19,10 @@ Usage::
     sidecar.add_middleware(lambda ctx: ctx)  # pass-through
 """
 
-import asyncio
-import functools
 import logging
-import threading
-import time
-from collections import deque
-from contextlib import contextmanager
-from typing import Any, Callable, Deque, Dict, List, Optional
-from ._core import Sidecar, sidecar_decorator  # type: ignore[import-unresolved]
-
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
-
-__all__ = ["Sidecar", "sidecar_decorator"]
 
 
 # ============================================================

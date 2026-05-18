@@ -75,6 +75,19 @@ export {
 export {
   getHITLCoordinator,
   resetHITLCoordinator,
+  getHITLProcessingService,
+  resetHITLProcessingService,
+} from "./hitl-coordinator";
+
+export type {
+  CreateFullRequestResult,
+  FullApproveResult,
+  FullRejectResult,
+  FullUndoResult,
+  ProcessExpiredResult,
+  ProcessSLABreachesResult,
+  ExpiryNotificationItem,
+  FullRequestDetailsResult,
 } from "./hitl-coordinator";
 
 export {

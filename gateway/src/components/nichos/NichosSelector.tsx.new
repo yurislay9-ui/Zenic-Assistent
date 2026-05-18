@@ -1,0 +1,577 @@
+"use client";
+
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import {
+  Heart,
+  Landmark,
+  GraduationCap,
+  Scale,
+  Factory,
+  Building2,
+  Stethoscope,
+  Pill,
+  Microscope,
+  ShieldCheck,
+  Truck,
+  ShoppingCart,
+  Megaphone,
+  Plane,
+  TreePine,
+  Zap,
+  Waves,
+  Cpu,
+  Smartphone,
+  Workflow,
+  Lock,
+  CheckCircle2,
+  Upload,
+  FileText,
+  FileUp,
+  FileCheck,
+  Sparkles,
+  FolderOpen,
+  RefreshCw,
+  XCircle,
+  AlertTriangle,
+  Clock,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TIPOS ESTRICTOS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/** Metadatos extendidos de un nicho industrial */
+
+interface NichosSelectorProps {
+  /** Nichos obtenidos del API (se usan los NICHOS_INDUSTRIALES locales como fuente completa) */
+  nichosApi?: Array<{
+    id: string;
+    name: string;
+    icon: string;
+    standard: string;
+    standardName: string;
+    active: boolean;
+    rules: string[];
+  }>;
+  /** Plantillas obtenidas del API */
+  plantillas: PlantillaNicho[];
+  /** Archivos subidos */
+  archivosSubidos: ArchivoSubido[];
+  /** Callback cuando se selecciona un nicho */
+  onSeleccionarNicho: (nichoId: string) => void;
+  /** Callback para subir archivos */
+  onSubirArchivos: (archivos: FileList | File[]) => void;
+  /** Si está subiendo archivos */
+  subiendoArchivos: boolean;
+  /** Si está cargando plantillas */
+  cargandoPlantillas: boolean;
+  /** ID del nicho seleccionado actualmente */
+  nichoSeleccionado: string | null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COMPONENTE PRINCIPAL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export default function NichosSelector({
+  plantillas,
+  archivosSubidos,
+  onSeleccionarNicho,
+  onSubirArchivos,
+  subiendoArchivos,
+  cargandoPlantillas,
+  nichoSeleccionado,
+}: NichosSelectorProps) {
+  // ─── Estado ────────────────────────────────────────────────────
+  const [animacionActiva, setAnimacionActiva] = useState(false);
+  const [dragActivo, setDragActivo] = useState(false);
+  const inputArchivosRef = useRef<HTMLInputElement>(null);
+  const tabScrollRef = useRef<HTMLDivElement>(null);
+
+  // ─── Nicho actual ─────────────────────────────────────────────
+  const nichoActual = useMemo(
+    () => NICHOS_INDUSTRIALES.find((n) => n.id === nichoSeleccionado) ?? null,
+    [nichoSeleccionado]
+  );
+
+  // ─── Animación al cambiar de nicho ────────────────────────────
+  const manejarSeleccion = useCallback(
+    (nichoId: string) => {
+      setAnimacionActiva(false);
+      requestAnimationFrame(() => {
+        onSeleccionarNicho(nichoId);
+        setAnimacionActiva(true);
+      });
+    },
+    [onSeleccionarNicho]
+  );
+
+  // ─── Drag & Drop ──────────────────────────────────────────────
+  const manejarDragOver = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (nichoSeleccionado) setDragActivo(true);
+    },
+    [nichoSeleccionado]
+  );
+
+  const manejarDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActivo(false);
+  }, []);
+
+  const manejarDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActivo(false);
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0 && nichoSeleccionado) {
+        onSubirArchivos(e.dataTransfer.files);
+      }
+    },
+    [nichoSeleccionado, onSubirArchivos]
+  );
+
+  const manejarInputArchivos = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files.length > 0) {
+        onSubirArchivos(e.target.files);
+        if (inputArchivosRef.current) {
+          inputArchivosRef.current.value = "";
+        }
+      }
+    },
+    [onSubirArchivos]
+  );
+
+  // ─── Scroll al tab activo ─────────────────────────────────────
+  useEffect(() => {
+    if (tabScrollRef.current && nichoSeleccionado) {
+      const tabActivo = tabScrollRef.current.querySelector(`[data-nicho="${nichoSeleccionado}"]`);
+      if (tabActivo) {
+        tabActivo.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+      }
+    }
+  }, [nichoSeleccionado]);
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // RENDERIZADO
+  // ═══════════════════════════════════════════════════════════════════════
+
+  return (
+    <div className="space-y-6">
+      {/* ═══════ SELECTOR HÍBRIDO: Mobile Dropdown / Desktop Tabs ═══════ */}
+      <Card className="border-0 shadow-sm overflow-hidden">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-amber-500" />
+              Nichos de Industria
+            </CardTitle>
+            <Badge className="bg-amber-100 text-amber-700 text-[9px] px-2 py-0 border-0 font-semibold shrink-0">
+              {NICHOS_INDUSTRIALES.length} disponibles
+            </Badge>
+          </div>
+          <p className="text-[10px] text-gray-400">
+            Seleccione su industria para ver las reglas de cumplimiento y generar plantillas
+          </p>
+        </CardHeader>
+        <CardContent>
+          {/* ─── BARRA DE NICHOS: Siempre visible, scrollable horizontal ─── */}
+          <div ref={tabScrollRef}>
+            {/* Indicador de nicho activo (móvil) */}
+            {nichoActual && (
+              <div className="md:hidden flex items-center gap-2 mb-2 px-1">
+                <span className="text-lg shrink-0">{nichoActual.emoji}</span>
+                <span className="text-xs font-bold text-gray-800 truncate">{nichoActual.nombre}</span>
+                <Badge className={`text-[8px] px-1.5 py-0 border-0 font-bold shrink-0 ${COLOR_CATEGORIA[nichoActual.categoria]?.bg || "bg-gray-100"} ${COLOR_CATEGORIA[nichoActual.categoria]?.text || "text-gray-600"}`}>
+                  {nichoActual.standard}
+                </Badge>
+              </div>
+            )}
+
+            {/* Barra de tabs scrollable — visible en TODAS las pantallas */}
+            <div
+              className="flex gap-1 overflow-x-auto pb-2 scrollbar-thin relative"
+              style={{
+                WebkitOverflowScrolling: "touch",
+                scrollbarWidth: "thin",
+                maskImage: "linear-gradient(to right, black 90%, transparent 100%)",
+                WebkitMaskImage: "linear-gradient(to right, black 90%, transparent 100%)",
+              }}
+            >
+              {NICHOS_INDUSTRIALES.map((nicho) => {
+                const activo = nichoSeleccionado === nicho.id;
+                return (
+                  <button
+                    key={nicho.id}
+                    data-nicho={nicho.id}
+                    onClick={() => manejarSeleccion(nicho.id)}
+                    className={`flex items-center gap-1.5 rounded-lg whitespace-nowrap transition-all shrink-0 ${
+                      activo
+                        ? "bg-[#1A1D2E] text-white shadow-md"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    } ${
+                      /* Móvil: compacto. Desktop: más espaciado */
+                      "px-2 py-1.5 text-[10px] md:px-3 md:py-2 md:text-xs md:gap-2"
+                    }`}
+                  >
+                    <span className="text-xs md:text-sm">{nicho.emoji}</span>
+                    <span className="truncate max-w-[80px] md:max-w-[130px]">{nicho.nombre}</span>
+                    {activo && (
+                      <CheckCircle2 className="h-3 w-3 text-emerald-400 shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ═══════ PANEL DE DETALLE DINÁMICO ═══════ */}
+      {nichoActual ? (
+        <div
+          key={nichoActual.id}
+          className={`space-y-6 transition-all duration-300 ease-out ${
+            animacionActiva
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 translate-y-2"
+          }`}
+        >
+          {/* ─── Estándar de Cumplimiento ─── */}
+          <Card className="border-0 shadow-sm overflow-hidden">
+            <CardContent className="p-5">
+              <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                {/* Icono grande */}
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${
+                  COLOR_CATEGORIA[nichoActual.categoria]?.bg || "bg-gray-100"
+                }`}>
+                  <span className="text-2xl">{nichoActual.emoji}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <h3 className="text-base font-bold text-gray-900 truncate">
+                      {nichoActual.nombre}
+                    </h3>
+                    <Badge className={`text-[8px] px-1.5 py-0 border-0 font-bold shrink-0 ${COLOR_CATEGORIA[nichoActual.categoria]?.bg || "bg-gray-100"} ${COLOR_CATEGORIA[nichoActual.categoria]?.text || "text-gray-600"}`}>
+                      {ETIQUETA_CATEGORIA[nichoActual.categoria] || nichoActual.categoria}
+                    </Badge>
+                  </div>
+                  {/* Caja de estándar */}
+                  <div className="bg-amber-50 rounded-xl p-4 mt-3 overflow-hidden">
+                    <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wider mb-1">
+                      Estándar de Cumplimiento
+                    </p>
+                    <p className="text-sm font-bold text-amber-800">
+                      {nichoActual.standardNombre}
+                    </p>
+                    <p className="text-[10px] text-amber-600 mt-1">
+                      {nichoActual.standard} — {nichoActual.standardDescripcion}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Separator className="my-4" />
+
+              {/* ─── Reglas de Dominio del Experto ─── */}
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">
+                  Reglas de Seguridad Aplicadas
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {nichoActual.reglas.map((regla, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-start gap-2 bg-gray-50 rounded-lg p-2.5"
+                    >
+                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                      <span className="text-[11px] text-gray-600 leading-tight">
+                        {regla}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* ─── DENY Absolutos ─── */}
+              {nichoActual.denyAbsolutos.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-[10px] font-semibold text-red-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Denegaciones Absolutas — Bloqueadas desde la Raíz
+                  </p>
+                  <div className="space-y-2">
+                    {nichoActual.denyAbsolutos.map((deny, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-lg p-2.5"
+                      >
+                        <Lock className="h-3.5 w-3.5 text-red-500 shrink-0 mt-0.5" />
+                        <span className="text-[11px] text-red-700 font-medium leading-tight">
+                          {deny}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* ─── Zona de subida + Plantillas ─── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Columna: Zona de subida */}
+            <Card className="border-0 shadow-sm overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-purple-500" />
+                  Agente Yamil — Generador de Plantillas
+                </CardTitle>
+                <p className="text-[10px] text-gray-500">
+                  Sube tus documentos y Yamil creará las plantillas para ti
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Drag & Drop zone */}
+                <div
+                  onDragOver={manejarDragOver}
+                  onDragLeave={manejarDragLeave}
+                  onDrop={manejarDrop}
+                  className={`relative rounded-xl border-2 border-dashed p-8 text-center transition-all cursor-pointer overflow-hidden ${
+                    dragActivo
+                      ? "border-purple-400 bg-purple-50"
+                      : "border-gray-200 bg-gray-50/50 hover:border-purple-300 hover:bg-purple-50/30"
+                  }`}
+                  onClick={() => {
+                    if (inputArchivosRef.current) {
+                      inputArchivosRef.current.click();
+                    }
+                  }}
+                >
+                  <input
+                    ref={inputArchivosRef}
+                    type="file"
+                    multiple
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.md,.json"
+                    className="hidden"
+                    onChange={manejarInputArchivos}
+                  />
+                  <div className="space-y-3">
+                    <div
+                      className={`w-14 h-14 rounded-full flex items-center justify-center mx-auto ${
+                        dragActivo ? "bg-purple-100" : "bg-gray-100"
+                      }`}
+                    >
+                      {subiendoArchivos ? (
+                        <RefreshCw className="h-6 w-6 text-purple-500 animate-spin" />
+                      ) : (
+                        <Upload
+                          className={`h-6 w-6 ${dragActivo ? "text-purple-500" : "text-gray-400"}`}
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-700">
+                        {subiendoArchivos
+                          ? "Procesando archivos..."
+                          : dragActivo
+                            ? "Suelta los archivos aquí"
+                            : "Arrastra archivos aquí o haz clic para seleccionar"}
+                      </p>
+                      <p className="text-[10px] text-gray-400 mt-1">
+                        PDF, Word, Excel, TXT, CSV, Markdown, JSON — Máximo 10 MB
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lista de archivos subidos */}
+                {archivosSubidos.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                      Archivos Subidos
+                    </p>
+                    <ScrollArea className="max-h-48">
+                      <div className="space-y-1.5">
+                        {archivosSubidos.map((archivo, idx) => (
+                          <div
+                            key={`${archivo.nombre}-${idx}`}
+                            className={`flex items-center gap-3 rounded-lg border p-2.5 overflow-hidden ${
+                              archivo.estado === "completado"
+                                ? "border-emerald-200 bg-emerald-50/50"
+                                : archivo.estado === "error"
+                                  ? "border-red-200 bg-red-50/50"
+                                  : archivo.estado === "procesando"
+                                    ? "border-amber-200 bg-amber-50/50"
+                                    : "border-gray-200 bg-gray-50/50"
+                            }`}
+                          >
+                            <div
+                              className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                                archivo.estado === "completado"
+                                  ? "bg-emerald-100"
+                                  : archivo.estado === "error"
+                                    ? "bg-red-100"
+                                    : "bg-amber-100"
+                              }`}
+                            >
+                              {archivo.estado === "completado" ? (
+                                <FileText className="h-4 w-4 text-emerald-600" />
+                              ) : archivo.estado === "procesando" ? (
+                                <FileUp className="h-4 w-4 text-amber-600 animate-pulse" />
+                              ) : (
+                                <FileUp className="h-4 w-4 text-gray-400" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-medium text-gray-700 truncate">
+                                {archivo.nombre}
+                              </p>
+                              <p className="text-[9px] text-gray-400">
+                                {formatoTamañoArchivo(archivo.tamaño)} •{" "}
+                                {archivo.estado === "completado"
+                                  ? "Completado"
+                                  : archivo.estado === "procesando"
+                                    ? "Procesando..."
+                                    : archivo.estado === "error"
+                                      ? "Error"
+                                      : "Recibido"}
+                              </p>
+                            </div>
+                            {archivo.estado === "completado" ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                            ) : archivo.estado === "procesando" ? (
+                              <RefreshCw className="h-4 w-4 text-amber-500 animate-spin shrink-0" />
+                            ) : archivo.estado === "error" ? (
+                              <XCircle className="h-4 w-4 text-red-500 shrink-0" />
+                            ) : (
+                              <Clock className="h-4 w-4 text-gray-300 shrink-0" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Columna: Plantillas generadas */}
+            <Card className="border-0 shadow-sm overflow-hidden">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-emerald-500" />
+                    Plantillas Generadas
+                  </CardTitle>
+                  <Badge className="bg-emerald-100 text-emerald-700 text-[9px] px-2 py-0 border-0 font-semibold shrink-0">
+                    {plantillas.length} plantilla{plantillas.length !== 1 ? "s" : ""}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {cargandoPlantillas ? (
+                  <div className="py-16 text-center">
+                    <RefreshCw className="h-8 w-8 text-gray-300 mx-auto mb-3 animate-spin" />
+                    <p className="text-xs text-gray-400">Cargando plantillas...</p>
+                  </div>
+                ) : plantillas.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <Sparkles className="h-12 w-12 text-gray-200 mx-auto mb-3" />
+                    <p className="text-sm font-medium text-gray-400">Sin plantillas aún</p>
+                    <p className="text-[10px] text-gray-300 mt-1 max-w-[240px] mx-auto">
+                      Sube documentos en la zona de carga y Yamil generará las plantillas automáticamente
+                    </p>
+                  </div>
+                ) : (
+                  <ScrollArea className="max-h-[520px]">
+                    <div className="space-y-3 pr-1">
+                      {plantillas.map((plantilla) => (
+                        <div
+                          key={plantilla.id}
+                          className={`rounded-xl border-2 p-4 transition-all overflow-hidden ${
+                            plantilla.estado === "lista"
+                              ? "border-emerald-200 bg-emerald-50/30"
+                              : "border-amber-200 bg-amber-50/30"
+                          }`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                                plantilla.estado === "lista"
+                                  ? "bg-emerald-100 text-emerald-600"
+                                  : "bg-amber-100 text-amber-600"
+                              }`}
+                            >
+                              {plantilla.estado === "lista" ? (
+                                <FileCheck className="h-5 w-5" />
+                              ) : (
+                                <FileText className="h-5 w-5" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2 mb-1">
+                                <p className="text-xs font-bold text-gray-800 truncate">
+                                  {plantilla.nombre}
+                                </p>
+                                <Badge
+                                  className={`text-[8px] px-1.5 py-0 border-0 font-bold shrink-0 ${
+                                    plantilla.estado === "lista"
+                                      ? "bg-emerald-100 text-emerald-700"
+                                      : "bg-amber-100 text-amber-700"
+                                  }`}
+                                >
+                                  {plantilla.estado === "lista" ? "LISTA" : "BORRADOR"}
+                                </Badge>
+                              </div>
+                              <p className="text-[10px] text-gray-500 line-clamp-2">
+                                {plantilla.descripcion}
+                              </p>
+                              <div className="flex items-center gap-3 mt-2 text-[9px] text-gray-400">
+                                <span className="flex items-center gap-1">
+                                  <FileText className="h-3 w-3 shrink-0" />
+                                  {plantilla.tipo}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3 shrink-0" />
+                                  {tiempoRelativo(plantilla.fechaCreacion)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      ) : (
+        /* ─── Estado vacío ─── */
+        <Card className="border-0 shadow-sm overflow-hidden">
+          <CardContent className="py-16 text-center">
+            <FolderOpen className="h-16 w-16 text-gray-200 mx-auto mb-4" />
+            <p className="text-lg font-semibold text-gray-400">
+              Seleccione un nicho de industria
+            </p>
+            <p className="text-sm text-gray-300 mt-1 max-w-[360px] mx-auto">
+              Elija uno de los {NICHOS_INDUSTRIALES.length} nichos disponibles para ver su estándar de cumplimiento,
+              subir documentos y generar plantillas con el agente Yamil.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
