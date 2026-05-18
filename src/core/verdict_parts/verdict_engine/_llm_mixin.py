@@ -32,14 +32,16 @@ class VerdictLLMMixin:
           5. Si todo falla → Fallback NO
           6. Auditar resultado
         """
-        self._llm_verdicts += 1
+        with self._stats_lock:
+            self._llm_verdicts += 1
 
         # v17.1: Check Circuit Breaker
         if self._resilience and not self._resilience.can_call_llm():
             elapsed = time.time() - start_time
-            self._total_time += elapsed
-            self._fallback_verdicts += 1
-            self._no_count += 1
+            with self._stats_lock:
+                self._total_time += elapsed
+                self._fallback_verdicts += 1
+                self._no_count += 1
 
             evidence_summary = self._build_evidence_summary_from_input(input_data)
 
@@ -50,7 +52,7 @@ class VerdictLLMMixin:
                 False, 0.0, int(elapsed * 1000), 0,
                 len(input_data.evidence_for), len(input_data.evidence_against),
                 input_data.consensus_score,
-                circuit_breaker_state="open"
+                circuit_breaker_state=self._resilience.circuit_breaker.state.value if self._resilience else "unknown"
             )
 
             return VerdictOutput(
@@ -154,12 +156,14 @@ class VerdictLLMMixin:
 
         # Determine verdict by majority
         elapsed = time.time() - start_time
-        self._total_time += elapsed
+        with self._stats_lock:
+            self._total_time += elapsed
         evidence_summary = self._build_evidence_summary_from_input(input_data)
 
         if yes_count >= VERDICT_CONSENSUS_THRESHOLD:
             # Majority YES
-            self._yes_count += 1
+            with self._stats_lock:
+                self._yes_count += 1
             latency_s = elapsed
             self._record_success(latency_s, any_ambiguous)
 
@@ -184,10 +188,12 @@ class VerdictLLMMixin:
             )
         else:
             # Majority NO or tie → NO (precaution principle)
-            self._no_count += 1
+            with self._stats_lock:
+                self._no_count += 1
             all_failed = yes_count == 0 and no_count == 0
             if all_failed:
-                self._fallback_verdicts += 1
+                with self._stats_lock:
+                    self._fallback_verdicts += 1
                 source = "fallback"
             else:
                 source = "llm_consensus"
@@ -259,16 +265,18 @@ class VerdictLLMMixin:
                         parsed = self._parse_verdict(raw_response)
                         if parsed is not None:
                             elapsed = time.time() - start_time
-                            self._total_time += elapsed
+                            with self._stats_lock:
+                                self._total_time += elapsed
 
                             self._record_success(
                                 elapsed, was_ambiguous=False
                             )
 
-                            if parsed == Verdict.YES:
-                                self._yes_count += 1
-                            else:
-                                self._no_count += 1
+                            with self._stats_lock:
+                                if parsed == Verdict.YES:
+                                    self._yes_count += 1
+                                else:
+                                    self._no_count += 1
 
                             evidence_summary = self._build_evidence_summary_from_input(input_data)
 
@@ -303,9 +311,10 @@ class VerdictLLMMixin:
 
         # Fallback: NO (principio de precaución)
         elapsed = time.time() - start_time
-        self._total_time += elapsed
-        self._fallback_verdicts += 1
-        self._no_count += 1
+        with self._stats_lock:
+            self._total_time += elapsed
+            self._fallback_verdicts += 1
+            self._no_count += 1
 
         self._record_failure(
             elapsed, was_timeout=any_timeout, was_ambiguous=any_ambiguous

@@ -27,13 +27,18 @@ class Z3TypeLatticeMixin:
     # Type compatibility lattice: subtype relationships
     # key = type, value = set of types that are compatible (assignable to) this type
     _TYPE_LATTICE = {
-        "int": {"int", "float", "object", "unknown"},
+        "int": {"int", "float", "bool", "object", "unknown"},
         "float": {"float", "object", "unknown"},
         "str": {"str", "object", "unknown"},
         "bool": {"bool", "int", "float", "object", "unknown"},
         "list": {"list", "object", "unknown"},
         "dict": {"dict", "object", "unknown"},
+        "tuple": {"tuple", "object", "unknown"},
+        "set": {"set", "object", "unknown"},
+        "bytes": {"bytes", "object", "unknown"},
         "None": {"None", "object", "unknown"},
+        "Any": {"int", "float", "str", "bool", "list", "dict", "tuple", "set", "bytes", "callable", "None", "object", "Any", "unknown"},
+        "callable": {"callable", "object", "unknown"},
         "object": {"object", "unknown"},
         "unknown": {"unknown"},
     }
@@ -98,8 +103,13 @@ class Z3TypeLatticeMixin:
         """
         Add assignment compatibility constraint:
         right_type must be assignable to left_type per the type lattice.
+
+        FIX: Use conditional (Implies) constraint so the compatibility
+        is tied to the Z3 variable's dynamic type, not just the static
+        annotation. This ensures correct reasoning when a variable can
+        have multiple possible types at runtime.
         """
-        # Get compatible types for the left-hand side
+        # Get compatible types for the left-hand side's static type
         compatible = self._TYPE_LATTICE.get(left_type, {"unknown"})
         # The right variable must have a type that is in the compatible set
         compat_consts = [
@@ -108,8 +118,17 @@ class Z3TypeLatticeMixin:
             if t in type_name_to_const
         ]
         if compat_consts:
+            # FIX: Use Implies so the constraint is conditional on the
+            # left variable actually having the static type. This avoids
+            # over-constraining when the variable could have other types.
+            left_type_const = type_name_to_const.get(
+                left_type, type_name_to_const.get("unknown")
+            )
             solver.add(
-                z3_module.Or(*[right_var == c for c in compat_consts])
+                z3_module.Implies(
+                    left_var == left_type_const,
+                    z3_module.Or(*[right_var == c for c in compat_consts]),
+                )
             )
 
     def _add_binop_compat(

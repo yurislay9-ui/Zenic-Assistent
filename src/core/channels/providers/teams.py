@@ -67,10 +67,11 @@ def _validate_url(url: str, allowed_schemes: tuple = ("http", "https")) -> str:
         raise ValueError("URL must have a hostname")
     try:
         ip = ipaddress.ip_address(parsed.hostname)
-        if ip.is_private or ip.is_loopback or ip.is_reserved:
-            raise ValueError(f"Access to internal IPs is not allowed: {parsed.hostname}")
     except ValueError:
         pass  # hostname is not an IP, that's OK
+    else:
+        if ip.is_private or ip.is_loopback or ip.is_reserved:
+            raise ValueError(f"Access to internal IPs is not allowed: {parsed.hostname}")
     return url
 
 

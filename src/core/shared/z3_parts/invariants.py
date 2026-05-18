@@ -93,8 +93,8 @@ class Z3InvariantMixin:
         solver = z3_module.Solver()
         solver.set("timeout", self.timeout_ms)
 
-        # Reset encoding for this proof
-        self._reset_encoding()
+        # NOTE: _reset_encoding() is already called in _z3_prove_invariant
+        # before dispatching to this method. No need to reset again here.
 
         # Build Z3 Int variables and domain constraints
         z3_vars = {}

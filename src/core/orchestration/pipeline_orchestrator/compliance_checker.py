@@ -187,7 +187,11 @@ class ComplianceRule:
             return ComplianceViolation(
                 rule_id=self.rule_id,
                 standard=self.standard,
-                severity=ComplianceSeverity.LOW,
+                # SECURITY: Preserve the rule's original severity on error.
+                # Downgrading to LOW would be a fail-open: a CRITICAL rule
+                # whose check_fn raises would be silently treated as low-risk,
+                # allowing non-compliant operations to proceed unchecked.
+                severity=self.severity,
                 description=f"Rule check error: {exc}",
                 remediation="Fix the rule implementation or context data.",
             )

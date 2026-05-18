@@ -51,7 +51,7 @@ class VerdictHealthMonitor:
         self._total_latency = 0.0
         self._last_call_time: Optional[float] = None
 
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
 
     def record_call(self, success: bool, latency_s: float,
                     was_timeout: bool = False, was_ambiguous: bool = False) -> None:
@@ -104,7 +104,7 @@ class VerdictHealthMonitor:
 
             recent_successes = sum(1 for r in self._results if r["success"])
             success_rate = recent_successes / len(self._results)
-            avg_latency = self._total_latency / max(self._total_calls, 1)
+            avg_latency = sum(r["latency"] for r in self._results) / max(len(self._results), 1)
 
             return VerdictHealthSnapshot(
                 is_healthy=success_rate >= self._unhealthy_threshold,
@@ -173,7 +173,10 @@ class VerdictAuditor:
             max_entries: Maximum audit entries to keep (circular buffer).
         """
         self._entries: deque = deque(maxlen=max_entries)
-        self._lock = threading.Lock()
+        # SECURITY: Use RLock instead of Lock to prevent deadlock when
+        # stats property acquires the lock and then calls
+        # get_failure_pattern() which also acquires the same lock.
+        self._lock = threading.RLock()
 
     def record(self, entry: VerdictAuditEntry) -> None:
         """Record a verdict audit entry."""

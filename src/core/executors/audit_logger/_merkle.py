@@ -7,6 +7,7 @@ Lightweight hash chain for tamper-proof audit integrity.
 import hashlib
 import json
 import logging
+import threading
 from typing import List
 
 from ._types import AuditEntry
@@ -25,6 +26,7 @@ class AuditMerkleChain:
 
     def __init__(self) -> None:
         self._last_hash: str = self.GENESIS_HASH
+        self._lock = threading.Lock()
 
     def compute_hash(self, entry: AuditEntry) -> str:
         """Compute merkle hash for an entry."""
@@ -41,11 +43,12 @@ class AuditMerkleChain:
 
     def seal(self, entry: AuditEntry) -> str:
         """Compute and assign merkle hash to entry, advance chain."""
-        h = self.compute_hash(entry)
-        entry.prev_hash = self._last_hash
-        entry.merkle_hash = h
-        self._last_hash = h
-        return h
+        with self._lock:
+            h = self.compute_hash(entry)
+            entry.prev_hash = self._last_hash
+            entry.merkle_hash = h
+            self._last_hash = h
+            return h
 
     def verify(self, entries: List[AuditEntry]) -> bool:
         """Verify integrity of a list of audit entries."""

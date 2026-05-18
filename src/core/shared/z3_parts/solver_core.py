@@ -166,7 +166,15 @@ class Z3SolverCoreMixin:
 
             for var_name, values in domains.items():
                 if not values:
-                    continue
+                    # FIX: A variable with an empty domain makes the entire
+                    # problem UNSATISFIABLE — no valid assignment can exist
+                    # if even one variable has no possible values.
+                    return {
+                        "status": "UNSATISFIABLE",
+                        "solver_type": "Z3_DEEP_NATIVE",
+                        "assignment": None,
+                        "variable_types": {},
+                    }
 
                 domain_type = self._classify_domain(values)
                 meta = {"type": domain_type, "values": values}

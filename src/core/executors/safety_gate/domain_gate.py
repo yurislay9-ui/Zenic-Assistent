@@ -326,7 +326,7 @@ _COMPLIANCE_CHECKERS = {
 #  Verdict Escalation Helper
 # ──────────────────────────────────────────────────────────────
 
-_VERDICT_SEVERITY = {"ALLOW": 0, "CONFIRM": 1, "APPROVE": 2, "DENY": 3, "RATE_LIMITED": 3}
+_VERDICT_SEVERITY = {"ALLOW": 0, "CONFIRM": 1, "APPROVE": 2, "RATE_LIMITED": 3, "DENY": 4}
 
 
 def _escalate_verdict(current: str, new: str) -> str:

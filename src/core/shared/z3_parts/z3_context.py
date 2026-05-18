@@ -4,6 +4,20 @@ ZENIC-AGENTS — Z3 Session Context Manager.
 Eliminates duplicated gc.collect() calls after Z3 operations.
 Every Z3 proof/solve method had `gc.collect()` in finally blocks;
 this context manager handles it automatically.
+
+NOTE: This context manager is currently available but not yet integrated
+into the solver methods (which still use manual reset + gc.collect).
+It is intended for future use to replace the scattered gc.collect()
+calls in invariants.py and other Z3 solver mixins. When integrating,
+replace the manual pattern:
+    self._reset_encoding()
+    try:
+        ...
+    finally:
+        gc.collect()
+with:
+    with z3_session(self):
+        ...
 """
 
 import gc

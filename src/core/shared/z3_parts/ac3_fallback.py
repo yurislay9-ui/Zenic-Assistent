@@ -31,16 +31,9 @@ class AC3FallbackMixin:
                     domains[v] = ["Some"]  # non-nullable only have Some
 
             constraints = []
-            # Non-nullable vars must be "Some" (domain already enforces)
-            # But add cross-constraints for propagation
-            for nn_var in non_nullable:
-                for other_var in variable_names:
-                    if other_var != nn_var:
-                        constraints.append(Constraint(
-                            nn_var, other_var,
-                            lambda x, y: x != "None",
-                            description=f"{nn_var} != None (null-safety)"
-                        ))
+            # Domain restriction already enforces non-nullable = ["Some"].
+            # No cross-constraints needed — the previous lambda-based
+            # cross-constraints were vacuous (ignored y entirely).
 
             solver = ConstraintSolver(timeout_ms=self.timeout_ms)
             result = solver.solve(domains, constraints)
@@ -74,7 +67,7 @@ class AC3FallbackMixin:
             return {
                 "status": result["status"],
                 "solver_type": "AC3",
-                "verified": result["status"] != "UNSATISFIABLE",
+                "verified": False,
                 "counterexamples": [],
                 "proof": f"AC-3 result: {result['status']}"
             }
@@ -89,23 +82,58 @@ class AC3FallbackMixin:
             for var_info in variables_with_types:
                 domains[var_info["name"]] = var_info.get("types", ["unknown"])
 
-            # No pairwise constraints needed between variables that don't
-            # interact in operations. Domain restrictions already ensure
-            # each variable has a valid type. We only add constraints
-            # when operation info is available (handled by callers).
+            # Add type compatibility constraints between variables that
+            # could interact (assignment compatibility per the type lattice).
+            # Without constraints, SAT just means "some assignment exists"
+            # which is NOT the same as PROVEN (all assignments are safe).
             constraints = []
+            if hasattr(self, '_TYPE_LATTICE'):
+                # For each pair of variables, add compatibility constraint
+                # based on the type lattice
+                var_names = [v["name"] for v in variables_with_types]
+                for i, vi in enumerate(variables_with_types):
+                    for j, vj in enumerate(variables_with_types):
+                        if i == j:
+                            continue
+                        name_i = vi["name"]
+                        name_j = vj["name"]
+                        types_i = vi.get("types", ["unknown"])
+                        types_j = vj.get("types", ["unknown"])
+                        # Add constraint: if types are incompatible for
+                        # assignment (j -> i), they can't coexist
+                        for ti in types_i:
+                            compatible = self._TYPE_LATTICE.get(ti, {"unknown"})
+                            incompatible_j_types = [
+                                t for t in types_j if t not in compatible
+                            ]
+                            if incompatible_j_types:
+                                constraints.append(Constraint(
+                                    name_j, name_i,
+                                    lambda x, y, compat=compatible: x in compat,
+                                    description=(
+                                        f"type compat: {name_j} -> "
+                                        f"{name_i} (source type must be in {compatible})"
+                                    ),
+                                ))
 
             solver = ConstraintSolver(timeout_ms=self.timeout_ms)
             result = solver.solve(domains, constraints)
 
             if result["status"] == "SATISFIED":
                 assignment = result.get("assignment", {})
+                # FIX: SAT ≠ PROVEN. Finding a consistent type assignment
+                # does NOT prove type safety for ALL possible assignments.
+                # Previously returned PROVEN/verified=True here, which was
+                # incorrect. Return PASS_WITH_CAVEATS instead.
                 return {
-                    "status": "PROVEN",
+                    "status": "PASS_WITH_CAVEATS",
                     "solver_type": "AC3",
-                    "verified": True,
+                    "verified": False,
                     "assignment": assignment,
-                    "proof": f"AC-3 type verification: consistent assignment found"
+                    "proof": (
+                        "AC-3 type verification: consistent assignment found, "
+                        "but SAT does not guarantee all assignments are safe"
+                    ),
                 }
             elif result["status"] == "UNSATISFIABLE":
                 return {

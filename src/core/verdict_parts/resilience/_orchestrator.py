@@ -93,8 +93,17 @@ class VerdictResilienceOrchestrator:
     def health_snapshot(self) -> VerdictHealthSnapshot:
         """Current health snapshot."""
         snap = self.health_monitor.snapshot
-        snap.circuit_breaker_state = self.circuit_breaker.state.value
-        return snap
+        return VerdictHealthSnapshot(
+            is_healthy=snap.is_healthy,
+            avg_latency_s=snap.avg_latency_s,
+            success_rate=snap.success_rate,
+            total_calls=snap.total_calls,
+            total_failures=snap.total_failures,
+            total_timeouts=snap.total_timeouts,
+            total_ambiguous=snap.total_ambiguous,
+            last_call_time=snap.last_call_time,
+            circuit_breaker_state=self.circuit_breaker.state.value,
+        )
 
     @property
     def stats(self) -> Dict[str, Any]:

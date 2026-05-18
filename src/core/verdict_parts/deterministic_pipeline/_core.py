@@ -39,6 +39,7 @@ class DeterministicPipeline(DeterministicTasks1To4Mixin, DeterministicTasks5To7M
     """
 
     def __init__(self):
+        super().__init__()
         self._evidence_collector = EvidenceCollector()
         self._memory_chip = None  # Se inyecta desde _zenic_native (PyO3)
 

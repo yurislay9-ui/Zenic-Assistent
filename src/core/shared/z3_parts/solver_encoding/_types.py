@@ -1,22 +1,12 @@
 """
-Z3 Solver Encoding Mixin.
+Z3 Solver Encoding — Constants and type definitions.
 
-Provides domain classification and constraint encoding helpers:
-- _classify_domain: Domain type classification (ENUM, NUMERIC_INT, NUMERIC_REAL, BOOLEAN, MIXED)
-- _add_enum_constraint: Enum/Mixed constraint encoding
-- _add_numeric_constraint: Numeric constraint encoding (FIXED: proper fallback)
-- _add_boolean_constraint: Boolean constraint encoding
-- _encode_value: Bijective value encoding to integers
-- _decode_value: Bijective value decoding from integers
-- _reset_encoding: Clear encoding maps to prevent unbounded memory growth
-
-FIX (Phase 2): _add_numeric_constraint fallback was trivially true
-(Implies(v1 == v2, True)). Now uses domain-aware sampling with the
-constraint's .satisfied() method to build proper Z3 constraints.
-
-FIX (Phase 3): Added _reset_encoding() to prevent unbounded growth of
-_encode_map/_decode_map across solver invocations. Added max size limit
-with LRU-style eviction when maps exceed _MAX_ENCODE_ENTRIES.
+Defines tuning constants used by the Z3 constraint encoding mixins:
+- _MAX_EXHAUSTIVE_PAIRS: Max domain size for exhaustive pair enumeration
+- _MAX_ENCODE_ENTRIES: Max entries in bijective encoding maps before eviction
+- _EVICT_BATCH_SIZE: Number of entries to evict when map limit is reached
+- _DEFAULT_MAX_SAMPLES: Default max samples for numeric domain sampling
+- _REAL_DECIMAL_PRECISION: Decimal precision for Z3 Real value conversion
 """
 
 import logging

@@ -15,6 +15,7 @@ Phase C1: Supports dry_run mode — simulate execution without real effects.
 from __future__ import annotations
 
 import logging
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -156,6 +157,17 @@ class ActionDispatcher(BlueprintBridgeMixin):
                 "ActionDispatcher: Blueprint validation failed for %s: %s",
                 request.action_type, blueprint_errors,
             )
+            # SECURITY: Block execution for critical blueprint errors
+            critical_errors = [e for e in blueprint_errors if "required" in e.lower() or "invalid type" in e.lower()]
+            if critical_errors:
+                self._stats["failed"] += 1
+                return DispatchResult(
+                    action_id=request.action_id, success=False,
+                    safety_verdict=SafetyVerdict.DENY,
+                    blueprint_errors=blueprint_errors,
+                    total_duration_ms=(time.monotonic() - start) * 1000,
+                    pipeline_stages=stages,
+                )
 
         # ── Stage 1.5: Policy Engine ──
         policy_start = time.monotonic()
@@ -308,7 +320,8 @@ class ActionDispatcher(BlueprintBridgeMixin):
         stages: Dict[str, float],
     ) -> None:
         """Log the action execution to the audit logger."""
-        if request.skip_audit:
+        # SECURITY: Never skip audit for non-ALLOW verdicts
+        if request.skip_audit and safety_result and safety_result.verdict == SafetyVerdict.ALLOW:
             return
         audit_start = time.monotonic()
         verdict_str = safety_result.verdict.value if safety_result else "ALLOW"
@@ -515,13 +528,16 @@ async def exec_dispatch_action(ctx: Dict[str, Any]) -> Dict[str, Any]:
 # ──────────────────────────────────────────────────────────────
 
 _default_dispatcher: Optional[ActionDispatcher] = None
+_dispatcher_lock = threading.Lock()
 
 
 def get_default_dispatcher() -> ActionDispatcher:
-    """Get or create the global ActionDispatcher instance."""
+    """Get or create the global ActionDispatcher instance (double-checked locking)."""
     global _default_dispatcher
     if _default_dispatcher is None:
-        _default_dispatcher = ActionDispatcher()
+        with _dispatcher_lock:
+            if _default_dispatcher is None:
+                _default_dispatcher = ActionDispatcher()
     return _default_dispatcher
 
 

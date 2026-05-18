@@ -194,12 +194,19 @@ class Z3InvariantPatternsMixin:
                                 })
 
             if not invariants:
+                # FIX: No patterns detected does NOT mean no violations exist.
+                # Previously returned PROVEN/verified=True which was a vacuous
+                # truth — the absence of detected patterns is unknown safety,
+                # not proven safety.
                 return {
-                    "status": "PROVEN",
+                    "status": "UNKNOWN",
                     "solver_type": "Z3_PATTERN",
-                    "verified": True,
+                    "verified": False,
                     "counterexamples": [],
-                    "proof": "No invariant patterns detected in code",
+                    "proof": (
+                        "No invariant patterns detected in code — "
+                        "safety is unknown (absence of patterns ≠ absence of violations)"
+                    ),
                 }
 
             return self._z3_prove_code_invariants(invariants, variables_info)

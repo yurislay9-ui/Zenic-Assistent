@@ -4,6 +4,7 @@ import os
 import re
 import time
 import logging
+import threading
 import concurrent.futures
 from typing import Optional, Dict, Any, List
 
@@ -56,7 +57,8 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
         self._evidence_collector = EvidenceCollector()
         self._consensus_resolver = ConsensusResolver()
 
-        # Stats
+        # Stats (thread-safe)
+        self._stats_lock = threading.Lock()
         self._total_verdicts = 0
         self._llm_verdicts = 0
         self._consensus_verdicts = 0
@@ -76,7 +78,7 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
                     name="verdict_engine",
                     failure_threshold=3,
                     recovery_timeout=60.0,
-                    half_open_max_calls=1,
+                    half_open_max_calls=2,
                     success_threshold=2,
                 ),
                 health_monitor=VerdictHealthMonitor(
@@ -141,7 +143,8 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
           6. Audit del resultado
         """
         start_time = time.time()
-        self._total_verdicts += 1
+        with self._stats_lock:
+            self._total_verdicts += 1
         ctx = context or {}
 
         # === MEMORY CHIP PRE-CHECK (T2-17, T1-15) ===
@@ -154,13 +157,9 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
                 chip_result = self._memory_chip.lookup(text, ctx.get("tenant_id", "__anonymous__"))
                 if chip_result and chip_result.get("cache_hit"):
                     # SECURITY (C1 fix): Before returning YES from cache,
-                    # check for veto-level evidence against. If any exists,
-                    # fall through to the normal pipeline instead.
-                    veto_evidence = self._evidence_collector.collect_all_evidence(
-                        text, code, language,
-                        memory_chip=self._memory_chip,
-                        tenant_id=ctx.get("tenant_id", "__anonymous__"),
-                    )
+                    # run ONLY security/sandbox evidence checks (not ALL collectors)
+                    # to keep the fast path <5ms.
+                    veto_evidence = self._evidence_collector.collect_code_safety_evidence(code)
                     has_veto = any(
                         e.favors == Verdict.NO
                         and e.evidence_type in (EvidenceType.SECURITY_CHECK, EvidenceType.SANDBOX_PASS)
@@ -178,8 +177,16 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
                         confidence = 0.9  # Memory chip mappings are pre-approved
                         # NOTE: A4 fix — removed duplicate self._total_verdicts increment;
                         # the counter was already bumped at the top of verdict()
-                        self._consensus_verdicts += 1
-                        self._yes_count += 1
+                        with self._stats_lock:
+                            self._consensus_verdicts += 1
+                            self._yes_count += 1
+                        elapsed_cache = time.time() - start_time
+                        # Audit the cache-hit result (was missing — every other path audits)
+                        self._audit_result(
+                            text[:200], "YES", "memory_chip_cache",
+                            False, confidence, int(elapsed_cache * 1000), 0,
+                            0, 0, 0.0,
+                        )
                         return VerdictOutput(
                             verdict=Verdict.YES,
                             confidence=confidence,
@@ -221,17 +228,18 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
         if not consensus.needs_llm:
             # Consenso claro: no necesita IA
             elapsed = time.time() - start_time
-            self._total_time += elapsed
+            with self._stats_lock:
+                self._total_time += elapsed
 
-            if consensus.confidence in (VerdictConfidence.CERTAIN, VerdictConfidence.HIGH):
-                self._consensus_verdicts += 1
-            else:
-                self._low_confidence_verdicts += 1
+                if consensus.confidence in (VerdictConfidence.CERTAIN, VerdictConfidence.HIGH):
+                    self._consensus_verdicts += 1
+                else:
+                    self._low_confidence_verdicts += 1
 
-            if consensus.verdict == Verdict.YES:
-                self._yes_count += 1
-            else:
-                self._no_count += 1
+                if consensus.verdict == Verdict.YES:
+                    self._yes_count += 1
+                else:
+                    self._no_count += 1
 
             # Build evidence summary
             evidence_summary = self._build_evidence_summary(consensus)
@@ -281,7 +289,8 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
         v17.1: Ahora con circuit breaker, retry, y consensus.
         """
         start_time = time.time()
-        self._total_verdicts += 1
+        with self._stats_lock:
+            self._total_verdicts += 1
 
         verdict_input = VerdictInput(
             question=question,
@@ -300,22 +309,31 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
     @property
     def stats(self) -> Dict[str, Any]:
         """Estadísticas del VerdictEngine con resiliencia."""
-        total = max(self._total_verdicts, 1)
+        with self._stats_lock:
+            total_verdicts = self._total_verdicts
+            llm_verdicts = self._llm_verdicts
+            consensus_verdicts = self._consensus_verdicts
+            low_confidence_verdicts = self._low_confidence_verdicts
+            fallback_verdicts = self._fallback_verdicts
+            yes_count = self._yes_count
+            no_count = self._no_count
+            total_time = self._total_time
+        total = max(total_verdicts, 1)
         base_stats = {
-            "total_verdicts": self._total_verdicts,
-            "llm_verdicts": self._llm_verdicts,
-            "consensus_verdicts": self._consensus_verdicts,
-            "low_confidence_verdicts": self._low_confidence_verdicts,
-            "fallback_verdicts": self._fallback_verdicts,
-            "yes_count": self._yes_count,
-            "no_count": self._no_count,
-            "llm_rate": self._llm_verdicts / total,
-            "consensus_rate": self._consensus_verdicts / total,
-            "low_confidence_rate": self._low_confidence_verdicts / total,
-            "fallback_rate": self._fallback_verdicts / total,
-            "yes_rate": self._yes_count / total,
-            "no_rate": self._no_count / total,
-            "avg_time_s": self._total_time / total,
+            "total_verdicts": total_verdicts,
+            "llm_verdicts": llm_verdicts,
+            "consensus_verdicts": consensus_verdicts,
+            "low_confidence_verdicts": low_confidence_verdicts,
+            "fallback_verdicts": fallback_verdicts,
+            "yes_count": yes_count,
+            "no_count": no_count,
+            "llm_rate": llm_verdicts / total,
+            "consensus_rate": consensus_verdicts / total,
+            "low_confidence_rate": low_confidence_verdicts / total,
+            "fallback_rate": fallback_verdicts / total,
+            "yes_rate": yes_count / total,
+            "no_rate": no_count / total,
+            "avg_time_s": total_time / total,
             "llm_available": self._mini_ai is not None and self._mini_ai.is_loaded,
             "consensus_attempts": VERDICT_CONSENSUS_ATTEMPTS,
             "max_retries": VERDICT_MAX_RETRIES,

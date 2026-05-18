@@ -11,6 +11,7 @@ import logging
 import os
 import re
 import sqlite3
+import threading
 import time
 import urllib.parse
 from abc import ABC, abstractmethod
@@ -127,10 +128,11 @@ def _validate_url_ssrf(url: str, allowed_schemes: tuple = ("http", "https")) -> 
         raise ValueError("URL must have a hostname")
     try:
         ip = ipaddress.ip_address(parsed.hostname)
-        if ip.is_private or ip.is_loopback or ip.is_reserved:
-            raise ValueError(f"Access to internal IPs is not allowed: {parsed.hostname}")
     except ValueError:
         pass  # hostname is not an IP, that's OK
+    else:
+        if ip.is_private or ip.is_loopback or ip.is_reserved:
+            raise ValueError(f"Access to internal IPs is not allowed: {parsed.hostname}")
     return url
 
 def _safe_path(path: str, base_dir: str = "") -> str:
@@ -163,8 +165,13 @@ def _safe_path(path: str, base_dir: str = "") -> str:
 
 def _validate_sql(query: str) -> bool:
     """Valida que un query SQL no contenga patrones de inyección peligrosos."""
-    dangerous = [r";\s*DROP\s", r";\s*DELETE\s+FROM\s", r";\s*UPDATE\s+.+\s+SET\s",
-                 r";\s*INSERT\s+INTO\s", r"UNION\s+SELECT\s", r"--\s*$", r"/\*.*\*/"]
+    dangerous = [r"(?:^|;)\s*DROP\s+(?:TABLE|INDEX|VIEW|TRIGGER|DATABASE)\b",
+                 r"(?:^|;)\s*DELETE\s+FROM\s",
+                 r"(?:^|;)\s*UPDATE\s+\w+\s+SET\s",
+                 r"(?:^|;)\s*INSERT\s+INTO\s",
+                 r"UNION\s+SELECT\s",
+                 r"--\s*$",
+                 r"/\*.*\*/"]
     for pattern in dangerous:
         if re.search(pattern, query, re.MULTILINE | re.IGNORECASE):
             logger.warning(f"SQL validation: potentially dangerous pattern: {pattern}")
@@ -314,7 +321,7 @@ class ExecutorRegistry:
                 )
                 result.audit_id = entry.entry_id
             except Exception as e:
-                logger.debug(f"ExecutorRegistry: Audit logging failed: {e}")
+                logger.error("ExecutorRegistry: Audit logging failed for action %s: %s", action_type, e)
 
         return result
 
@@ -355,6 +362,7 @@ class ExecutorRegistry:
 # ============================================================
 
 _default_registry: Optional[ExecutorRegistry] = None
+_registry_lock = threading.Lock()
 
 
 def get_default_registry() -> ExecutorRegistry:
@@ -365,7 +373,9 @@ def get_default_registry() -> ExecutorRegistry:
     """
     global _default_registry
     if _default_registry is None:
-        _default_registry = ExecutorRegistry(safety_gate=get_default_safety_gate())
+        with _registry_lock:
+            if _default_registry is None:
+                _default_registry = ExecutorRegistry(safety_gate=get_default_safety_gate())
     return _default_registry
 
 

@@ -154,10 +154,10 @@ class Z3ConstraintMixin:
                     return
 
         logger.warning(
-            "Numeric constraint '%s' has no domain info — adding equality fallback.",
+            "Numeric constraint '%s' has no domain info — skipping constraint (no safe fallback).",
             constraint.description
         )
-        solver.add(v1 == v2)
+        # Don't add any constraint — unknown relationship
 
     def _sample_numeric_domain(self, values, max_samples=_DEFAULT_MAX_SAMPLES):
         """Sample representative values from a numeric domain for constraint testing."""

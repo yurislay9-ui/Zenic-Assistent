@@ -50,6 +50,10 @@ class Evidence:
     detail: str = ""             # Descripción legible
     metadata: Dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self):
+        if not 0.0 <= self.weight <= 1.0:
+            raise ValueError(f"Evidence weight must be 0.0-1.0, got {self.weight}")
+
 
 @dataclass
 class DeterministicResult:

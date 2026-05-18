@@ -7,6 +7,7 @@ Integrates with the Merkle Ledger for tamper-proof audit trails.
 """
 
 import logging
+import threading
 import time
 from typing import Any, Dict, List, Optional
 
@@ -110,7 +111,8 @@ class ExecutorAuditLogger:
         # Buffer and flush
         self._buffer.append(entry)
         self._total_logged += 1
-        if len(self._buffer) >= self._buffer_size:
+        # SECURITY: Flush immediately for non-ALLOW verdicts to prevent audit loss on crash
+        if len(self._buffer) >= self._buffer_size or entry.verdict != "ALLOW":
             self.flush()
 
         return entry
@@ -163,13 +165,16 @@ class ExecutorAuditLogger:
 # ──────────────────────────────────────────────────────────────
 
 _default_audit_logger: Optional[ExecutorAuditLogger] = None
+_audit_logger_lock = threading.Lock()
 
 
 def get_default_audit_logger() -> ExecutorAuditLogger:
-    """Get or create the global audit logger instance."""
+    """Get or create the global audit logger instance (double-checked locking)."""
     global _default_audit_logger
     if _default_audit_logger is None:
-        _default_audit_logger = ExecutorAuditLogger()
+        with _audit_logger_lock:
+            if _default_audit_logger is None:
+                _default_audit_logger = ExecutorAuditLogger()
     return _default_audit_logger
 
 

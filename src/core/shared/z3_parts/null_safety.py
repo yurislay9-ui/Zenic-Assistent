@@ -33,21 +33,28 @@ logger = logging.getLogger(__name__)
 class Z3NullSafetyMixin:
     """Mixin for null-safety proof methods using Z3 EnumSort."""
 
-    def _z3_prove_null_safety(self, variable_names, nullable_vars):
+    def _z3_prove_null_safety(self, variable_names, nullable_vars,
+                               assignments=None):
         """Null-safety proof using Z3 EnumSort {NONE, SOME_VALUE}.
 
         Two-phase proof:
         1. Consistency check: verify null-safety constraints are satisfiable
            (non-nullable = SOME_VALUE, nullable = SOME_VALUE | NONE)
         2. Counterexample search: try to find a state where ANY non-nullable
-           variable = NONE. This is the actual proof step:
-           - If UNSAT: PROVEN — it's impossible for a non-nullable to be NONE
-           - If SAT:   VIOLATED — found a concrete counterexample
+           variable = NONE, using dataflow constraints from assignments.
+           If UNSAT → PROVEN; if SAT → VIOLATED.
 
         Formal justification:
           To prove "non-nullable vars are never NONE" (property P),
           we ask Z3 to find a model where ¬P holds (some non-nullable = NONE).
           If ¬P is UNSAT, then P is a tautology under these constraints.
+
+        Args:
+            variable_names: List of all variable names.
+            nullable_vars: Set of variable names that are nullable.
+            assignments: Optional list of (target, source) pairs representing
+                dataflow (e.g., x is assigned from y). If a source is nullable,
+                the target can be NONE only if the source can be NONE.
         """
         try:
             if not variable_names:
@@ -136,25 +143,58 @@ class Z3NullSafetyMixin:
             #  (Or(*[non-nullable == NONE])), which is trivially UNSAT —
             #  making the proof vacuous (always PROVEN regardless of code).
             #
-            #  Instead, Phase 2 starts FRESH with only:
-            #    - Dataflow constraints (reflecting actual code assignments)
-            #    - The negation (at least one non-nullable = NONE)
-            #  This way, UNSAT genuinely means null-safety is guaranteed.
+            #  FIX: Phase 2 now adds dataflow constraints so the proof
+            #  is meaningful. A variable can only be NONE if it was
+            #  assigned from a nullable source. Without dataflow
+            #  constraints, variables are unconstrained and Z3 always
+            #  finds SAT (false VIOLATED).
             # ============================================================
             proof_solver = z3_module.Solver()
             proof_solver.set("timeout", self.timeout_ms)
 
-            # Do NOT re-add Phase 1 classification constraints.
-            # Phase 1 established that "if we classify vars as nullable/non-nullable,
-            # the classification is consistent." But that doesn't prove the code
-            # respects the classification.
-            #
-            # Instead, add DATAFLOW constraints that reflect how values
-            # actually flow through the program (e.g., x = y where y is nullable).
-            # Currently, dataflow constraints are not yet implemented, so
-            # Phase 2 only checks the negation without additional constraints,
-            # making it a weaker (but non-vacuous) check.
-            # TODO: Implement dataflow constraint encoding for Phase 2.
+            # --- Dataflow constraints ---
+            # Key insight: a non-nullable variable can only be NONE if it
+            # was assigned from a nullable source. We model this with:
+            #   1. Nullable vars can be NONE or SOME (already tracked)
+            #   2. Non-nullable vars with no nullable source cannot be NONE
+            #   3. If target = source and source can be NONE, target can be NONE
+
+            # Build the set of variables that could potentially be NONE
+            # based on dataflow: a var can_be_none if it's nullable OR
+            # it's assigned from a var that can_be_none.
+            can_be_none = set(nullable_vars)
+            if assignments:
+                # Propagate nullability through assignments
+                changed = True
+                while changed:
+                    changed = False
+                    for target, source in assignments:
+                        if target in variable_names and source in variable_names:
+                            if source in can_be_none and target not in can_be_none:
+                                can_be_none.add(target)
+                                changed = True
+
+                # For each assignment, add implication constraint:
+                # If source can be NONE, then target can be NONE
+                for target, source in assignments:
+                    if target in z3_vars and source in z3_vars:
+                        # target is NONE only if source is NONE
+                        # (dataflow: value flows from source to target)
+                        proof_solver.add(
+                            z3_module.Implies(
+                                z3_vars[target] == NONE_VAL,
+                                z3_vars[source] == NONE_VAL,
+                            )
+                        )
+
+            # Variables that cannot be NONE (not in can_be_none set)
+            # are constrained to SOME_VAL even in Phase 2.
+            # This makes the proof meaningful: only vars with nullable
+            # dataflow sources could potentially be NONE.
+            for var_name in variable_names:
+                if var_name not in can_be_none:
+                    # No nullable source → must be SOME_VAL
+                    proof_solver.add(z3_vars[var_name] == SOME_VAL)
 
             # Add the NEGATION of the null-safety property:
             # "at least one non-nullable var IS NONE"
@@ -164,17 +204,6 @@ class Z3NullSafetyMixin:
                 z3_module.Or(
                     *[z3_vars[v] == NONE_VAL for v in non_nullable]
                 )
-            )
-
-            # Warn that dataflow constraints are not yet implemented.
-            # Without them, Phase 2 may return SAT (VIOLATED) for programs
-            # that are actually null-safe, because there are no constraints
-            # preventing arbitrary NONE assignments.
-            logger.warning(
-                "Z3 null-safety Phase 2: dataflow constraints not yet "
-                "implemented. Phase 2 only checks the negation without "
-                "program assignment constraints, making this a weaker "
-                "proof. A SAT result may be a false positive."
             )
 
             proof_result = proof_solver.check()

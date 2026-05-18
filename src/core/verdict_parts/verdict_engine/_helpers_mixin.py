@@ -114,7 +114,8 @@ class VerdictHelpersMixin:
             clean = think_match.group(1).strip()
 
         # Tomar solo la primera palabra
-        first_word = clean.split()[0].upper() if clean.split() else ""
+        words = clean.split()
+        first_word = words[0].upper() if words else ""
 
         # Solo aceptar YES o NO
         if first_word == "YES":

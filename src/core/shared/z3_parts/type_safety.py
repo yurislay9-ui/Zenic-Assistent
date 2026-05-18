@@ -54,19 +54,28 @@ class Z3TypeSafetyMixin:
         type constants in the EnumSort).
         """
         if op in ("assign", "="):
-            # Safe: right_var ∈ compatible(left_type)
-            # Unsafe: right_var ∉ compatible(left_type)
-            compatible = self._TYPE_LATTICE.get(left_type, {"unknown"})
-            compat_consts = [
-                type_name_to_const[t]
-                for t in compatible
-                if t in type_name_to_const
-            ]
-            if compat_consts:
-                safe_expr = z3_module.Or(
-                    *[right_var == c for c in compat_consts]
-                )
-                return z3_module.Not(safe_expr)
+            # FIX: Enumerate over possible types of the left operand using
+            # the Z3 variable (left_var) instead of the static annotation
+            # (left_type). This allows reasoning about variables that may
+            # have multiple possible types at runtime.
+            unsafe_by_type = []
+            for type_name, type_const in type_name_to_const.items():
+                compatible = self._TYPE_LATTICE.get(type_name, {"unknown"})
+                compat_consts = [
+                    type_name_to_const[t]
+                    for t in compatible
+                    if t in type_name_to_const
+                ]
+                if compat_consts:
+                    # Unsafe when: left_var == type_const AND
+                    # right_var is NOT in the compatible set for that type
+                    unsafe_by_type.append(z3_module.And(
+                        left_var == type_const,
+                        z3_module.Not(z3_module.Or(
+                            *[right_var == c for c in compat_consts]
+                        )),
+                    ))
+            return z3_module.Or(*unsafe_by_type) if unsafe_by_type else None
 
         elif op in ("add", "+"):
             # Safe: (both numeric) OR (both str)

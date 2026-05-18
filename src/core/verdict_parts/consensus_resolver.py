@@ -96,13 +96,13 @@ class ConsensusResolver:
             # Sin evidencia, siempre NO (principio de precaución)
             return ConsensusResult(
                 verdict=Verdict.NO,
-                confidence=VerdictConfidence.CERTAIN,
+                confidence=VerdictConfidence.LOW,
                 score=0.0,
                 evidence_for=[],
                 evidence_against=[],
                 needs_llm=False,
                 signals_count=0,
-                unanimous=True,
+                unanimous=False,
             )
 
         # Separar evidencia a favor y en contra

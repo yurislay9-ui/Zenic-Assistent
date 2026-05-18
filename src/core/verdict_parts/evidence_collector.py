@@ -39,7 +39,7 @@ DANGEROUS_PATTERNS = [
     (r'\brm\s+-rf', "dangerous rm -rf command"),
     (r'\bshutil\.rmtree', "directory tree deletion"),
     (r'\bpickle\.loads?\s*\(', "pickle deserialization - RCE risk"),
-    (r'\byaml\.load\s*\([^)]*\)', "yaml.load without SafeLoader"),
+    (r'\byaml\.load\s*\((?!.*Loader\s*=)', "yaml.load without SafeLoader"),
     (r'\bsocket\s*\(', "raw socket creation"),
     (r'\bctypes\b', "ctypes - FFI access"),
 ]
@@ -119,15 +119,6 @@ class EvidenceCollector:
                     source=f"keyword_{op}",
                     detail=f"Keywords matched: {', '.join(matched_keywords[:5])}",
                     metadata={"operation": op, "score": score, "keywords": matched_keywords},
-                ))
-            else:
-                evidence.append(Evidence(
-                    evidence_type=EvidenceType.KEYWORD_CLASSIFY,
-                    favors=Verdict.NO,
-                    weight=0.1,
-                    source=f"keyword_{op}",
-                    detail=f"No keywords matched for {op}",
-                    metadata={"operation": op, "score": 0},
                 ))
 
         return evidence

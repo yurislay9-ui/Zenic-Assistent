@@ -148,10 +148,13 @@ class Z3BridgeMixin:
             return None
 
         if isinstance(node, ast.Constant):
-            if isinstance(node.value, int):
-                return z3_module.IntVal(node.value)
-            elif isinstance(node.value, bool):
+            # FIX: Check bool BEFORE int since bool is a subclass of int.
+            # Previously, isinstance(node.value, int) matched True/False first,
+            # encoding them as 1/0 instead of using the proper bool encoding.
+            if isinstance(node.value, bool):
                 return z3_module.IntVal(1 if node.value else 0)
+            elif isinstance(node.value, int):
+                return z3_module.IntVal(node.value)
             elif node.value is None:
                 return z3_module.IntVal(0)  # 0 = None in our encoding
         elif isinstance(node, ast.Name):
@@ -176,9 +179,19 @@ class Z3BridgeMixin:
                 elif isinstance(node.op, ast.Mult):
                     return left * right
                 elif isinstance(node.op, (ast.Div, ast.FloorDiv)):
-                    return left  # Simplified - don't encode division in Z3 value
+                    # FIX: Encode integer division instead of ignoring the
+                    # right operand. Previously returned `left` which lost
+                    # the division semantics in Z3.
+                    if right is not None:
+                        return left / right  # Z3 integer division
+                    return left
                 elif isinstance(node.op, ast.Mod):
-                    return left  # Simplified
+                    # FIX: Encode modulo instead of ignoring the right
+                    # operand. Previously returned `left` which lost the
+                    # modulo semantics in Z3.
+                    if right is not None:
+                        return left % right  # Z3 modulo
+                    return left
         elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
             inner = self._z3_value_from_node(node.operand, current_path)
             if inner is not None:

@@ -5,6 +5,7 @@ Contains ActionRateLimiter and SafetyGate classes.
 """
 
 import logging
+import threading
 import time
 from typing import Any, Dict, List, Optional
 
@@ -29,31 +30,36 @@ class ActionRateLimiter:
         self._max_financial_per_hour = max_financial_per_hour
         self._timestamps: Dict[str, List[float]] = {}
         self._category_timestamps: Dict[ActionCategory, List[float]] = {}
+        self._lock = threading.Lock()
 
     def check(self, action_type: str, category: ActionCategory) -> Optional[str]:
         """Check if action is rate-limited. Returns reason or None."""
-        now = time.time()
+        with self._lock:
+            now = time.time()
 
-        key = action_type
-        self._timestamps.setdefault(key, [])
-        self._timestamps[key] = [t for t in self._timestamps[key] if now - t < 60]
-        if len(self._timestamps[key]) >= self._max_per_minute:
-            return f"Rate limited: {action_type} exceeded {self._max_per_minute}/min"
-        self._timestamps[key].append(now)
+            # Per-action rate limit
+            key = action_type
+            self._timestamps.setdefault(key, [])
+            self._timestamps[key] = [t for t in self._timestamps[key] if now - t < 60]
+            if len(self._timestamps[key]) >= self._max_per_minute:
+                return f"Rate limited: {action_type} exceeded {self._max_per_minute}/min"
 
-        self._category_timestamps.setdefault(category, [])
-        cat_ts = self._category_timestamps[category]
-        cat_ts[:] = [t for t in cat_ts if now - t < 3600]
+            # Category rate limits (check BEFORE appending)
+            self._category_timestamps.setdefault(category, [])
+            cat_ts = self._category_timestamps[category]
+            cat_ts[:] = [t for t in cat_ts if now - t < 3600]
 
-        if category == ActionCategory.DESTRUCTIVE and len(cat_ts) >= self._max_destructive_per_hour:
-            return f"Rate limited: destructive actions exceeded {self._max_destructive_per_hour}/hour"
-        if category == ActionCategory.FINANCIAL and len(cat_ts) >= self._max_financial_per_hour:
-            return f"Rate limited: financial actions exceeded {self._max_financial_per_hour}/hour"
-        if len(cat_ts) >= self._max_per_hour:
-            return f"Rate limited: {category.value} actions exceeded {self._max_per_hour}/hour"
+            if category == ActionCategory.DESTRUCTIVE and len(cat_ts) >= self._max_destructive_per_hour:
+                return f"Rate limited: destructive actions exceeded {self._max_destructive_per_hour}/hour"
+            if category == ActionCategory.FINANCIAL and len(cat_ts) >= self._max_financial_per_hour:
+                return f"Rate limited: financial actions exceeded {self._max_financial_per_hour}/hour"
+            if len(cat_ts) >= self._max_per_hour:
+                return f"Rate limited: {category.value} actions exceeded {self._max_per_hour}/hour"
 
-        cat_ts.append(now)
-        return None
+            # ALL checks passed — now append timestamps
+            self._timestamps[key].append(now)
+            cat_ts.append(now)
+            return None
 
     def reset(self) -> None:
         """Reset all rate limit counters."""
@@ -237,8 +243,6 @@ class SafetyGate:
             if not rule.compiled:
                 continue
             if rule.compiled.search(config_str):
-                if rule.verdict == SafetyVerdict.DENY:
-                    self._denied_count += 1
                 worst_verdict = self._escalate_verdict(worst_verdict, rule.verdict)
                 # Keep the SafetyCheckResult associated with the worst verdict so far
                 if self._SEVERITY_ORDER.get(rule.verdict, 0) >= self._SEVERITY_ORDER.get(worst_verdict, 0):
@@ -251,6 +255,10 @@ class SafetyGate:
                         requires_approval=(worst_verdict == SafetyVerdict.APPROVE),
                         risk_score=self._risk_score(rule.category),
                     )
+
+        # Count denied once per action, not once per matching DENY rule
+        if worst_verdict == SafetyVerdict.DENY:
+            self._denied_count += 1
 
         return worst_result
 
@@ -294,13 +302,16 @@ class SafetyGate:
 # ── Global Instance ──────────────────────────────────────
 
 _default_safety_gate: Optional[SafetyGate] = None
+_safety_gate_lock = threading.Lock()
 
 
 def get_default_safety_gate() -> SafetyGate:
-    """Get or create the global SafetyGate instance."""
+    """Get or create the global SafetyGate instance (double-checked locking)."""
     global _default_safety_gate
     if _default_safety_gate is None:
-        _default_safety_gate = SafetyGate()
+        with _safety_gate_lock:
+            if _default_safety_gate is None:
+                _default_safety_gate = SafetyGate()
     return _default_safety_gate
 
 
