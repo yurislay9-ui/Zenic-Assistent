@@ -153,21 +153,43 @@ class VerdictEngine(VerdictLLMMixin, VerdictHelpersMixin):
             try:
                 chip_result = self._memory_chip.lookup(text, ctx.get("tenant_id", "__anonymous__"))
                 if chip_result and chip_result.get("cache_hit"):
-                    mapping = chip_result.get("mapping", {})
-                    confidence = 0.9  # Memory chip mappings are pre-approved
-                    self._total_verdicts += 1
-                    self._consensus_verdicts += 1
-                    self._yes_count += 1
-                    return VerdictOutput(
-                        verdict=Verdict.YES,
-                        confidence=confidence,
-                        source="memory_chip_cache",
-                        evidence_summary=f"Memory chip cache hit: '{text}' → '{mapping.get('destination', '?')}' "
-                                         f"(mechanism: {mapping.get('mechanism', 'unknown')})",
-                        llm_used=False,
-                        llm_raw_response="",
-                        retry_count=0,
+                    # SECURITY (C1 fix): Before returning YES from cache,
+                    # check for veto-level evidence against. If any exists,
+                    # fall through to the normal pipeline instead.
+                    veto_evidence = self._evidence_collector.collect_all_evidence(
+                        text, code, language,
+                        memory_chip=self._memory_chip,
+                        tenant_id=ctx.get("tenant_id", "__anonymous__"),
                     )
+                    has_veto = any(
+                        e.favors == Verdict.NO
+                        and e.evidence_type in (EvidenceType.SECURITY_CHECK, EvidenceType.SANDBOX_PASS)
+                        and e.weight >= 0.7
+                        for e in veto_evidence
+                    )
+                    if has_veto:
+                        logger.warning(
+                            "Memory chip cache hit for '%s' overridden by veto evidence — "
+                            "falling through to full pipeline", text[:80]
+                        )
+                        # Fall through to normal pipeline below
+                    else:
+                        mapping = chip_result.get("mapping", {})
+                        confidence = 0.9  # Memory chip mappings are pre-approved
+                        # NOTE: A4 fix — removed duplicate self._total_verdicts increment;
+                        # the counter was already bumped at the top of verdict()
+                        self._consensus_verdicts += 1
+                        self._yes_count += 1
+                        return VerdictOutput(
+                            verdict=Verdict.YES,
+                            confidence=confidence,
+                            source="memory_chip_cache",
+                            evidence_summary=f"Memory chip cache hit: '{text}' → '{mapping.get('destination', '?')}' "
+                                             f"(mechanism: {mapping.get('mechanism', 'unknown')})",
+                            llm_used=False,
+                            llm_raw_response="",
+                            retry_count=0,
+                        )
             except Exception as exc:
                 logger.debug("Memory chip pre-check error: %s", exc)
 

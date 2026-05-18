@@ -173,7 +173,7 @@ class ConsensusResolver:
             # Consenso medio: IA opcional (no requerida)
             verdict = Verdict.YES if normalized > 0 else Verdict.NO
             confidence = VerdictConfidence.MEDIUM
-            needs_llm = False  # Opcional, no requerido
+            needs_llm = True   # SECURITY (A3 fix): MEDIUM confidence requires LLM oversight
 
         else:
             # Empate o casi empate: IA REQUERIDA para arbitraje

@@ -17,6 +17,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+from .safety_gate import get_default_safety_gate  # SECURITY: C4 fix
+
 logger = logging.getLogger(__name__)
 
 # Dependencias opcionales
@@ -356,10 +358,14 @@ _default_registry: Optional[ExecutorRegistry] = None
 
 
 def get_default_registry() -> ExecutorRegistry:
-    """Obtiene la instancia global del ExecutorRegistry."""
+    """Obtiene la instancia global del ExecutorRegistry.
+
+    SECURITY (C4 fix): Always includes the default SafetyGate so that
+    no executor path can bypass pre-execution safety validation.
+    """
     global _default_registry
     if _default_registry is None:
-        _default_registry = ExecutorRegistry()
+        _default_registry = ExecutorRegistry(safety_gate=get_default_safety_gate())
     return _default_registry
 
 

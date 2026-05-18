@@ -6,9 +6,10 @@ import time
 from typing import Any, Dict, List, Optional
 
 try:
-    from ..resilience import VerdictAuditEntry, _RESILIENCE_AVAILABLE
+    from ..resilience import VerdictAuditEntry
+    _AUDIT_AVAILABLE = True
 except ImportError:
-    _RESILIENCE_AVAILABLE = False
+    _AUDIT_AVAILABLE = False
 
 from ..types import Verdict, Evidence, VerdictInput, VerdictOutput, ConsensusResult
 
@@ -54,7 +55,7 @@ class VerdictHelpersMixin:
                        circuit_breaker_state: str = "",
                        raw_response: str = "") -> None:
         """Record result in audit log."""
-        if self._resilience and _RESILIENCE_AVAILABLE:
+        if self._resilience and _AUDIT_AVAILABLE:
             entry = VerdictAuditEntry(
                 timestamp=time.time(),
                 question=question[:200],
@@ -120,10 +121,8 @@ class VerdictHelpersMixin:
             return Verdict.YES
         elif first_word == "NO":
             return Verdict.NO
-        elif "YES" in first_word:
-            return Verdict.YES
-        elif "NO" in first_word:
-            return Verdict.NO
+        # SECURITY: Removed substring fallback — "YESTERDAY"→YES was possible
+        # Only exact matches are accepted. Any ambiguity → None → treated as NO.
 
         # Cualquier otra cosa = ambiguo = None (se convierte en NO)
         logger.warning(

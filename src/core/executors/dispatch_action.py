@@ -49,7 +49,8 @@ class DispatchRequest:
     session_id: str = ""
     request_id: str = ""
     blueprint_name: str = ""
-    skip_safety_gate: bool = False
+    # SECURITY: skip_safety_gate REMOVED — safety gate is ALWAYS enforced.
+    # Any code that previously set skip_safety_gate=True must be updated.
     skip_audit: bool = False
     dry_run: bool = False
 
@@ -228,9 +229,11 @@ class ActionDispatcher(BlueprintBridgeMixin):
     def _run_safety_gate(
         self, request: DispatchRequest, stages: Dict[str, float],
     ) -> Optional[SafetyCheckResult]:
-        """Run Safety Gate check on the request."""
-        if request.skip_safety_gate:
-            return None
+        """Run Safety Gate check on the request.
+
+        SECURITY: Safety gate is ALWAYS enforced. The skip_safety_gate
+        flag has been removed — no bypass is possible.
+        """
         sg_start = time.monotonic()
         result = self._safety_gate.check(
             request.action_type, request.config, request.context,

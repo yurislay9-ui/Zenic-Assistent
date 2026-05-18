@@ -202,27 +202,57 @@ class SafetyGate:
 
         return ActionCategory.MODERATE
 
+    # SECURITY (A7 fix): Severity ordering so that the most severe
+    # matching rule wins when multiple rules match the same action.
+    _SEVERITY_ORDER = {
+        SafetyVerdict.ALLOW: 0,
+        SafetyVerdict.CONFIRM: 1,
+        SafetyVerdict.APPROVE: 2,
+        SafetyVerdict.RATE_LIMITED: 3,
+        SafetyVerdict.DENY: 4,
+    }
+
+    @classmethod
+    def _escalate_verdict(cls, current: SafetyVerdict, new: SafetyVerdict) -> SafetyVerdict:
+        """Return the more severe of two verdicts."""
+        if cls._SEVERITY_ORDER.get(new, 0) > cls._SEVERITY_ORDER.get(current, 0):
+            return new
+        return current
+
     def _check_rules(
         self, action_type: str, config: Dict[str, Any]
     ) -> Optional[SafetyCheckResult]:
-        """Check config against all safety rules. Returns first match or None."""
+        """Check config against ALL safety rules and return the most severe match.
+
+        SECURITY (A7 fix): Iterates every rule instead of returning on the
+        first match. A DENY-rule that appears after a CONFIRM-rule must still
+        take effect.
+        """
         config_str = self._config_to_searchable(action_type, config)
+
+        worst_result: Optional[SafetyCheckResult] = None
+        worst_verdict: SafetyVerdict = SafetyVerdict.ALLOW
 
         for rule in self._rules:
             if not rule.compiled:
                 continue
             if rule.compiled.search(config_str):
-                self._denied_count += 1 if rule.verdict == SafetyVerdict.DENY else 0
-                return SafetyCheckResult(
-                    verdict=rule.verdict,
-                    category=rule.category,
-                    reason=rule.message,
-                    rule_name=rule.name,
-                    requires_confirmation=(rule.verdict == SafetyVerdict.CONFIRM),
-                    requires_approval=(rule.verdict == SafetyVerdict.APPROVE),
-                    risk_score=self._risk_score(rule.category),
-                )
-        return None
+                if rule.verdict == SafetyVerdict.DENY:
+                    self._denied_count += 1
+                worst_verdict = self._escalate_verdict(worst_verdict, rule.verdict)
+                # Keep the SafetyCheckResult associated with the worst verdict so far
+                if self._SEVERITY_ORDER.get(rule.verdict, 0) >= self._SEVERITY_ORDER.get(worst_verdict, 0):
+                    worst_result = SafetyCheckResult(
+                        verdict=worst_verdict,
+                        category=rule.category,
+                        reason=rule.message,
+                        rule_name=rule.name,
+                        requires_confirmation=(worst_verdict == SafetyVerdict.CONFIRM),
+                        requires_approval=(worst_verdict == SafetyVerdict.APPROVE),
+                        risk_score=self._risk_score(rule.category),
+                    )
+
+        return worst_result
 
     def _config_to_searchable(self, action_type: str, config: Dict[str, Any]) -> str:
         """Convert config to a searchable string for rule matching."""

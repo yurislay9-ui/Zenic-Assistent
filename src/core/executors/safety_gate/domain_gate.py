@@ -536,7 +536,8 @@ class DomainSafetyGate:
                     cr = checker(config_str)
                     compliance_results.append(cr)
                 except Exception:
-                    compliance_results.append(ComplianceResult(standard=std, compliant=True, risk_level="low"))
+                    # SECURITY: Fail closed — if checker fails, assume non-compliant
+                    compliance_results.append(ComplianceResult(standard=std, compliant=False, risk_level="critical"))
 
         # Critical compliance violations → DENY
         for cr in compliance_results:

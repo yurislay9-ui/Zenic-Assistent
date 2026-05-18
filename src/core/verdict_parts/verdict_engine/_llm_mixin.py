@@ -274,7 +274,7 @@ class VerdictLLMMixin:
 
                             self._audit_result(
                                 input_data.question, parsed.value, "llm",
-                                True, abs(input_data.consensus_score) + 0.3,
+                                True, min(abs(input_data.consensus_score) + 0.3, 1.0),  # SECURITY (A2 fix): clamp to 1.0
                                 int(elapsed * 1000), retry_count,
                                 len(input_data.evidence_for), len(input_data.evidence_against),
                                 input_data.consensus_score,
@@ -283,7 +283,7 @@ class VerdictLLMMixin:
 
                             return VerdictOutput(
                                 verdict=parsed,
-                                confidence=abs(input_data.consensus_score) + 0.3,
+                                confidence=min(abs(input_data.consensus_score) + 0.3, 1.0),  # SECURITY (A2 fix): clamp to 1.0
                                 source="llm",
                                 evidence_summary=evidence_summary,
                                 llm_used=True,

@@ -64,6 +64,35 @@ class SafetyCheckResult:
 # ──────────────────────────────────────────────────────────────
 
 SAFETY_RULES: List[SafetyRule] = [
+    # ── DESTRUCTIVE: Shell commands & injection (checked first) ─
+    SafetyRule(
+        name="shell_destructive",
+        category=ActionCategory.DESTRUCTIVE,
+        pattern=r"\b(?:rm\s+-rf|sudo\s+|chmod\s+|chown\s+|format\s+[A-Z]:|mkfs\.)\b",
+        verdict=SafetyVerdict.DENY,
+        message="Destructive shell command detected — DENIED",
+    ),
+    SafetyRule(
+        name="shell_injection",
+        category=ActionCategory.DESTRUCTIVE,
+        pattern=r"\b(?:eval\s*\(|exec\s*\(|subprocess|os\.system|os\.popen|__import__)\b",
+        verdict=SafetyVerdict.DENY,
+        message="Code injection pattern detected — DENIED",
+    ),
+    SafetyRule(
+        name="data_exfiltration",
+        category=ActionCategory.DESTRUCTIVE,
+        pattern=r"\b(?:curl\s+.*(?:password|secret|token|api_key)|wget\s+.*(?:password|secret|token)|\.post\s*\(\s*[\"']https?://.*(?:password|token|key))\b",
+        verdict=SafetyVerdict.DENY,
+        message="Potential data exfiltration detected — DENIED",
+    ),
+    SafetyRule(
+        name="sensitive_file_access",
+        category=ActionCategory.DESTRUCTIVE,
+        pattern=r"\b(?:/etc/shadow|/etc/passwd|\.ssh/|\.env|\.aws/|id_rsa)\b",
+        verdict=SafetyVerdict.DENY,
+        message="Sensitive file access detected — DENIED",
+    ),
     # ── DESTRUCTIVE: Mass deletions ────────────────────────────
     SafetyRule(
         name="mass_delete",
