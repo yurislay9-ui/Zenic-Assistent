@@ -12,7 +12,7 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "@typescript-eslint/no-non-null-assertion": "warn",
     "@typescript-eslint/ban-ts-comment": "warn",
     "@typescript-eslint/prefer-as-const": "warn",
-    "@typescript-eslint/no-unused-disable-directive": "warn",
+    // no-unused-disable-directive removed — not available in this eslint/typescript-eslint version
 
     // ─── React: REGLAS ACTIVAS ──────────────────────────────────────
     // CRÍTICO: Esta regla detecta closures stale y bugs de estado.
@@ -52,13 +52,6 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "out/**",
     "build/**",
     "next-env.d.ts",
-    "api/**",
-    "policy-engine/**",
-    "playbooks/**",
-    "mcp-gateway/**",
-    "hitl/**",
-    "observability/**",
-    "services/**",
     "rust-engine/**",
     "skills/**",
     "prisma/**",

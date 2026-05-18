@@ -23,13 +23,6 @@
     "node_modules",
     ".next",
     "out",
-    "api",
-    "policy-engine",
-    "playbooks",
-    "mcp-gateway",
-    "hitl",
-    "observability",
-    "services",
     "rust-engine"
   ]
 }
