@@ -20,13 +20,19 @@ Persistence: SQLite with retry logic.
 
 from __future__ import annotations
 
-import json
 import logging
-import sqlite3
 import threading
-import time
 from typing import Any, Dict, List, Optional
 
+from ._db_helpers import (
+    get_compensations,
+    get_rollback_history as _get_rollback_history_db,
+    get_rollback_record_by_id,
+    init_db,
+    now_utc_iso,
+    persist_compensation,
+    persist_rollback_record,
+)
 from ._snapshots import (
     CompensationAction,
     RollbackRecord,
@@ -35,9 +41,6 @@ from ._snapshots import (
 )
 
 logger = logging.getLogger(__name__)
-
-_MAX_RETRIES = 3
-_RETRY_DELAY = 0.1
 
 
 class RollbackManager:
@@ -50,48 +53,7 @@ class RollbackManager:
     def __init__(self, db_path: str = "rollback.sqlite") -> None:
         self._db_path = db_path
         self._lock = threading.RLock()
-        self._init_db()
-
-    # ── DB Initialisation ──────────────────────────────────
-
-    def _init_db(self) -> None:
-        """Create the rollback tables if they do not exist."""
-        def _do_init() -> None:
-            conn = sqlite3.connect(self._db_path)
-            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
-                CREATE TABLE IF NOT EXISTS compensation_actions (
-                    action_id TEXT PRIMARY KEY,
-                    request_id TEXT NOT NULL,
-                    action_type TEXT NOT NULL,
-                    payload TEXT NOT NULL DEFAULT '{}',
-                    description TEXT NOT NULL DEFAULT ''
-                )
-            """)
-            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
-                CREATE TABLE IF NOT EXISTS rollback_records (
-                    rollback_id TEXT PRIMARY KEY,
-                    request_id TEXT NOT NULL,
-                    trigger TEXT NOT NULL,
-                    compensation_actions TEXT NOT NULL DEFAULT '[]',
-                    status TEXT NOT NULL DEFAULT 'pending',
-                    executed_at TEXT,
-                    result TEXT,
-                    created_at TEXT NOT NULL,
-                    merkle_hash TEXT NOT NULL
-                )
-            """)
-            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
-                CREATE INDEX IF NOT EXISTS idx_compensation_request
-                ON compensation_actions(request_id)
-            """)
-            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
-                CREATE INDEX IF NOT EXISTS idx_rollback_request
-                ON rollback_records(request_id, created_at DESC)
-            """)
-            conn.commit()
-            conn.close()
-
-        self._with_retry(_do_init)
+        init_db(db_path)
 
     # ── Core Operations ────────────────────────────────────
 
@@ -127,7 +89,9 @@ class RollbackManager:
         )
 
         with self._lock:
-            self._persist_compensation(request_id, action, insert=True)
+            persist_compensation(
+                self._db_path, request_id, action, insert=True,
+            )
 
         logger.info(
             "RollbackManager: Registered compensation %s for request %s "
@@ -156,7 +120,7 @@ class RollbackManager:
             The RollbackRecord with execution results.
         """
         # Get all compensation actions for this request
-        actions = self._get_compensations(request_id)
+        actions = get_compensations(self._db_path, request_id)
 
         # Create the rollback record
         record = RollbackRecord(
@@ -167,7 +131,7 @@ class RollbackManager:
         )
 
         with self._lock:
-            self._persist_rollback_record(record, insert=True)
+            persist_rollback_record(self._db_path, record, insert=True)
 
         # Execute compensation actions in reverse order (SAGA pattern)
         results: List[Dict[str, Any]] = []
@@ -200,12 +164,12 @@ class RollbackManager:
                 )
                 # Continue executing remaining compensations even on failure
 
-        record.executed_at = self._now_utc_iso()
+        record.executed_at = now_utc_iso()
         record.status = RollbackStatus.COMPLETED if all_succeeded else RollbackStatus.FAILED
         record.result = {"actions": results}
 
         with self._lock:
-            self._persist_rollback_record(record, insert=False)
+            persist_rollback_record(self._db_path, record, insert=False)
 
         # Record in Merkle ledger if provided
         if merkle_ledger is not None:
@@ -228,35 +192,11 @@ class RollbackManager:
 
     def get_rollback_record(self, rollback_id: str) -> Optional[RollbackRecord]:
         """Get a rollback record by ID."""
-        def _do_find() -> Optional[RollbackRecord]:
-            conn = sqlite3.connect(self._db_path)
-            conn.row_factory = sqlite3.Row
-            row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                "SELECT * FROM rollback_records WHERE rollback_id = ?",
-                (rollback_id,),
-            ).fetchone()
-            conn.close()
-            if not row:
-                return None
-            return self._row_to_rollback_record(row)
-
-        return self._with_retry(_do_find, fallback=None)
+        return get_rollback_record_by_id(self._db_path, rollback_id)
 
     def get_rollback_history(self, request_id: str) -> List[RollbackRecord]:
         """Get all rollback records for a request."""
-        def _do_query() -> List[RollbackRecord]:
-            conn = sqlite3.connect(self._db_path)
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                """SELECT * FROM rollback_records
-                   WHERE request_id = ?
-                   ORDER BY created_at DESC""",
-                (request_id,),
-            ).fetchall()
-            conn.close()
-            return [self._row_to_rollback_record(r) for r in rows]
-
-        return self._with_retry(_do_query, fallback=[])
+        return _get_rollback_history_db(self._db_path, request_id)
 
     def verify_rollback_integrity(self, rollback_id: str) -> bool:
         """Verify the Merkle hash integrity of a rollback record."""
@@ -272,28 +212,6 @@ class RollbackManager:
         return recomputed == record.merkle_hash
 
     # ── Private Helpers ────────────────────────────────────
-
-    @staticmethod
-    def _now_utc_iso() -> str:
-        """Return current UTC time as ISO string."""
-        from datetime import datetime, timezone
-        return datetime.now(timezone.utc).isoformat()
-
-    def _get_compensations(self, request_id: str) -> List[CompensationAction]:
-        """Get all compensation actions for a request."""
-        def _do_query() -> List[CompensationAction]:
-            conn = sqlite3.connect(self._db_path)
-            conn.row_factory = sqlite3.Row
-            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                """SELECT * FROM compensation_actions
-                   WHERE request_id = ?
-                   ORDER BY action_id ASC""",
-                (request_id,),
-            ).fetchall()
-            conn.close()
-            return [self._row_to_compensation(r) for r in rows]
-
-        return self._with_retry(_do_query, fallback=[])
 
     def _execute_compensation_action(
         self, action: CompensationAction,
@@ -365,141 +283,6 @@ class RollbackManager:
             )
         except Exception as exc:
             logger.debug("RollbackManager: audit event recording failed: %s", exc)
-
-    def _persist_compensation(
-        self, request_id: str, action: CompensationAction, *, insert: bool,
-    ) -> None:
-        """Insert or update a compensation action."""
-        def _do_persist() -> None:
-            conn = sqlite3.connect(self._db_path)
-            if insert:
-                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                    """INSERT INTO compensation_actions
-                       (action_id, request_id, action_type, payload, description)
-                       VALUES (?, ?, ?, ?, ?)""",
-                    (
-                        action.action_id,
-                        request_id,
-                        action.action_type,
-                        json.dumps(action.payload),
-                        action.description,
-                    ),
-                )
-            else:
-                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                    """UPDATE compensation_actions SET
-                       payload=?, description=?
-                       WHERE action_id=?""",
-                    (
-                        json.dumps(action.payload),
-                        action.description,
-                        action.action_id,
-                    ),
-                )
-            conn.commit()
-            conn.close()
-
-        self._with_retry(_do_persist)
-
-    def _persist_rollback_record(
-        self, record: RollbackRecord, *, insert: bool,
-    ) -> None:
-        """Insert or update a rollback record."""
-        def _do_persist() -> None:
-            conn = sqlite3.connect(self._db_path)
-            actions_json = json.dumps([a.to_dict() for a in record.compensation_actions])
-            result_json = json.dumps(record.result) if record.result else None
-
-            if insert:
-                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                    """INSERT INTO rollback_records
-                       (rollback_id, request_id, trigger,
-                        compensation_actions, status, executed_at,
-                        result, created_at, merkle_hash)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        record.rollback_id,
-                        record.request_id,
-                        record.trigger.value,
-                        actions_json,
-                        record.status.value,
-                        record.executed_at,
-                        result_json,
-                        record.created_at,
-                        record.merkle_hash,
-                    ),
-                )
-            else:
-                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                    """UPDATE rollback_records SET
-                       status=?, executed_at=?, result=?,
-                       merkle_hash=?
-                       WHERE rollback_id=?""",
-                    (
-                        record.status.value,
-                        record.executed_at,
-                        result_json,
-                        record.merkle_hash,
-                        record.rollback_id,
-                    ),
-                )
-            conn.commit()
-            conn.close()
-
-        self._with_retry(_do_persist)
-
-    @staticmethod
-    def _row_to_compensation(row: sqlite3.Row) -> CompensationAction:
-        """Convert a database row to a CompensationAction."""
-        return CompensationAction(
-            action_id=row["action_id"],
-            action_type=row["action_type"],
-            payload=json.loads(row["payload"] or "{}"),
-            description=row["description"] or "",
-        )
-
-    @staticmethod
-    def _row_to_rollback_record(row: sqlite3.Row) -> RollbackRecord:
-        """Convert a database row to a RollbackRecord."""
-        actions_data = json.loads(row["compensation_actions"] or "[]")
-        result_data = json.loads(row["result"]) if row["result"] else None
-        return RollbackRecord(
-            rollback_id=row["rollback_id"],
-            request_id=row["request_id"],
-            trigger=RollbackTrigger(row["trigger"]),
-            compensation_actions=[CompensationAction.from_dict(a) for a in actions_data],
-            status=RollbackStatus(row["status"]),
-            executed_at=row["executed_at"],
-            result=result_data,
-            created_at=row["created_at"],
-            merkle_hash=row["merkle_hash"],
-        )
-
-    @staticmethod
-    def _with_retry(
-        fn: Any,
-        fallback: Any = None,
-        max_retries: int = _MAX_RETRIES,
-    ) -> Any:
-        """Execute *fn* with retry logic on database errors."""
-        last_exc: Optional[Exception] = None
-        for attempt in range(1, max_retries + 1):
-            try:
-                return fn()
-            except sqlite3.OperationalError as exc:
-                last_exc = exc
-                logger.warning(
-                    "RollbackManager: DB retry %d/%d — %s",
-                    attempt, max_retries, exc,
-                )
-                if attempt < max_retries:
-                    time.sleep(_RETRY_DELAY * attempt)
-            except Exception as exc:
-                last_exc = exc
-                logger.error("RollbackManager: DB error — %s", exc)
-                break
-        logger.error("RollbackManager: All retries exhausted — %s", last_exc)
-        return fallback
 
 
 # ── Singleton ─────────────────────────────────────────────

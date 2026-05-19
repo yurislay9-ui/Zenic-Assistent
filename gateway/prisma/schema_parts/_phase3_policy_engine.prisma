@@ -1,0 +1,68 @@
+// ─── Policy Engine: Declarative Policies (Phase 3) ──────────────────
+
+model DeclPolicy {
+  id              String   @id @default(cuid())
+  policyId        String   @unique               // Unique policy identifier (from YAML metadata.id)
+  name            String                          // Human-readable name
+  description     String                          // What the policy controls
+  apiVersion      String   @default("policy.zenic.dev/v1")
+  version         String   @default("1.0.0")     // Current active semantic version
+  labels          String   @default("{}")        // JSON: category, criticality, etc.
+  compliance      String   @default("[]")        // JSON: array of ComplianceMapping
+  statements      String                          // JSON: array of PolicyStatement
+  tests           String   @default("[]")        // JSON: array of PolicyTestCase
+  isActive        Boolean  @default(true)         // Whether this policy is active
+  sourceYaml      String?                         // Original YAML source (for round-trip)
+  contentHash     String                          // SHA-256 of canonical JSON
+  author          String?                         // Policy author
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  versions        DeclPolicyVersion[]
+
+  @@index([policyId])
+  @@index([isActive])
+  @@index([contentHash])
+  @@map("decl_policies")
+}
+
+model DeclPolicyVersion {
+  id                String   @id @default(cuid())
+  declPolicyId      String                         // FK to DeclPolicy
+  version           String                         // Semantic version string
+  contentHash       String                         // SHA-256 of document JSON at this version
+  document          String                         // JSON: full PolicyDocument snapshot
+  status            String   @default("active")   // draft | active | superseded | archived
+  createdBy         String   @default("system")    // Who created this version
+  changeDescription String   @default("")          // Commit message
+  parentVersionId   String?                        // Previous version ID (for history chain)
+  createdAt         DateTime @default(now())
+
+  policy            DeclPolicy @relation(fields: [declPolicyId], references: [id], onDelete: Cascade)
+
+  @@unique([declPolicyId, version])
+  @@index([declPolicyId])
+  @@index([status])
+  @@index([contentHash])
+  @@map("decl_policy_versions")
+}
+
+model DeclPolicyTestResult {
+  id              String   @id @default(cuid())
+  policyId        String                         // DeclPolicy.policyId
+  version         String                         // Version tested
+  totalTests      Int      @default(0)
+  passed          Int      @default(0)
+  failed          Int      @default(0)
+  errors          Int      @default(0)
+  suitePassed     Boolean  @default(false)
+  results         String   @default("[]")        // JSON: array of PolicyTestResult
+  duration        Int      @default(0)           // ms
+  triggeredBy     String   @default("manual")    // manual | hot_reload | ci
+  createdAt       DateTime @default(now())
+
+  @@index([policyId])
+  @@index([version])
+  @@index([createdAt])
+  @@map("decl_policy_test_results")
+}

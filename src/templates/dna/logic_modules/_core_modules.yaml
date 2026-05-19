@@ -1,0 +1,363 @@
+# logic_modules — Core Modules (Security, Messaging, Auth, Data)
+
+modules:
+  # ===========================================================================
+  # 1. SECURITY (5 modules)
+  # ===========================================================================
+  - id: "jwt_create"
+    domain: "security"
+    description: "Genera un token JWT firmado con claims personalizados y tiempo de expiración configurable"
+    code_block: |
+      import jwt
+      from datetime import datetime, timedelta, timezone
+      from typing import Any, Dict
+
+      def jwt_create(payload: Dict[str, Any], secret: str, algorithm: str = "HS256", expires_minutes: int = 60) -> str:
+          """Create a signed JWT token with expiration."""
+          payload_copy = payload.copy()
+          payload_copy["exp"] = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
+          payload_copy["iat"] = datetime.now(timezone.utc)
+          token = jwt.encode(payload_copy, secret, algorithm=algorithm)
+          return token
+    dependencies: ["PyJWT"]
+    verification_rule: "token_decodable"
+    inputs: ["payload:Dict[str,Any]", "secret:str", "algorithm:str", "expires_minutes:int"]
+    outputs: ["token:str"]
+
+  - id: "jwt_verify"
+    domain: "security"
+    description: "Verifica y decodifica un token JWT, validando firma y expiración"
+    code_block: |
+      import jwt
+      from typing import Any, Dict, Optional
+
+      def jwt_verify(token: str, secret: str, algorithms: list = None, audience: Optional[str] = None) -> Dict[str, Any]:
+          """Verify and decode a JWT token, raising on invalid/expired tokens."""
+          if algorithms is None:
+              algorithms = ["HS256"]
+          decoded = jwt.decode(token, secret, algorithms=algorithms, audience=audience)
+          return decoded
+    dependencies: ["PyJWT"]
+    verification_rule: "expired_token_raises"
+    inputs: ["token:str", "secret:str", "algorithms:list", "audience:Optional[str]"]
+    outputs: ["decoded:Dict[str,Any]"]
+
+  - id: "password_hash"
+    domain: "security"
+    description: "Hashea una contraseña usando bcrypt con salt automático y verifica contra un hash existente"
+    code_block: |
+      import bcrypt
+
+      def password_hash(password: str, rounds: int = 12) -> str:
+          """Hash a password with bcrypt and auto-generated salt."""
+          salt = bcrypt.gensalt(rounds=rounds)
+          hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+          return hashed.decode("utf-8")
+
+      def password_verify(password: str, hashed: str) -> bool:
+          """Verify a plaintext password against a bcrypt hash."""
+          return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
+    dependencies: ["bcrypt"]
+    verification_rule: "hash_roundtrip"
+    inputs: ["password:str", "rounds:int"]
+    outputs: ["hashed:str"]
+
+  - id: "api_key_validate"
+    domain: "security"
+    description: "Valida una clave API contra un almacén de claves, verificando prefijo, longitud, revocación y expiración"
+    code_block: |
+      import hashlib
+      from datetime import datetime, timezone
+      from typing import Dict, Optional
+
+      def api_key_validate(api_key: str, key_store: Dict[str, Dict], prefix: str = "zk_") -> Dict[str, any]:
+          """Validate an API key against a key store with prefix, revocation, and expiry checks."""
+          if not api_key.startswith(prefix):
+              return {"valid": False, "reason": "invalid_prefix"}
+          key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+          record = key_store.get(key_hash)
+          if record is None:
+              return {"valid": False, "reason": "not_found"}
+          if record.get("revoked", False):
+              return {"valid": False, "reason": "revoked"}
+          if record.get("expires_at") and datetime.now(timezone.utc) > record["expires_at"]:
+              return {"valid": False, "reason": "expired"}
+          return {"valid": True, "scopes": record.get("scopes", [])}
+    dependencies: []
+    verification_rule: "invalid_key_rejected"
+    inputs: ["api_key:str", "key_store:Dict[str,Dict]", "prefix:str"]
+    outputs: ["result:Dict[str,any]"]
+
+  - id: "rbac_check"
+    domain: "security"
+    description: "Verifica si un usuario con roles dados tiene permiso para realizar una acción sobre un recurso según reglas RBAC"
+    code_block: |
+      from typing import Dict, List, Set
+
+      def rbac_check(user_roles: List[str], action: str, resource: str, rbac_policy: Dict[str, Dict[str, Set[str]]]) -> bool:
+          """Check if any of the user's roles permit the action on the resource."""
+          for role in user_roles:
+              role_permissions = rbac_policy.get(role, {})
+              allowed_actions = role_permissions.get(resource, set())
+              if action in allowed_actions or "*" in allowed_actions:
+                  return True
+          return False
+    dependencies: []
+    verification_rule: "unauthorized_denied"
+    inputs: ["user_roles:List[str]", "action:str", "resource:str", "rbac_policy:Dict[str,Dict[str,Set[str]]]"]
+    outputs: ["authorized:bool"]
+
+  # ===========================================================================
+  # 2. MESSAGING (4 modules)
+  # ===========================================================================
+  - id: "whatsapp_send"
+    domain: "messaging"
+    description: "Envía un mensaje de texto o plantilla a través de la API de WhatsApp Business"
+    code_block: |
+      import httpx
+      from typing import Optional, Dict, Any
+
+      async def whatsapp_send(phone_number: str, message: str, api_token: str, phone_number_id: str, template: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+          """Send a WhatsApp message via the Business API."""
+          url = f"https://graph.facebook.com/v18.0/{phone_number_id}/messages"
+          headers = {"Authorization": f"Bearer {api_token}", "Content-Type": "application/json"}
+          payload = {"messaging_product": "whatsapp", "to": phone_number}
+          if template:
+              payload["type"] = "template"
+              payload["template"] = template
+          else:
+              payload["type"] = "text"
+              payload["text"] = {"body": message}
+          async with httpx.AsyncClient() as client:
+              resp = await client.post(url, json=payload, headers=headers, timeout=30.0)
+              resp.raise_for_status()
+              return resp.json()
+    dependencies: ["httpx"]
+    verification_rule: "message_id_returned"
+    inputs: ["phone_number:str", "message:str", "api_token:str", "phone_number_id:str", "template:Optional[Dict[str,Any]]"]
+    outputs: ["response:Dict[str,Any]"]
+
+  - id: "email_send"
+    domain: "messaging"
+    description: "Envía un correo electrónico con soporte para HTML, archivos adjuntos y destinatarios en copia"
+    code_block: |
+      import asyncio
+      import aiosmtplib
+      from email.mime.multipart import MIMEMultipart
+      from email.mime.text import MIMEText
+      from email.mime.base import MIMEBase
+      from email import encoders
+      from typing import List, Optional
+
+      async def email_send(to: List[str], subject: str, body: str, smtp_host: str, smtp_port: int, smtp_user: str, smtp_pass: str, html: bool = False, cc: Optional[List[str]] = None, attachments: Optional[List[bytes]] = None) -> str:
+          """Send an email via SMTP with optional HTML and attachments."""
+          msg = MIMEMultipart()
+          msg["From"] = smtp_user
+          msg["To"] = ", ".join(to)
+          msg["Subject"] = subject
+          if cc:
+              msg["Cc"] = ", ".join(cc)
+          msg.attach(MIMEText(body, "html" if html else "plain"))
+          if attachments:
+              for i, data in enumerate(attachments):
+                  part = MIMEBase("application", "octet-stream")
+                  part.set_payload(data)
+                  encoders.encode_base64(part)
+                  part.add_header("Content-Disposition", f"attachment; filename=attach_{i}")
+                  msg.attach(part)
+          result = await aiosmtplib.send(msg, hostname=smtp_host, port=smtp_port, username=smtp_user, password=smtp_pass, use_tls=True)
+          return result[1] if isinstance(result, tuple) else str(result)
+    dependencies: ["aiosmtplib"]
+    verification_rule: "smtp_accepted"
+    inputs: ["to:List[str]", "subject:str", "body:str", "smtp_host:str", "smtp_port:int", "smtp_user:str", "smtp_pass:str", "html:bool", "cc:Optional[List[str]]", "attachments:Optional[List[bytes]]"]
+    outputs: ["status:str"]
+
+  - id: "telegram_notify"
+    domain: "messaging"
+    description: "Envía una notificación a un chat de Telegram mediante un bot con soporte de parse_mode"
+    code_block: |
+      import httpx
+      from typing import Optional, Dict, Any
+
+      async def telegram_notify(bot_token: str, chat_id: str, message: str, parse_mode: Optional[str] = "HTML") -> Dict[str, Any]:
+          """Send a notification message to a Telegram chat via bot."""
+          url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+          payload = {"chat_id": chat_id, "text": message}
+          if parse_mode:
+              payload["parse_mode"] = parse_mode
+          async with httpx.AsyncClient() as client:
+              resp = await client.post(url, json=payload, timeout=30.0)
+              resp.raise_for_status()
+              return resp.json()
+    dependencies: ["httpx"]
+    verification_rule: "ok_field_true"
+    inputs: ["bot_token:str", "chat_id:str", "message:str", "parse_mode:Optional[str]"]
+    outputs: ["response:Dict[str,Any]"]
+
+  - id: "sms_send"
+    domain: "messaging"
+    description: "Envía un SMS a través de un proveedor como Twilio con validación de número de teléfono"
+    code_block: |
+      import httpx
+      from typing import Dict, Any
+
+      async def sms_send(to: str, body: str, account_sid: str, auth_token: str, from_number: str) -> Dict[str, Any]:
+          """Send an SMS via Twilio REST API."""
+          url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
+          payload = {"To": to, "From": from_number, "Body": body}
+          async with httpx.AsyncClient() as client:
+              resp = await client.post(url, data=payload, auth=(account_sid, auth_token), timeout=30.0)
+              resp.raise_for_status()
+              return resp.json()
+    dependencies: ["httpx"]
+    verification_rule: "sid_returned"
+    inputs: ["to:str", "body:str", "account_sid:str", "auth_token:str", "from_number:str"]
+    outputs: ["response:Dict[str,Any]"]
+
+  # ===========================================================================
+  # 8. AUTH (3 modules)
+  # ===========================================================================
+  - id: "oauth2_flow"
+    domain: "auth"
+    description: "Ejecuta el flujo OAuth2 Authorization Code intercambiando el código por tokens de acceso"
+    code_block: |
+      import httpx
+      from typing import Dict, Any
+
+      async def oauth2_flow(authorization_code: str, client_id: str, client_secret: str, redirect_uri: str, token_url: str) -> Dict[str, Any]:
+          """Exchange an OAuth2 authorization code for access and refresh tokens."""
+          payload = {"grant_type": "authorization_code", "code": authorization_code, "client_id": client_id, "client_secret": client_secret, "redirect_uri": redirect_uri}
+          async with httpx.AsyncClient() as client:
+              resp = await client.post(token_url, data=payload, timeout=30.0)
+              resp.raise_for_status()
+              token_data = resp.json()
+              return {"access_token": token_data.get("access_token"), "refresh_token": token_data.get("refresh_token"), "token_type": token_data.get("token_type", "Bearer"), "expires_in": token_data.get("expires_in")}
+    dependencies: ["httpx"]
+    verification_rule: "access_token_returned"
+    inputs: ["authorization_code:str", "client_id:str", "client_secret:str", "redirect_uri:str", "token_url:str"]
+    outputs: ["tokens:Dict[str,Any]"]
+
+  - id: "session_manage"
+    domain: "auth"
+    description: "Gestiona sesiones de usuario: crear, validar, refrescar y destruir con metadata configurable"
+    code_block: |
+      import uuid
+      from datetime import datetime, timedelta, timezone
+      from typing import Dict, Any, Optional
+
+      def session_manage(action: str, session_store: Dict[str, Dict[str, Any]], user_id: str = "", session_id: str = "", ttl_minutes: int = 120, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+          """Create, validate, refresh, or destroy a user session."""
+          if action == "create":
+              sid = str(uuid.uuid4())
+              session_store[sid] = {"user_id": user_id, "created_at": datetime.now(timezone.utc).isoformat(), "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=ttl_minutes)).isoformat(), "metadata": metadata or {}}
+              return {"action": "created", "session_id": sid}
+          elif action == "validate":
+              session = session_store.get(session_id)
+              if not session:
+                  return {"action": "validate", "valid": False, "reason": "not_found"}
+              if datetime.now(timezone.utc) > datetime.fromisoformat(session["expires_at"]):
+                  del session_store[session_id]
+                  return {"action": "validate", "valid": False, "reason": "expired"}
+              return {"action": "validate", "valid": True, "user_id": session["user_id"]}
+          elif action == "destroy":
+              session_store.pop(session_id, None)
+              return {"action": "destroyed", "session_id": session_id}
+          return {"action": action, "error": "unknown_action"}
+    dependencies: []
+    verification_rule: "expired_session_invalid"
+    inputs: ["action:str", "session_store:Dict[str,Dict[str,Any]]", "user_id:str", "session_id:str", "ttl_minutes:int", "metadata:Optional[Dict[str,Any]]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "mfa_verify"
+    domain: "auth"
+    description: "Verifica un código TOTP de autenticación multi-factor usando el secreto compartido del usuario"
+    code_block: |
+      import pyotp
+      from typing import Dict, Any
+
+      def mfa_verify(secret: str, user_code: str, valid_window: int = 1) -> Dict[str, Any]:
+          """Verify a TOTP-based MFA code against the user's shared secret."""
+          totp = pyotp.TOTP(secret)
+          verified = totp.verify(user_code, valid_window=valid_window)
+          return {"verified": verified, "method": "totp"}
+    dependencies: ["pyotp"]
+    verification_rule: "invalid_code_rejected"
+    inputs: ["secret:str", "user_code:str", "valid_window:int"]
+    outputs: ["result:Dict[str,Any]"]
+
+  # ===========================================================================
+  # 9. DATA (3 modules)
+  # ===========================================================================
+  - id: "crud_create"
+    domain: "data"
+    description: "Crea un registro en un almacén de datos con validación de esquema, timestamps e ID generado"
+    code_block: |
+      import uuid
+      from datetime import datetime, timezone
+      from typing import Dict, Any, Optional, List
+
+      def crud_create(collection: Dict[str, Dict[str, Any]], data: Dict[str, Any], required_fields: Optional[List[str]] = None, schema: Optional[Dict[str, type]] = None) -> Dict[str, Any]:
+          """Create a record in a collection with validation, timestamps, and generated ID."""
+          if required_fields:
+              missing = [f for f in required_fields if f not in data]
+              if missing:
+                  return {"success": False, "error": f"missing_fields:{missing}"}
+          if schema:
+              for field, expected_type in schema.items():
+                  if field in data and not isinstance(data[field], expected_type):
+                      return {"success": False, "error": f"type_mismatch:{field}"}
+          record_id = str(uuid.uuid4())
+          record = {"id": record_id, **data, "created_at": datetime.now(timezone.utc).isoformat(), "updated_at": datetime.now(timezone.utc).isoformat()}
+          collection[record_id] = record
+          return {"success": True, "record": record}
+    dependencies: []
+    verification_rule: "missing_fields_rejected"
+    inputs: ["collection:Dict[str,Dict[str,Any]]", "data:Dict[str,Any]", "required_fields:Optional[List[str]]", "schema:Optional[Dict[str,type]]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "migration_run"
+    domain: "data"
+    description: "Ejecuta una migración de datos aplicando transformaciones secuenciales con tracking de versión"
+    code_block: |
+      from typing import Dict, Any, List, Callable
+
+      def migration_run(data: Dict[str, Any], migrations: List[Dict[str, Any]], current_version: int = 0) -> Dict[str, Any]:
+          """Run sequential data migrations from current_version to latest."""
+          result = data.copy()
+          applied = []
+          for migration in sorted(migrations, key=lambda m: m["version"]):
+              if migration["version"] > current_version:
+                  transform: Callable = migration["transform"]
+                  result = transform(result)
+                  applied.append({"version": migration["version"], "name": migration.get("name", "")})
+          return {"data": result, "migrations_applied": applied, "new_version": max((m["version"] for m in applied), default=current_version)}
+    dependencies: []
+    verification_rule: "idempotent_re_run"
+    inputs: ["data:Dict[str,Any]", "migrations:List[Dict[str,Any]]", "current_version:int"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "backup_execute"
+    domain: "data"
+    description: "Ejecuta un respaldo de datos serializándolos y almacenándolos con compresión y metadata de versión"
+    code_block: |
+      import json
+      import gzip
+      import uuid
+      from datetime import datetime, timezone
+      from typing import Dict, Any
+
+      def backup_execute(data: Dict[str, Any], backup_store: Dict[str, bytes], compress: bool = True) -> Dict[str, Any]:
+          """Serialize, optionally compress, and store a data backup with metadata."""
+          backup_id = f"bkp-{uuid.uuid4().hex[:8]}"
+          serialized = json.dumps(data, default=str).encode("utf-8")
+          if compress:
+              stored = gzip.compress(serialized)
+          else:
+              stored = serialized
+          backup_store[backup_id] = stored
+          metadata = {"backup_id": backup_id, "created_at": datetime.now(timezone.utc).isoformat(), "original_size": len(serialized), "stored_size": len(stored), "compressed": compress, "record_count": len(data)}
+          return {"success": True, "metadata": metadata}
+    dependencies: []
+    verification_rule: "restorable_from_backup"
+    inputs: ["data:Dict[str,Any]", "backup_store:Dict[str,bytes]", "compress:bool"]
+    outputs: ["result:Dict[str,Any]"]

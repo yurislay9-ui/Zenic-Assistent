@@ -1,0 +1,340 @@
+// ─── Phase 5: Human-in-the-Loop Models ──────────────────────────────
+
+model HitlApprovalRequest {
+  id              String   @id @default(cuid())
+  requestId       String   @unique
+  title           String
+  description     String
+  type            String   // action_approval, policy_change, deployment, data_access
+  status          String   @default("pending") // pending, approved, rejected, delegated, escalated, expired, undone
+  priority        String   @default("medium") // low, medium, high, critical, emergency
+  requesterId     String
+  requesterName   String
+  targetResource  String   // What resource is affected
+  targetAction    String   // What action is being requested
+  actionPayload   String   @default("{}") // JSON: action parameters
+  undoPayload     String   @default("{}") // JSON: compensating action parameters
+  isReversible    Boolean  @default(true)
+  undoDeadline    DateTime? // When the undo window expires
+  undoExecutedAt  DateTime? // When the undo was executed
+  executedAt      DateTime? // When the approved action was executed
+  executionResult String?  // JSON: result of the executed action
+  requiredApprovals Int    @default(1)
+  currentApprovals Int     @default(0)
+  approvalPolicy  String   @default("{}") // JSON: quorum, unanimous, auto-approve rules
+  deadline        DateTime? // When the request expires
+  escalationLevel Int      @default(0)
+  parentId        String?  // For sub-requests in multi-level chains
+  tags            String   @default("[]") // JSON: string[]
+  metadata        String   @default("{}") // JSON: additional metadata
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  decisions       HitlApprovalDecision[]
+  delegations     HitlDelegation[]
+  escalations     HitlEscalation[]
+  undoActions     HitlUndoAction[]
+  auditRecords    HitlApprovalAudit[]
+
+  @@index([requesterId])
+  @@index([status])
+  @@index([priority])
+  @@index([deadline])
+  @@map("hitl_approval_requests")
+}
+
+model HitlApprovalDecision {
+  id          String   @id @default(cuid())
+  requestId   String
+  decision    String   // approved, rejected
+  decisionBy  String   // User ID
+  decisionByName String
+  role        String   // Reviewer's role
+  comment     String   @default("")
+  delegatedFrom String? // If this decision was made on behalf of someone
+  decidedAt   DateTime @default(now())
+
+  request     HitlApprovalRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([decisionBy])
+  @@map("hitl_approval_decisions")
+}
+
+model HitlDelegation {
+  id              String   @id @default(cuid())
+  requestId       String
+  fromUserId      String
+  fromUserName    String
+  toUserId        String
+  toUserName      String
+  reason          String   @default("")
+  expiresAt       DateTime?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  request         HitlApprovalRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@map("hitl_delegations")
+}
+
+model HitlEscalation {
+  id              String   @id @default(cuid())
+  requestId       String
+  fromLevel       Int
+  toLevel         Int
+  fromUserId      String?
+  toUserId        String?
+  toRole          String
+  reason          String   @default("")
+  autoEscalated   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  request         HitlApprovalRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("hitl_escalations")
+}
+
+model HitlUndoAction {
+  id              String   @id @default(cuid())
+  requestId       String
+  undoType        String   // full_undo, partial_undo, compensating_action
+  undoBy          String
+  undoByName      String
+  reason          String
+  snapshotBefore  String   @default("{}") // JSON: state snapshot before action
+  undoPayload     String   @default("{}") // JSON: undo action parameters
+  undoResult      String?  // JSON: result of undo execution
+  status          String   @default("pending") // pending, executed, failed, skipped
+  executedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  request         HitlApprovalRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("hitl_undo_actions")
+}
+
+model HitlApprovalAudit {
+  id              String   @id @default(cuid())
+  requestId       String
+  eventType       String   // created, approved, rejected, delegated, escalated, executed, undone, expired, cancelled
+  actorId         String
+  actorName       String
+  details         String   @default("{}") // JSON: event-specific details
+  contentHash     String   // SHA-256 for integrity
+  previousHash    String?  // Chain link for Merkle audit trail
+  timestamp       DateTime @default(now())
+
+  request         HitlApprovalRequest @relation(fields: [requestId], references: [requestId], onDelete: Cascade)
+
+  @@index([requestId])
+  @@index([eventType])
+  @@index([timestamp])
+  @@map("hitl_approval_audit")
+}
+
+model HitlDelegationRule {
+  id              String   @id @default(cuid())
+  fromUserId      String
+  toUserId        String
+  toUserName      String
+  ruleName        String
+  description     String   @default("")
+  isActive        Boolean  @default(true)
+  maxDepth        Int      @default(1)
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([isActive])
+  @@map("hitl_delegation_rules")
+}
+
+// ─── Phase 5: HITL Evidence & Justification ──────────────────────────
+
+model HitlEvidence {
+  id              String   @id @default(cuid())
+  evidenceId      String   @unique               // Generated evidence ID
+  requestId       String                         // FK to HitlApprovalRequest
+  evidenceType    String                         // screenshot, log, data_snapshot, policy_result, audit_record, custom
+  content         String                         // JSON: evidence content
+  contentHash     String                         // SHA-256 for immutability
+  source          String                         // Who/what provided the evidence
+  description     String   @default("")
+  createdAt       DateTime @default(now())
+
+  @@index([requestId])
+  @@index([evidenceType])
+  @@index([contentHash])
+  @@map("hitl_evidence")
+}
+
+model HitlJustification {
+  id                      String   @id @default(cuid())
+  justificationId         String   @unique               // Generated justification ID
+  requestId               String                         // FK to HitlApprovalRequest
+  decisionId              String?                        // FK to HitlApprovalDecision (if tied to a specific decision)
+  reason                  String                         // Mandatory reason (min 20 chars for critical)
+  riskAcknowledgment      Boolean  @default(false)       // "I understand the risks"
+  complianceCheck         Boolean  @default(false)       // "I verified compliance"
+  businessJustification   String   @default("")          // Business justification
+  createdBy               String                         // User ID who provided justification
+  createdByName           String                         // Display name
+  contentHash             String                         // SHA-256 for immutability
+  createdAt               DateTime @default(now())
+
+  @@index([requestId])
+  @@index([createdBy])
+  @@index([contentHash])
+  @@map("hitl_justifications")
+}
+
+model HitlExpiryRecord {
+  id                  String   @id @default(cuid())
+  requestId           String   @unique               // FK to HitlApprovalRequest
+  expiresAt           DateTime                       // When the request expires
+  autoRevertEnabled   Boolean  @default(true)         // Whether to auto-revert on expiry
+  revertAction        String   @default("{}")         // JSON: compensating action for auto-revert
+  notificationSchedule String  @default("[60,30,10,5]") // JSON: minutes before expiry to notify
+  notificationsSent   String   @default("[]")         // JSON: array of { minutesBefore, sentAt }
+  status              String   @default("active")     // active, expired, reverted, cancelled
+  revertedAt          DateTime?
+  revertResult        String?                        // JSON: result of revert execution
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([status])
+  @@index([expiresAt])
+  @@map("hitl_expiry_records")
+}
+
+model HitlEscalationSLA {
+  id              String   @id @default(cuid())
+  slaId           String   @unique               // Generated SLA ID
+  requestId       String                         // FK to HitlApprovalRequest
+  currentLevel    Int      @default(0)           // 0=L0, 1=L1, 2=L2, 3=L3
+  targetRole      String                         // Role for this escalation level
+  slaDeadline     DateTime                       // When the SLA expires
+  breached        Boolean  @default(false)       // Whether the SLA was breached
+  autoEscalated   Boolean  @default(false)       // Whether auto-escalation occurred
+  escalatedAt     DateTime?                      // When the escalation happened
+  escalationReason String  @default("")          // Why escalation happened
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([breached])
+  @@index([slaDeadline])
+  @@map("hitl_escalation_slas")
+}
+
+model HitlNotificationLog {
+  id              String   @id @default(cuid())
+  notificationId  String   @unique               // Generated notification ID
+  requestId       String                         // FK to HitlApprovalRequest
+  recipientId     String                         // User ID
+  channel         String                         // in_app, email, slack, teams, whatsapp, sms, push, webhook
+  event           String                         // approval_pending, approval_approved, etc.
+  title           String
+  body            String
+  priority        String   @default("normal")    // low, normal, high, urgent
+  status          String   @default("pending")   // pending, sent, failed, delivered
+  metadata        String   @default("{}")        // JSON: additional metadata
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  failedAt        DateTime?
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  @@index([requestId])
+  @@index([recipientId])
+  @@index([channel])
+  @@index([status])
+  @@index([event])
+  @@map("hitl_notification_logs")
+}
+
+// ─── Phase 5: Memory Chip — Adaptive Binary Memory ──────────────────
+
+model MemoryMapping {
+  id            String   @id @default(cuid())
+  mappingId     String   @unique               // Unique mapping identifier
+  origin        String                         // Source term/concept
+  relation      String                         // Relationship type (e.g. "renamed_to", "maps_to", "classified_as")
+  destination   String                         // Target term/concept
+  mechanism     String                         // schema_drift | intent_routing | policy_refinement | ontology_base
+  confidence    Float    @default(0.0)          // 0.0–1.0 confidence score
+  tenantId      String   @default("__anonymous__")
+  approved      Boolean  @default(false)        // Whether HITL approved this mapping
+  merkleHash    String?                         // BLAKE3 hash of approved mapping
+  metadata      String   @default("{}")         // JSON: additional metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  approvalRecord MemoryApprovalRecord?
+  lifecycleEpisodes MemoryLifecycleEpisode[]
+
+  @@index([mappingId])
+  @@index([origin])
+  @@index([tenantId])
+  @@index([mechanism])
+  @@index([approved])
+  @@index([createdAt])
+  @@map("memory_mappings")
+}
+
+model MemoryApprovalRecord {
+  id                    String   @id @default(cuid())
+  mappingId             String   @unique               // FK to MemoryMapping.mappingId
+  adminEvidenceReview   Boolean                        // GRIETA 3: Must be true
+  adminJustification    String                         // GRIETA 3: Min 50 chars
+  riskAcknowledgment    Boolean                        // GRIETA 3: Must be true
+  adminSessionId        String                         // GRIETA 3: Min 32 chars hex
+  iaQuestion            String   @default("")          // IA question asked
+  iaResponse            Boolean  @default(false)       // IA response
+  evidenceFor           String   @default("[]")        // JSON: string[] evidence supporting
+  evidenceAgainst       String   @default("[]")        // JSON: string[] evidence against
+  consensusScore        Float    @default(0.0)         // 0.0–1.0 consensus score
+  approvedBy            String?                         // Admin user ID
+  approvedAt            DateTime?                       // When approval was granted
+  merkleHash            String?                         // Hash of the approval payload
+  yamlRendered          Boolean  @default(false)       // Whether YAML was rendered
+  createdAt             DateTime @default(now())
+
+  mapping               MemoryMapping @relation(fields: [mappingId], references: [mappingId], onDelete: Cascade)
+
+  @@index([mappingId])
+  @@index([adminSessionId])
+  @@map("memory_approval_records")
+}
+
+model MemoryLifecycleEpisode {
+  id            String   @id @default(cuid())
+  episodeId     String   @unique               // Unique episode identifier
+  mappingId     String                         // FK to MemoryMapping.mappingId
+  currentPhase  String                         // observe | hypothesize | validate | approve | deploy | retire
+  phaseHistory  String   @default("[]")        // JSON: array of { phase, timestamp }
+  status        String   @default("active")    // active | completed | abandoned | failed
+  tenantId      String   @default("__anonymous__")
+  metadata      String   @default("{}")        // JSON: additional metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  completedAt   DateTime?
+
+  mapping       MemoryMapping @relation(fields: [mappingId], references: [mappingId], onDelete: Cascade)
+
+  @@index([episodeId])
+  @@index([mappingId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([currentPhase])
+  @@map("memory_lifecycle_episodes")
+}

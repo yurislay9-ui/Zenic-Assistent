@@ -1,0 +1,399 @@
+# logic_modules — Business Modules (Payments, Scheduling, Inventory, Analytics, CRM)
+
+modules:
+  # ===========================================================================
+  # 3. PAYMENTS (4 modules)
+  # ===========================================================================
+  - id: "stripe_charge"
+    domain: "payments"
+    description: "Crea un cargo en Stripe usando un payment method o token con manejo de errores de tarjeta"
+    code_block: |
+      import stripe
+      from typing import Dict, Any, Optional
+
+      def stripe_charge(amount: int, currency: str, payment_method_id: str, customer_id: Optional[str] = None, metadata: Optional[Dict[str, str]] = None, stripe_api_key: str = "") -> Dict[str, Any]:
+          """Create a Stripe payment intent and confirm it."""
+          stripe.api_key = stripe_api_key
+          params: Dict[str, Any] = {"amount": amount, "currency": currency, "payment_method": payment_method_id, "confirm": True, "automatic_payment_methods": {"enabled": True}}
+          if customer_id:
+              params["customer"] = customer_id
+          if metadata:
+              params["metadata"] = metadata
+          intent = stripe.PaymentIntent.create(**params)
+          return {"id": intent.id, "status": intent.status, "amount": intent.amount}
+    dependencies: ["stripe"]
+    verification_rule: "payment_succeeded"
+    inputs: ["amount:int", "currency:str", "payment_method_id:str", "customer_id:Optional[str]", "metadata:Optional[Dict[str,str]]", "stripe_api_key:str"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "paypal_process"
+    domain: "payments"
+    description: "Procesa un pago a través de la API REST de PayPal con autenticación OAuth2"
+    code_block: |
+      import httpx
+      from typing import Dict, Any
+
+      async def paypal_process(order_id: str, client_id: str, client_secret: str, sandbox: bool = True) -> Dict[str, Any]:
+          """Capture an approved PayPal order via REST API."""
+          base_url = "https://api-m.sandbox.paypal.com" if sandbox else "https://api-m.paypal.com"
+          async with httpx.AsyncClient() as client:
+              token_resp = await client.post(f"{base_url}/v1/oauth2/token", data={"grant_type": "client_credentials"}, auth=(client_id, client_secret), timeout=30.0)
+              token_resp.raise_for_status()
+              access_token = token_resp.json()["access_token"]
+              headers = {"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"}
+              capture_resp = await client.post(f"{base_url}/v2/checkout/orders/{order_id}/capture", headers=headers, timeout=30.0)
+              capture_resp.raise_for_status()
+              return capture_resp.json()
+    dependencies: ["httpx"]
+    verification_rule: "order_completed"
+    inputs: ["order_id:str", "client_id:str", "client_secret:str", "sandbox:bool"]
+    outputs: ["response:Dict[str,Any]"]
+
+  - id: "refund_process"
+    domain: "payments"
+    description: "Procesa un reembolso total o parcial contra una transacción existente con razón opcional"
+    code_block: |
+      import stripe
+      from typing import Dict, Any, Optional
+
+      def refund_process(payment_intent_id: str, amount: Optional[int] = None, reason: Optional[str] = None, stripe_api_key: str = "") -> Dict[str, Any]:
+          """Issue a full or partial refund against a Stripe PaymentIntent."""
+          stripe.api_key = stripe_api_key
+          params: Dict[str, Any] = {"payment_intent": payment_intent_id}
+          if amount is not None:
+              params["amount"] = amount
+          if reason:
+              params["reason"] = reason
+          refund = stripe.Refund.create(**params)
+          return {"id": refund.id, "status": refund.status, "amount": refund.amount}
+    dependencies: ["stripe"]
+    verification_rule: "refund_status_succeeded"
+    inputs: ["payment_intent_id:str", "amount:Optional[int]", "reason:Optional[str]", "stripe_api_key:str"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "invoice_generate"
+    domain: "payments"
+    description: "Genera una factura en PDF con líneas de detalle, impuestos y totales calculados"
+    code_block: |
+      from datetime import datetime, timezone
+      from typing import List, Dict, Any
+      import uuid
+
+      def invoice_generate(seller: Dict[str, str], buyer: Dict[str, str], line_items: List[Dict[str, Any]], tax_rate: float = 0.0, currency: str = "USD") -> Dict[str, Any]:
+          """Generate an invoice data structure with computed totals."""
+          subtotal = sum(item["quantity"] * item["unit_price"] for item in line_items)
+          tax_amount = round(subtotal * tax_rate, 2)
+          total = round(subtotal + tax_amount, 2)
+          invoice = {"invoice_id": f"INV-{uuid.uuid4().hex[:8].upper()}", "created_at": datetime.now(timezone.utc).isoformat(), "seller": seller, "buyer": buyer, "line_items": line_items, "subtotal": subtotal, "tax_rate": tax_rate, "tax_amount": tax_amount, "total": total, "currency": currency, "status": "pending"}
+          return invoice
+    dependencies: []
+    verification_rule: "totals_consistent"
+    inputs: ["seller:Dict[str,str]", "buyer:Dict[str,str]", "line_items:List[Dict[str,Any]]", "tax_rate:float", "currency:str"]
+    outputs: ["invoice:Dict[str,Any]"]
+
+  # ===========================================================================
+  # 4. SCHEDULING (4 modules)
+  # ===========================================================================
+  - id: "appointment_create"
+    domain: "scheduling"
+    description: "Crea una cita verificando disponibilidad del recurso y duración en minutos"
+    code_block: |
+      from datetime import datetime, timezone, timedelta
+      from typing import Dict, Any, Optional
+
+      def appointment_create(resource_id: str, user_id: str, start_time: datetime, duration_minutes: int, existing_bookings: list, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+          """Create an appointment after checking basic availability."""
+          end_time = start_time + timedelta(minutes=duration_minutes)
+          for booking in existing_bookings:
+              b_start = booking["start_time"]
+              b_end = booking["end_time"]
+              if booking["resource_id"] == resource_id and start_time < b_end and end_time > b_start:
+                  return {"success": False, "reason": "time_conflict", "conflict_with": booking.get("id")}
+          import uuid
+          appointment = {"id": f"apt-{uuid.uuid4().hex[:8]}", "resource_id": resource_id, "user_id": user_id, "start_time": start_time.isoformat(), "end_time": end_time.isoformat(), "duration_minutes": duration_minutes, "status": "confirmed", "metadata": metadata or {}}
+          return {"success": True, "appointment": appointment}
+    dependencies: []
+    verification_rule: "conflict_rejected"
+    inputs: ["resource_id:str", "user_id:str", "start_time:datetime", "duration_minutes:int", "existing_bookings:list", "metadata:Optional[Dict[str,Any]]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "calendar_collision_check"
+    domain: "scheduling"
+    description: "Detecta colisiones entre un rango de tiempo propuesto y eventos existentes en un calendario"
+    code_block: |
+      from datetime import datetime
+      from typing import List, Dict, Any
+
+      def calendar_collision_check(proposed_start: datetime, proposed_end: datetime, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+          """Return all events that collide with the proposed time range."""
+          collisions = []
+          for event in events:
+              ev_start = event["start_time"] if isinstance(event["start_time"], datetime) else datetime.fromisoformat(event["start_time"])
+              ev_end = event["end_time"] if isinstance(event["end_time"], datetime) else datetime.fromisoformat(event["end_time"])
+              if proposed_start < ev_end and proposed_end > ev_start:
+                  collisions.append(event)
+          return collisions
+    dependencies: []
+    verification_rule: "no_false_positives"
+    inputs: ["proposed_start:datetime", "proposed_end:datetime", "events:List[Dict[str,Any]]"]
+    outputs: ["collisions:List[Dict[str,Any]]"]
+
+  - id: "reminder_schedule"
+    domain: "scheduling"
+    description: "Programa recordatorios antes de una cita usando offsets de tiempo personalizables"
+    code_block: |
+      from datetime import datetime, timedelta
+      from typing import List, Dict, Any
+
+      def reminder_schedule(appointment_time: datetime, offsets_minutes: List[int], channel: str = "email", user_id: str = "") -> List[Dict[str, Any]]:
+          """Generate reminder scheduled times from an appointment and offset list."""
+          reminders = []
+          for offset in offsets_minutes:
+              reminder_time = appointment_time - timedelta(minutes=offset)
+              reminders.append({"user_id": user_id, "appointment_time": appointment_time.isoformat(), "reminder_time": reminder_time.isoformat(), "offset_minutes": offset, "channel": channel, "status": "scheduled"})
+          return reminders
+    dependencies: []
+    verification_rule: "reminders_before_appointment"
+    inputs: ["appointment_time:datetime", "offsets_minutes:List[int]", "channel:str", "user_id:str"]
+    outputs: ["reminders:List[Dict[str,Any]]"]
+
+  - id: "cancellation_policy"
+    domain: "scheduling"
+    description: "Evalúa la política de cancelación y calcula penalización según antelación de la cancelación"
+    code_block: |
+      from datetime import datetime, timedelta
+      from typing import Dict, Any, Optional
+
+      def cancellation_policy(appointment_time: datetime, cancellation_time: datetime, policy_rules: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+          """Evaluate cancellation policy and compute penalty based on lead time."""
+          if policy_rules is None:
+              policy_rules = {"free_cutoff_hours": 24, "penalty_rate": 0.5, "no_show_rate": 1.0}
+          hours_before = (appointment_time - cancellation_time).total_seconds() / 3600
+          if hours_before >= policy_rules["free_cutoff_hours"]:
+              return {"allowed": True, "penalty": 0.0, "reason": "within_free_window"}
+          elif hours_before > 0:
+              return {"allowed": True, "penalty": policy_rules["penalty_rate"], "reason": "late_cancellation"}
+          else:
+              return {"allowed": False, "penalty": policy_rules["no_show_rate"], "reason": "no_show"}
+    dependencies: []
+    verification_rule: "penalty_within_bounds"
+    inputs: ["appointment_time:datetime", "cancellation_time:datetime", "policy_rules:Optional[Dict[str,Any]]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  # ===========================================================================
+  # 5. INVENTORY (3 modules)
+  # ===========================================================================
+  - id: "stock_check"
+    domain: "inventory"
+    description: "Verifica el nivel de stock de un producto en uno o múltiples almacenes"
+    code_block: |
+      from typing import Dict, Any, List
+
+      def stock_check(product_id: str, warehouse_inventory: Dict[str, Dict[str, Any]], warehouses: List[str] = None) -> Dict[str, Any]:
+          """Check stock levels for a product across specified warehouses."""
+          if warehouses is None:
+              warehouses = list(warehouse_inventory.keys())
+          total_quantity = 0
+          details = {}
+          for wh in warehouses:
+              products = warehouse_inventory.get(wh, {})
+              qty = products.get(product_id, {}).get("quantity", 0)
+              details[wh] = qty
+              total_quantity += qty
+          return {"product_id": product_id, "total_quantity": total_quantity, "by_warehouse": details, "in_stock": total_quantity > 0}
+    dependencies: []
+    verification_rule: "quantity_non_negative"
+    inputs: ["product_id:str", "warehouse_inventory:Dict[str,Dict[str,Any]]", "warehouses:List[str]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "reorder_alert"
+    domain: "inventory"
+    description: "Genera alertas de reorden cuando el stock cae por debajo del umbral mínimo definido"
+    code_block: |
+      from typing import Dict, Any, List
+
+      def reorder_alert(inventory: Dict[str, Dict[str, Any]], default_threshold: int = 10) -> List[Dict[str, Any]]:
+          """Generate reorder alerts for items below their minimum threshold."""
+          alerts = []
+          for product_id, data in inventory.items():
+              quantity = data.get("quantity", 0)
+              threshold = data.get("reorder_threshold", default_threshold)
+              if quantity <= threshold:
+                  alerts.append({"product_id": product_id, "current_quantity": quantity, "reorder_threshold": threshold, "deficit": threshold - quantity, "priority": "critical" if quantity == 0 else "warning"})
+          return alerts
+    dependencies: []
+    verification_rule: "all_below_threshold_alerted"
+    inputs: ["inventory:Dict[str,Dict[str,Any]]", "default_threshold:int"]
+    outputs: ["alerts:List[Dict[str,Any]]"]
+
+  - id: "warehouse_update"
+    domain: "inventory"
+    description: "Actualiza el inventario de un almacén aplicando transacciones de entrada y salida de stock"
+    code_block: |
+      from typing import Dict, Any, List
+      from datetime import datetime, timezone
+
+      def warehouse_update(warehouse_inventory: Dict[str, int], transactions: List[Dict[str, Any]]) -> Dict[str, Any]:
+          """Apply stock transactions (in/out) to warehouse inventory and return updated state."""
+          updated = warehouse_inventory.copy()
+          applied = []
+          for txn in transactions:
+              product_id = txn["product_id"]
+              delta = txn["quantity"]
+              new_qty = updated.get(product_id, 0) + delta
+              if new_qty < 0:
+                  applied.append({"product_id": product_id, "status": "rejected", "reason": "insufficient_stock"})
+                  continue
+              updated[product_id] = new_qty
+              applied.append({"product_id": product_id, "status": "applied", "new_quantity": new_qty})
+          return {"updated_inventory": updated, "transactions_applied": applied, "timestamp": datetime.now(timezone.utc).isoformat()}
+    dependencies: []
+    verification_rule: "no_negative_stock"
+    inputs: ["warehouse_inventory:Dict[str,int]", "transactions:List[Dict[str,Any]]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  # ===========================================================================
+  # 6. ANALYTICS (3 modules)
+  # ===========================================================================
+  - id: "metrics_calculate"
+    domain: "analytics"
+    description: "Calcula métricas agregadas (suma, promedio, min, max, conteo) sobre una lista de valores numéricos"
+    code_block: |
+      from typing import List, Dict, Any, Optional
+      import statistics
+
+      def metrics_calculate(values: List[float], metric_names: Optional[List[str]] = None) -> Dict[str, Any]:
+          """Calculate aggregate metrics over a list of numeric values."""
+          if not values:
+              return {"count": 0}
+          all_metrics = {"count": len(values), "sum": sum(values), "mean": statistics.mean(values), "median": statistics.median(values), "min": min(values), "max": max(values), "stdev": statistics.stdev(values) if len(values) > 1 else 0.0}
+          if metric_names:
+              return {k: v for k, v in all_metrics.items() if k in metric_names}
+          return all_metrics
+    dependencies: []
+    verification_rule: "mean_within_range"
+    inputs: ["values:List[float]", "metric_names:Optional[List[str]]"]
+    outputs: ["metrics:Dict[str,Any]"]
+
+  - id: "report_generate"
+    domain: "analytics"
+    description: "Genera un informe estructurado con secciones, datos tabulares y resumen ejecutivo"
+    code_block: |
+      from datetime import datetime, timezone
+      from typing import Dict, Any, List
+      import uuid
+
+      def report_generate(title: str, sections: List[Dict[str, Any]], summary: str, metadata: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+          """Generate a structured report with sections and executive summary."""
+          report = {"report_id": f"RPT-{uuid.uuid4().hex[:8].upper()}", "title": title, "generated_at": datetime.now(timezone.utc).isoformat(), "metadata": metadata or {}, "summary": summary, "sections": sections, "total_sections": len(sections)}
+          return report
+    dependencies: []
+    verification_rule: "all_sections_present"
+    inputs: ["title:str", "sections:List[Dict[str,Any]]", "summary:str", "metadata:Optional[Dict[str,str]]"]
+    outputs: ["report:Dict[str,Any]"]
+
+  - id: "dashboard_aggregate"
+    domain: "analytics"
+    description: "Agrega múltiples fuentes de datos en un formato unificado para visualización en dashboard"
+    code_block: |
+      from typing import Dict, Any, List
+
+      def dashboard_aggregate(data_sources: Dict[str, List[Dict[str, Any]]], key_field: str, value_fields: List[str]) -> Dict[str, Any]:
+          """Aggregate multiple data sources into a unified dashboard format keyed by key_field."""
+          unified = {}
+          for source_name, records in data_sources.items():
+              for record in records:
+                  key = record.get(key_field)
+                  if key not in unified:
+                      unified[key] = {key_field: key}
+                  for vf in value_fields:
+                      col_name = f"{source_name}_{vf}"
+                      unified[key][col_name] = record.get(vf)
+          return {"key_field": key_field, "records": list(unified.values()), "source_count": len(data_sources)}
+    dependencies: []
+    verification_rule: "all_sources_merged"
+    inputs: ["data_sources:Dict[str,List[Dict[str,Any]]]", "key_field:str", "value_fields:List[str]"]
+    outputs: ["dashboard:Dict[str,Any]"]
+
+  # ===========================================================================
+  # 7. CRM (3 modules)
+  # ===========================================================================
+  - id: "lead_score"
+    domain: "crm"
+    description: "Calcula la puntuación de un lead basándose en atributos demográficos y comportamentales"
+    code_block: |
+      from typing import Dict, Any
+
+      def lead_score(lead: Dict[str, Any], scoring_model: Dict[str, float]) -> Dict[str, Any]:
+          """Score a lead based on weighted demographic and behavioral attributes."""
+          total_score = 0.0
+          breakdown = {}
+          for attribute, weight in scoring_model.items():
+              value = lead.get(attribute, 0)
+              if isinstance(value, bool):
+                  value = 1.0 if value else 0.0
+              score_contribution = float(value) * weight
+              breakdown[attribute] = score_contribution
+              total_score += score_contribution
+          grade = "A" if total_score >= 80 else "B" if total_score >= 60 else "C" if total_score >= 40 else "D"
+          return {"lead_id": lead.get("id"), "score": round(total_score, 2), "grade": grade, "breakdown": breakdown}
+    dependencies: []
+    verification_rule: "score_within_bounds"
+    inputs: ["lead:Dict[str,Any]", "scoring_model:Dict[str,float]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "pipeline_advance"
+    domain: "crm"
+    description: "Avanza un deal en el pipeline de ventas validando criterios de transición entre etapas"
+    code_block: |
+      from typing import Dict, Any, List, Optional
+
+      def pipeline_advance(deal: Dict[str, Any], target_stage: str, pipeline_stages: List[str], transition_rules: Optional[Dict[str, Dict[str, Any]]] = None) -> Dict[str, Any]:
+          """Advance a deal to a target pipeline stage if transition rules are satisfied."""
+          current_stage = deal.get("stage", pipeline_stages[0])
+          if current_stage not in pipeline_stages or target_stage not in pipeline_stages:
+              return {"success": False, "reason": "invalid_stage"}
+          current_idx = pipeline_stages.index(current_stage)
+          target_idx = pipeline_stages.index(target_stage)
+          if target_idx <= current_idx:
+              return {"success": False, "reason": "cannot_move_backward"}
+          if transition_rules and target_stage in transition_rules:
+              rules = transition_rules[target_stage]
+              for field, required_value in rules.get("required_fields", {}).items():
+                  if deal.get(field) != required_value:
+                      return {"success": False, "reason": f"missing_requirement:{field}"}
+          return {"success": True, "previous_stage": current_stage, "new_stage": target_stage, "stages_advanced": target_idx - current_idx}
+    dependencies: []
+    verification_rule: "backward_rejected"
+    inputs: ["deal:Dict[str,Any]", "target_stage:str", "pipeline_stages:List[str]", "transition_rules:Optional[Dict[str,Dict[str,Any]]]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "contact_merge"
+    domain: "crm"
+    description: "Fusiona dos contactos del CRM resolviendo conflictos con estrategia configurable (prefer_new, prefer_old, merge_all)"
+    code_block: |
+      from typing import Dict, Any
+
+      def contact_merge(primary: Dict[str, Any], secondary: Dict[str, Any], strategy: str = "prefer_new") -> Dict[str, Any]:
+          """Merge two CRM contacts using a conflict-resolution strategy."""
+          merged = primary.copy()
+          all_keys = set(list(primary.keys()) + list(secondary.keys()))
+          for key in all_keys:
+              p_val = primary.get(key)
+              s_val = secondary.get(key)
+              if p_val is None and s_val is not None:
+                  merged[key] = s_val
+              elif p_val is not None and s_val is not None and p_val != s_val:
+                  if strategy == "prefer_new":
+                      merged[key] = s_val
+                  elif strategy == "prefer_old":
+                      merged[key] = p_val
+                  elif strategy == "merge_all":
+                      merged[key] = [p_val, s_val] if not isinstance(p_val, list) else p_val + [s_val]
+          merged["merged_from"] = secondary.get("id")
+          merged["merge_strategy"] = strategy
+          return merged
+    dependencies: []
+    verification_rule: "no_data_loss"
+    inputs: ["primary:Dict[str,Any]", "secondary:Dict[str,Any]", "strategy:str"]
+    outputs: ["merged:Dict[str,Any]"]

@@ -1,0 +1,291 @@
+# domain_expert_rules — Education & Finance Industries
+# Industries: education_k12, education_university, education_online, finance_banking, finance_insurance, finance_crypto
+
+industries:
+
+  # ===========================================================================
+  # 7. EDUCATION K-12
+  # ===========================================================================
+  - name: "education_k12"
+    display_name: "Educacion Basica K-12"
+    description: "Reglas obligatorias para instituciones educativas de nivel basico y medio, incluyendo proteccion de menores, evaluacion y comunicacion con padres."
+    mandatory_logic:
+      - "parent_guardian_consent_for_minors": "Consentimiento obligatorio del padre o tutor para actividades, salidas y uso de datos de menores"
+      - "attendance_tracking_with_parent_notification": "Registro de asistencia con notificacion automatica a padres en caso de ausencia"
+      - "grade_book_immutability_after_report_card": "Calificaciones inmutables despues de emision de boleta; cambios solo via proceso formal"
+      - "bullying_incident_mandatory_report": "Reporte obligatorio de incidentes de acoso escolar con escalado a direccion y orientacion"
+      - "student_data_minimization_collection": "Minimizacion de datos: solo recolectar datos del estudiante estrictamente necesarios"
+      - "special_education_iep_tracking": "Seguimiento obligatorio de Plan de Educacion Individualizado para estudiantes con necesidades especiales"
+      - "academic_calendar_compliance_national": "Cumplimiento con el calendario academico oficial nacional o estatal sin excepciones"
+    ux_patterns:
+      - "portal_padres_con_calificaciones_y_asistencia"
+      - "dashboard_maestro_con_grupos_y_tareas"
+      - "reporte_de_conducta_con_escalas_visuales"
+      - "calendario_escolar_con_eventos_y_entregas"
+      - "biblioteca_digital_con_filtro_edad"
+    compliance_requirements:
+      - "FERPA_Family_Educational_Rights_and_Privacy_Act"
+      - "Ley_General_de_Educacion_proteccion_datos_menores"
+      - "Convencion_sobre_los_Derechos_del_Nino"
+    business_invariants:
+      - "Ningun menor puede ser retirado sin autorizacion del tutor registrado en el sistema"
+      - "Las calificaciones no pueden ser modificadas despues del cierre de periodo sin aprobacion de direccion"
+      - "Todo incidente de acoso debe ser documentado y escalado en maximo 24 horas"
+      - "Los datos de menores no pueden ser compartidos con terceros sin consentimiento de padres"
+    edge_cases:
+      - "Estudiante con orden de restriccion contra otro estudiante — garantizar separacion en grupos y horarios"
+      - "Padre sin custodia intentando retirar al menor — bloquear y verificar custodia legal"
+      - "Calificacion en disputa despues de boleta emitida — proceso formal de apelacion"
+    suggested_entities:
+      - "Estudiante"
+      - "Maestro"
+      - "Calificacion"
+      - "Asistencia"
+      - "PadreTutor"
+      - "IncidenteConducta"
+    notification_triggers:
+      - "ausencia_no_justificada:Alerta inmediata al padre o tutor registrado"
+      - "calificacion_reprobatoria:Aviso al padre con recursos de apoyo academico"
+      - "incidente_acoso_reportado:Notificacion a direccion y orientacion en menos de 24h"
+      - "iep_vencimiento_proximo:Recordatorio de revision del plan educativo individualizado"
+      - "calendario_modificado:Aviso a toda la comunidad escolar de cambios"
+
+  # ===========================================================================
+  # 8. EDUCATION UNIVERSITY
+  # ===========================================================================
+  - name: "education_university"
+    display_name: "Educacion Universitaria"
+    description: "Reglas obligatorias para instituciones de educacion superior, incluyendo acreditacion, investigacion y gestion academica avanzada."
+    mandatory_logic:
+      - "prerequisite_chain_enforcement": "Aplicacion estricta de cadenas de prerrequisitos — no se permite inscripcion sin prerrequisitos aprobados"
+      - "academic_integrity_plagiarism_detection": "Deteccion de plagio obligatoria en todas las entregas academicas escritas"
+      - "credit_completion_minimum_for_financial_aid": "Minimo de creditos completados para mantener elegibilidad de apoyo financiero"
+      - "thesis_advisor_assignment_before_proposal": "Asignacion de director de tesis obligatoria antes de la presentacion de propuesta"
+      - "grade_appeal_formal_process": "Proceso formal de apelacion de calificaciones con plazos definidos y comite revisor"
+      - "research_ethics_committee_approval": "Aprobacion del comite de etica en investigacion para cualquier estudio con sujetos humanos"
+      - "degree_audit_before_graduation": "Auditoria de creditos automatica antes de autorizar la graduacion del estudiante"
+    ux_patterns:
+      - "plan_de_estudios_interactivo_con_progreso"
+      - "inscripcion_materias_con_validacion_prerrequisitos"
+      - "portal_alumno_con_kardex_y_promedio"
+      - "sistema_tutorias_con_agenda_y_seguimiento"
+      - "repositorio_tesis_y_articulos_academicos"
+    compliance_requirements:
+      - "FERPA_university_student_records"
+      - "Acreditacion_COPAES_o_equivalente_internacional"
+      - "Ley_Organica_de_la_Universidad_autonomia_academica"
+      - "Comite_de_Etica_en_Investigacion_normativa_nacional"
+    business_invariants:
+      - "No se puede inscribir en una materia sin cumplir el 100% de los prerrequisitos"
+      - "La auditoria de creditos debe confirmar cumplimiento total antes de la graduacion"
+      - "Toda investigacion con humanos requiere aprobacion del comite de etica previa al inicio"
+      - "Los expedientes academicos son inmutables; correcciones solo via proceso formal documentado"
+    edge_cases:
+      - "Estudiante con materia equivalente de otra universidad — proceso de revalidacion con dictamen"
+      - "Plagio detectado en tesis de grado — suspender proceso de graduacion e iniciar comite de honor"
+      - "Estudiante con beca que baja de promedio minimo — periodo de probatoria con seguimiento"
+    suggested_entities:
+      - "EstudianteUniversitario"
+      - "Materia"
+      - "ProgramaAcademico"
+      - "Tesis"
+      - "ProfesorInvestigador"
+      - "Kardex"
+    notification_triggers:
+      - "inscripcion_abierta_periodo:Aviso a estudiantes elegibles con fechas limite"
+      - "prerrequisito_no_cumplido:Alerta al intentar inscribir materia sin prerrequisito"
+      - "plagio_detectado:Notificacion al comite academico y al estudiante"
+      - "auditoria_graduacion_incompleta:Alerta de creditos faltantes al estudiante de ultimo ano"
+      - "plazo_apelacion_proximo:Recordatorio de ventana de apelacion de calificaciones"
+
+  # ===========================================================================
+  # 9. EDUCATION ONLINE
+  # ===========================================================================
+  - name: "education_online"
+    display_name: "Educacion en Linea y e-Learning"
+    description: "Reglas mandatorias para plataformas de educacion en linea, incluyendo verificacion de identidad, accesibilidad y certificaciones digitales."
+    mandatory_logic:
+      - "identity_verification_for_certification": "Verificacion de identidad obligatoria antes de emitir cualquier certificado o credencial"
+      - "wcag_2_1_aa_accessibility_compliance": "Cumplimiento de accesibilidad WCAG 2.1 nivel AA en todo contenido del curso"
+      - "progress_autosave_every_30_seconds": "Guardado automatico de progreso cada 30 segundos en actividades y evaluaciones"
+      - "anti_cheating_proctoring_for_exams": "Sistema de proctoring anti-trampa para examenes de certificacion con monitoreo"
+      - "certificate_blockchain_verification": "Certificados con verificacion blockchain o firma digital para prevenir falsificacion"
+      - "course_completion_criteria_strict_enforcement": "Criterios de completacion estrictos — todos los modulos obligatorios deben estar completos"
+    ux_patterns:
+      - "barra_progreso_visual_por_modulo"
+      - "microlearning_tarjetas_con_spaced_repetition"
+      - "dashboard_landing_personalizado_por_rol"
+      - "gamificacion_insignias_y_leaderboard"
+      - "modo_offline_con_sincronizacion_automatica"
+    compliance_requirements:
+      - "WCAG_2_1_AA_web_accessibility"
+      - "SCORM_xAPI_interoperability_standards"
+      - "GDPR_for_eu_learners_data_minimization"
+    business_invariants:
+      - "No se emite certificado sin verificacion de identidad del estudiante"
+      - "El progreso del estudiante nunca puede decrementar — solo avanzar"
+      - "Todo examen de certificacion requiere proctoring habilitado"
+      - "Los certificados deben ser verificables por terceros en linea"
+    edge_cases:
+      - "Estudiante con discapacidad visual en curso solo video — ofrecer transcripcion y audio descriptivo"
+      - "Desconexion durante examen — pausar temporal y permitir reanudacion sin penalizacion"
+      - "Certificado emitido con error en nombre — proceso de revocacion y reemision con nuevo hash"
+    suggested_entities:
+      - "EstudianteOnline"
+      - "Curso"
+      - "Modulo"
+      - "Certificado"
+      - "Evaluacion"
+      - "ProgresoEstudiante"
+    notification_triggers:
+      - "curso_no_accedido_7_dias:Recordatorio al estudiante con resumen de progreso"
+      - "examen_programado_24h:Alerta con instrucciones de proctoring y requisitos tecnicos"
+      - "certificado_emitido:Notificacion con link de verificacion y opciones de compartir"
+      - "modulo_completado:Felicidades y avance al siguiente modulo"
+      - "plazo_curso_por_expirar:Alerta 7 y 3 dias antes de vencimiento de acceso"
+
+  # ===========================================================================
+  # 10. FINANCE BANKING
+  # ===========================================================================
+  - name: "finance_banking"
+    display_name: "Banca y Servicios Financieros"
+    description: "Reglas criticas para instituciones bancarias, incluyendo prevencion de lavado de dinero, KYC y proteccion de fondos de clientes."
+    mandatory_logic:
+      - "aml_kyc_verification_before_account_opening": "Verificacion KYC/AML obligatoria antes de la apertura de cualquier cuenta bancaria"
+      - "transaction_monitoring_suspicious_activity": "Monitoreo de transacciones con reporte automatico de actividad sospechosa (SAR)"
+      - "fdic_deposit_insurance_limit_enforcement": "Cumplimiento del limite de seguro de deposito con alerta al excederlo"
+      - "dual_authorization_large_transfers_over_10k": "Autorizacion dual obligatoria para transferencias que excedan $10,000 USD o equivalente"
+      - "account_freeze_on_fraud_detection": "Congelamiento inmediato de cuenta ante deteccion de fraude confirmado"
+      - "daily_withdrawal_limit_enforcement": "Limite diario de retiro obligatorio con verificacion adicional para incrementos temporales"
+      - "hold_period_large_deposits_regulation_cc": "Periodo de retencion en depositos grandes segun Regulation CC"
+    ux_patterns:
+      - "dashboard_financiero_con_resumen_de_cuentas"
+      - "alertas_push_transacciones_en_tiempo_real"
+      - "flujo_transferencia_con_confirmacion_doble"
+      - "centro_seguridad_con_actividad_sospechosa"
+      - "simulador_credito_con_amortizacion_visual"
+    compliance_requirements:
+      - "Bank_Secrecy_Act_BSA_anti_money_laundering"
+      - "Dodd_Frank_consumer_protection"
+      - "Regulation_CC_fund_availability"
+      - "PCI_DSS_level_1_compliance"
+    business_invariants:
+      - "Ninguna cuenta se abre sin verificacion KYC completa y aprobada"
+      - "Las transferencias mayores al umbral requieren autorizacion dual sin excepcion"
+      - "El saldo del cliente nunca puede ser negativo sin sobregiro autorizado explicitamente"
+      - "Toda actividad sospechosa detectada debe ser reportada en 24 horas al oficial de cumplimiento"
+    edge_cases:
+      - "Cliente PEP (Persona Expuesta Politicamente) — due diligence mejorada obligatoria"
+      - "Transferencia a jurisdiccion de alto riesgo — retencion y verificacion adicional"
+      - "Cuenta conjunta con disputa entre titulares — congelar hasta resolucion legal"
+      - "Fallecimiento del titular — congelar cuenta y requerir sucesion testamentaria"
+    suggested_entities:
+      - "CuentaBancaria"
+      - "Transaccion"
+      - "ClienteBancario"
+      - "Prestamo"
+      - "ReporteSospechoso"
+      - "VerificacionKYC"
+    notification_triggers:
+      - "transaccion_grande_realizada:Confirmacion al cliente con detalles de la transferencia"
+      - "actividad_sospechosa_detectada:Alerta interna al oficial de cumplimiento"
+      - "saldo_bajo_umbral:Notificacion al cliente de saldo por debajo del minimo"
+      - "kyc_por_vencer:Recordatorio de actualizacion de documentos de identidad"
+      - "fraude_confirmado_cuenta_congelada:Notificacion al cliente con pasos a seguir"
+
+  # ===========================================================================
+  # 11. FINANCE INSURANCE
+  # ===========================================================================
+  - name: "finance_insurance"
+    display_name: "Seguros y Aseguradoras"
+    description: "Reglas obligatorias para la industria de seguros, incluyendo gestion de polizas, reclamos y calculo actuarial."
+    mandatory_logic:
+      - "policy_grace_period_30_days": "Periodo de gracia de 30 dias para pago de primas antes de cancelacion de poliza"
+      - "claim_filing_within_reported_timeframe": "Presentacion de reclamos dentro del plazo estipulado por tipo de siniestro"
+      - "actuarial_risk_assessment_before_underwriting": "Evaluacion actuarial de riesgo completa antes de emitir cualquier poliza nueva"
+      - "subrogation_rights_preservation": "Preservacion de derechos de subrogacion en todo reclamo de terceros"
+      - "fraud_detection_on_claims": "Deteccion de fraude en reclamos con banderas rojas automaticas y investigacion"
+      - "coverage_limit_enforcement_strict": "Aplicacion estricta de limites de cobertura — no pagos por encima del limite asegurado"
+      - "renewal_notice_60_days_before_expiry": "Notificacion de renovacion 60 dias antes del vencimiento de la poliza"
+    ux_patterns:
+      - "portal_asegurado_con_poliza_y_reclamos"
+      - "wizard_reporte_siniestro_paso_a_paso"
+      - "cotizador_interactivo_con_coberturas"
+      - "timeline_reclamo_con_estados_visuales"
+      - "comparador_planes_side_by_side"
+    compliance_requirements:
+      - "Solvency_II_capital_adequacy_requirements"
+      - "Ley_Sobre_el_Contrato_de_Seguro"
+      - "CNSF_regulacion_seguros_y_fianzas"
+      - "NAIC_model_regulations_compliance"
+    business_invariants:
+      - "Ninguna poliza se emite sin evaluacion actuarial de riesgo aprobada"
+      - "Los pagos de reclamos nunca exceden el limite de cobertura de la poliza"
+      - "Toda poliza vencida sin renovacion entra en periodo de gracia automatico"
+      - "Los reclamos fraudulentos confirmados generan rescision de poliza y reporte"
+    edge_cases:
+      - "Siniestro catastrofico que afecta multiples polizas simultaneamente — activar protocolo de desastre"
+      - "Reclamo presentado en periodo de gracia — cubrir si el pago de prima se recibe en el periodo"
+      - "Asegurado con multiples polizas y cobertura superpuesta — coordinacion de beneficios"
+    suggested_entities:
+      - "Poliza"
+      - "Reclamo"
+      - "Prima"
+      - "Asegurado"
+      - "Cobertura"
+      - "EvaluacionActuarial"
+    notification_triggers:
+      - "prima_vencimiento_proximo:Recordatorio de pago 15 y 5 dias antes del vencimiento"
+      - "reclamo_estado_cambio:Notificacion al asegurado de avance en el proceso de reclamo"
+      - "poliza_vencimiento_60_dias:Aviso de renovacion con opciones actualizadas"
+      - "fraude_sospechado_detectado:Alerta interna al equipo de investigacion de fraudes"
+      - "periodo_gracia_activado:Notificacion al asegurado que la poliza esta en riesgo de cancelacion"
+
+  # ===========================================================================
+  # 12. FINANCE CRYPTO
+  # ===========================================================================
+  - name: "finance_crypto"
+    display_name: "Criptomonedas y Finanzas Descentralizadas"
+    description: "Reglas obligatorias para plataformas de criptomonedas y DeFi, incluyendo seguridad de wallets, cumplimiento AML y gestion de volatilidad."
+    mandatory_logic:
+      - "wallet_private_key_never_stored_plaintext": "Las claves privadas NUNCA se almacenan en texto plano — encriptacion obligatoria HSM o threshold"
+      - "travel_rule_compliance_fatf": "Cumplimiento de la Travel Rule del FATF para transferencias entre VASPs"
+      - "withdrawal_whitelist_address_enforcement": "Lista blanca de direcciones de retiro con periodo de espera de 24h para nuevas direcciones"
+      - "kyc_tiered_verification_for_limits": "Verificacion KYC por niveles que determina limites de operacion progresivos"
+      - "smart_contract_audit_before_deployment": "Auditoria de smart contract obligatoria antes de despliegue en mainnet"
+      - "multi_sig_for_treasury_operations": "Firma multiple (multisig) obligatoria para operaciones de tesoreria sobre umbral definido"
+      - "circuit_breaker_flash_crash_20_percent": "Disyuntor automatico si el precio cae mas del 20% en 1 hora — pausar trading"
+    ux_patterns:
+      - "dashboard_portfolio_con_pnl_en_tiempo_real"
+      - "confirmacion_retiro_con_verificacion_biometrica"
+      - "alertas_volatilidad_con_threshold_personalizable"
+      - "explorer_de_transacciones_on_chain"
+      - "seed_phrase_backup_con_verificacion"
+    compliance_requirements:
+      - "FATF_Travel_Rule_VASP_regulation"
+      - "AML_KYC_regulations_for_virtual_assets"
+      - "MiCA_Markets_in_Crypto_Assets_EU"
+      - "Ley_FINTech_regulacion_activos_virtuales_Mexico"
+    business_invariants:
+      - "Las claves privadas nunca se exponen ni almacenan en texto plano"
+      - "Los retiros a direcciones nuevas requieren periodo de espera de 24 horas"
+      - "Toda operacion de tesoreria requiere multisig con quorum minimo"
+      - "No se puede operar por encima del limite del nivel KYC verificado"
+    edge_cases:
+      - "Flash crash que activa circuit breaker — pausar trading y notificar a todos los usuarios"
+      - "Smart contract con vulnerabilidad descubierta post-deployment — pausar y ejecutar migracion de emergencia"
+      - "Usuario con fondos bloqueados por direccion sancionada — congelar y reportar a compliance"
+      - "Fork de blockchain que genera cadena duplicada — definir politica de soporte de cadena"
+    suggested_entities:
+      - "Wallet"
+      - "TransaccionCrypto"
+      - "SmartContract"
+      - "UsuarioCrypto"
+      - "ParTrading"
+      - "AuditoriaContrato"
+    notification_triggers:
+      - "retiro_a_direccion_nueva:Confirmacion de 24h y alerta de seguridad al usuario"
+      - "circuit_breaker_activado:Notificacion masiva de pausa de trading con explicacion"
+      - "volatilidad_extrema:Alerta de precio con recomendacion de precaucion"
+      - "kyc_nivel_pendiente:Recordatorio para completar verificacion y subir limites"
+      - "auditoria_contrato_completada:Notificacion de resultado con detalles de hallazgos"

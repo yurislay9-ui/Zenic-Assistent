@@ -1,0 +1,154 @@
+# ============================================================================
+# professional_glossary — Status Descriptions & Feature Descriptions
+# ============================================================================
+# Descripciones de estado orientadas al cliente y características técnicas
+# presentadas con lenguaje de marketing y beneficios tangibles.
+# ============================================================================
+transformation_rules:
+  status_descriptions:
+    - technical: "deploying"
+      client_facing: "Desplegando la solución en el entorno productivo"
+
+    - technical: "running"
+      client_facing: "Operación activa y funcionando dentro de parámetros óptimos"
+
+    - technical: "stopped"
+      client_facing: "Servicio temporalmente suspendido según configuración establecida"
+
+    - technical: "error"
+      client_facing: "Se ha detectado una incidencia que requiere atención. El equipo técnico ha sido notificado"
+
+    - technical: "pending"
+      client_facing: "Proceso en espera de procesamiento según el orden establecido"
+
+    - technical: "completed"
+      client_facing: "Operación finalizada exitosamente dentro de los parámetros esperados"
+
+    - technical: "failed"
+      client_facing: "La operación no ha podido completarse satisfactoriamente. Se ha iniciado el protocolo de resolución"
+
+    - technical: "scaling_up"
+      client_facing: "Expandiendo la capacidad del sistema para atender la demanda actual"
+
+    - technical: "scaling_down"
+      client_facing: "Optimizando los recursos del sistema según los niveles de uso actuales"
+
+    - technical: "initializing"
+      client_facing: "Preparando los componentes del servicio para su puesta en marcha"
+
+    - technical: "maintenance"
+      client_facing: "El servicio se encuentra en periodo de mantenimiento preventivo para garantizar su óptimo funcionamiento"
+
+    - technical: "degraded"
+      client_facing: "El servicio opera con funcionalidad reducida. Nuestro equipo trabaja en restaurar la operatividad completa"
+
+    - technical: "migrating"
+      client_facing: "Ejecutando la transición estructurada de datos entre versiones del sistema"
+
+    - technical: "syncing"
+      client_facing: "Sincronizando la información entre los componentes del sistema para garantizar consistencia"
+
+    - technical: "queued"
+      client_facing: "Solicitud registrada y en espera de procesamiento según la prioridad asignada"
+
+    - technical: "rollback"
+      client_facing: "Restaurando la versión estable anterior del sistema como medida de precaución"
+
+    - technical: "health_check"
+      client_facing: "Realizando verificación integral del estado operativo del servicio"
+
+    - technical: "rebooting"
+      client_facing: "Reiniciando los componentes del servicio para aplicar las últimas actualizaciones"
+
+  feature_descriptions:
+    - technical: "JWT Authentication"
+      marketing: "Sistema de Autenticación Segura con Tokens de Sesión"
+      benefit: "Protección avanzada de credenciales con renovación automática y gestión segura de sesiones de usuario"
+
+    - technical: "Role-Based Access Control"
+      marketing: "Gestión Granular de Permisos y Roles Organizacionales"
+      benefit: "Control preciso sobre quién accede a qué información, garantizando la segregación de funciones y el cumplimiento normativo"
+
+    - technical: "Real-time Notifications"
+      marketing: "Sistema de Alertas y Notificaciones en Tiempo Real"
+      benefit: "Información inmediata sobre eventos relevantes para la toma oportuna de decisiones"
+
+    - technical: "Automated Backups"
+      marketing: "Respaldo Automático de Continuidad Operativa"
+      benefit: "Protección permanente de su información crítica con recuperación garantizada ante cualquier contingencia"
+
+    - technical: "Audit Logging"
+      marketing: "Trazabilidad Completa de Operaciones del Sistema"
+      benefit: "Registro detallado de todas las acciones para cumplimiento regulatorio y transparencia operativa"
+
+    - technical: "API Rate Limiting"
+      marketing: "Política Inteligente de Gestión de Tráfico"
+      benefit: "Protección contra sobrecargas que garantiza la disponibilidad y estabilidad del servicio para todos los usuarios"
+
+    - technical: "Data Encryption at Rest"
+      marketing: "Cifrado Avanzado de Información Almacenada"
+      benefit: "Protección de datos sensibles incluso en el almacenamiento, cumpliendo con los más altos estándares de seguridad"
+
+    - technical: "End-to-End Encryption"
+      marketing: "Cifrado Integral de Extremo a Extremo"
+      benefit: "Garantía de que la información solo es accesible por los interlocutores autorizados, sin posibilidad de interceptación"
+
+    - technical: "Auto-scaling"
+      marketing: "Escalabilidad Adaptativa Automática"
+      benefit: "El sistema se ajusta automáticamente a la demanda, garantizando rendimiento óptimo sin intervención manual"
+
+    - technical: "Multi-tenant Architecture"
+      marketing: "Arquitectura Multiorganizacional Segura"
+      benefit: "Aislamiento completo de datos entre organizaciones con infraestructura compartida para máxima eficiencia"
+
+    - technical: "CI/CD Pipeline"
+      marketing: "Flujo de Entrega Continua y Calidad Asegurada"
+      benefit: "Actualizaciones rápidas y seguras con verificación automatizada de calidad antes de llegar a producción"
+
+    - technical: "Webhook Integrations"
+      marketing: "Ecosistema de Integraciones en Tiempo Real"
+      benefit: "Conexión instantánea con sus herramientas empresariales para automatización de flujos de trabajo"
+
+    - technical: "Full-text Search"
+      marketing: "Motor de Búsqueda Avanzada de Contenido"
+      benefit: "Localización inmediata de información relevante en todo el repositorio corporativo con resultados precisos"
+
+    - technical: "Two-Factor Authentication"
+      marketing: "Verificación de Identidad en Dos Pasos"
+      benefit: "Capa adicional de seguridad que protege el acceso incluso si las credenciales son comprometidas"
+
+    - technical: "SSO Integration"
+      marketing: "Acceso Unificado Corporativo (Single Sign-On)"
+      benefit: "Inicio de sesión único para todas las aplicaciones, eliminando la fricción y mejorando la seguridad"
+
+    - technical: "Dashboard Analytics"
+      marketing: "Panel de Análisis e Inteligencia de Negocio"
+      benefit: "Visualización en tiempo real de indicadores clave para la toma estratégica de decisiones"
+
+    - technical: "Custom Workflows"
+      marketing: "Flujos de Trabajo Personalizables"
+      benefit: "Adaptación del sistema a sus procesos de negocio existentes sin necesidad de cambios organizacionales"
+
+    - technical: "Data Export/Import"
+      marketing: "Gestión de Intercambio de Información Estructurada"
+      benefit: "Portabilidad total de sus datos en formatos estándar, garantizando soberanía sobre su información"
+
+    - technical: "Uptime Monitoring"
+      marketing: "Supervisión Continua de Disponibilidad del Servicio"
+      benefit: "Detección proactiva de incidencias antes de que impacten sus operaciones, con alertas inmediatas"
+
+    - technical: "Version Control"
+      marketing: "Control de Versiones y Gestión de Cambios"
+      benefit: "Historial completo de modificaciones con capacidad de revertir a cualquier estado anterior"
+
+    - technical: "Scheduled Reports"
+      marketing: "Informes Automáticos Periódicos"
+      benefit: "Generación y distribución automática de reportes según la frecuencia y destinatarios configurados"
+
+    - technical: "Offline Mode"
+      marketing: "Modalidad de Operación sin Conexión"
+      benefit: "Continuidad del trabajo incluso sin conectividad, con sincronización automática al recuperar el acceso"
+
+    - technical: "Multi-language Support"
+      marketing: "Soporte Multilingüe Empresarial"
+      benefit: "Experiencia localizada para equipos globales, respetando las preferencias idiomáticas de cada usuario"

@@ -17,7 +17,6 @@ Features:
 
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
 import threading
@@ -27,6 +26,14 @@ from typing import Any, Dict, List, Optional
 from src.core.shared.db_initializer import get_data_dir
 
 from ._audit import compute_diff, retry
+from ._db_helpers import (
+    init_db,
+    load_snapshot,
+    persist_snapshot,
+    query_entity_history,
+    row_to_entry,
+    update_pairing,
+)
 from ._types import SnapshotDiff, SnapshotEntry, SnapshotPair
 
 logger = logging.getLogger(__name__)
@@ -47,61 +54,7 @@ class SnapshotAuditEngine:
         self._db_path = db_path
         self._lock = threading.RLock()
         self._initialized = False
-        self._init_db()
-
-    # ── DB bootstrap ─────────────────────────────────────
-
-    def _init_db(self) -> None:
-        """Create the snapshot_audit SQLite schema."""
-
-        def _create() -> None:
-            conn = sqlite3.connect(self._db_path)
-            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
-                CREATE TABLE IF NOT EXISTS snapshots (
-                    snapshot_id TEXT PRIMARY KEY,
-                    entity_type TEXT NOT NULL,
-                    entity_id TEXT NOT NULL,
-                    tenant_id TEXT NOT NULL,
-                    data TEXT NOT NULL,
-                    captured_at TEXT NOT NULL,
-                    captured_at_epoch REAL NOT NULL,
-                    snapshot_kind TEXT NOT NULL,
-                    paired_snapshot_id TEXT NOT NULL DEFAULT '',
-                    pair_id TEXT NOT NULL DEFAULT ''
-                )
-            """)
-            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
-                CREATE INDEX IF NOT EXISTS idx_snap_entity
-                ON snapshots(entity_type, entity_id, tenant_id, captured_at_epoch DESC)
-            """)
-            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
-                CREATE INDEX IF NOT EXISTS idx_snap_pair
-                ON snapshots(pair_id)
-            """)
-            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
-                CREATE INDEX IF NOT EXISTS idx_snap_tenant
-                ON snapshots(tenant_id, captured_at_epoch DESC)
-            """)
-            conn.execute("""  # nosemgrep: sqlalchemy-execute-raw-query
-                CREATE INDEX IF NOT EXISTS idx_snap_paired
-                ON snapshots(paired_snapshot_id)
-            """)
-            conn.commit()
-            conn.close()
-
-        try:
-            retry(_create, label="SnapshotAuditEngine._init_db")
-            self._initialized = True
-            logger.info(
-                "SnapshotAuditEngine: Database initialized at %s",
-                self._db_path,
-            )
-        except Exception as exc:
-            logger.error(
-                "SnapshotAuditEngine: Database initialization failed: %s",
-                exc,
-            )
-            self._initialized = False
+        self._initialized = init_db(db_path)
 
     # ── Public API ───────────────────────────────────────
 
@@ -133,7 +86,9 @@ class SnapshotAuditEngine:
             snapshot_kind="before",
         )
 
-        self._persist_snapshot(snapshot)
+        persist_snapshot(
+            snapshot, self._db_path, self._lock, self._initialized,
+        )
 
         logger.info(
             "SnapshotAuditEngine: capture_before %s/%s snap=%s tenant=%s",
@@ -176,26 +131,34 @@ class SnapshotAuditEngine:
         )
 
         # Load the before snapshot to create the pair
-        before_snapshot = self._load_snapshot(before_snapshot_id)
+        before_snapshot = load_snapshot(
+            before_snapshot_id, self._db_path, self._lock,
+        )
 
         # Update the before snapshot with pairing info
         if before_snapshot is not None:
             before_snapshot.paired_snapshot_id = after_snapshot.snapshot_id
-            self._update_pairing(
+            update_pairing(
                 before_snapshot_id,
                 after_snapshot.snapshot_id,
                 pair_id,
+                self._db_path,
+                self._lock,
             )
 
         # Set pair_id on after snapshot
         after_snapshot.pair_id = pair_id
-        self._persist_snapshot(after_snapshot)
+        persist_snapshot(
+            after_snapshot, self._db_path, self._lock, self._initialized,
+        )
 
         # Update after snapshot with pair_id
-        self._update_pairing(
+        update_pairing(
             after_snapshot.snapshot_id,
             before_snapshot_id,
             pair_id,
+            self._db_path,
+            self._lock,
         )
 
         pair = SnapshotPair(
@@ -224,14 +187,16 @@ class SnapshotAuditEngine:
         Returns:
             SnapshotPair if found, None otherwise.
         """
-        entry = self._load_snapshot(snapshot_id)
+        entry = load_snapshot(snapshot_id, self._db_path, self._lock)
         if entry is None:
             return None
 
         # If this entry has a paired_snapshot_id, load the partner
         partner: Optional[SnapshotEntry] = None
         if entry.paired_snapshot_id:
-            partner = self._load_snapshot(entry.paired_snapshot_id)
+            partner = load_snapshot(
+                entry.paired_snapshot_id, self._db_path, self._lock,
+            )
 
         # Determine before and after
         if entry.snapshot_kind == "before":
@@ -276,32 +241,17 @@ class SnapshotAuditEngine:
         """
         limit = max(1, min(limit, 1000))
 
-        def _query() -> List[Dict[str, Any]]:
-            with self._lock:
-                conn = sqlite3.connect(self._db_path)
-                conn.row_factory = sqlite3.Row
-                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                    "SELECT * FROM snapshots "
-                    "WHERE entity_type = ? AND entity_id = ? AND tenant_id = ? "
-                    "ORDER BY captured_at_epoch DESC "
-                    "LIMIT ?",
-                    (entity_type, entity_id, tenant_id, limit * 2),
-                ).fetchall()
-                conn.close()
-            return [dict(r) for r in rows]
-
-        try:
-            raw_rows = retry(_query, label="get_entity_history")
-        except Exception as exc:
-            logger.error("SnapshotAuditEngine: entity history query failed: %s", exc)
-            return []
+        raw_rows = query_entity_history(
+            entity_type, entity_id, tenant_id, limit,
+            self._db_path, self._lock,
+        )
 
         # Group by pair_id to build pairs
         pairs_by_id: Dict[str, List[SnapshotEntry]] = {}
         unpaired: List[SnapshotEntry] = []
 
         for row in raw_rows:
-            entry = self._row_to_entry(row)
+            entry = row_to_entry(row)
             pid = row.get("pair_id") or ""
             if pid:
                 pairs_by_id.setdefault(pid, []).append(entry)
@@ -322,9 +272,13 @@ class SnapshotAuditEngine:
 
             # If we only have one side, try to load the partner
             if before_entry and not after_entry and before_entry.paired_snapshot_id:
-                after_entry = self._load_snapshot(before_entry.paired_snapshot_id)
+                after_entry = load_snapshot(
+                    before_entry.paired_snapshot_id, self._db_path, self._lock,
+                )
             if after_entry and not before_entry and after_entry.paired_snapshot_id:
-                before_entry = self._load_snapshot(after_entry.paired_snapshot_id)
+                before_entry = load_snapshot(
+                    after_entry.paired_snapshot_id, self._db_path, self._lock,
+                )
 
             result.append(SnapshotPair(
                 pair_id=pid,
@@ -339,7 +293,9 @@ class SnapshotAuditEngine:
         for entry in unpaired:
             partner: Optional[SnapshotEntry] = None
             if entry.paired_snapshot_id:
-                partner = self._load_snapshot(entry.paired_snapshot_id)
+                partner = load_snapshot(
+                    entry.paired_snapshot_id, self._db_path, self._lock,
+                )
             before_e = entry if entry.snapshot_kind == "before" else partner
             after_e = entry if entry.snapshot_kind == "after" else partner
             result.append(SnapshotPair(
@@ -402,126 +358,3 @@ class SnapshotAuditEngine:
             snapshot_id, len(diff.added), len(diff.removed), len(diff.changed),
         )
         return diff.to_dict()
-
-    # ── Internal helpers ─────────────────────────────────
-
-    def _persist_snapshot(self, snapshot: SnapshotEntry) -> None:
-        """Write a SnapshotEntry to SQLite."""
-        if not self._initialized:
-            logger.warning(
-                "SnapshotAuditEngine: DB not initialized, skipping persist for %s",
-                snapshot.snapshot_id,
-            )
-            return
-
-        def _insert() -> None:
-            with self._lock:
-                conn = sqlite3.connect(self._db_path)
-                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                    """INSERT INTO snapshots
-                       (snapshot_id, entity_type, entity_id, tenant_id,
-                        data, captured_at, captured_at_epoch,
-                        snapshot_kind, paired_snapshot_id, pair_id)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                    (
-                        snapshot.snapshot_id,
-                        snapshot.entity_type,
-                        snapshot.entity_id,
-                        snapshot.tenant_id,
-                        json.dumps(snapshot.data, ensure_ascii=False, default=str),
-                        snapshot.captured_at,
-                        snapshot.captured_at_epoch,
-                        snapshot.snapshot_kind,
-                        snapshot.paired_snapshot_id,
-                        snapshot.pair_id,
-                    ),
-                )
-                conn.commit()
-                conn.close()
-
-        try:
-            retry(_insert, label="SnapshotAuditEngine._persist_snapshot")
-        except Exception as exc:
-            logger.error(
-                "SnapshotAuditEngine: failed to persist snapshot %s: %s",
-                snapshot.snapshot_id, exc,
-            )
-
-    def _update_pairing(
-        self,
-        snapshot_id: str,
-        paired_snapshot_id: str,
-        pair_id: str,
-    ) -> None:
-        """Update the paired_snapshot_id and pair_id for an existing snapshot."""
-
-        def _update() -> None:
-            with self._lock:
-                conn = sqlite3.connect(self._db_path)
-                conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                    "UPDATE snapshots SET paired_snapshot_id = ?, pair_id = ? "
-                    "WHERE snapshot_id = ?",
-                    (paired_snapshot_id, pair_id, snapshot_id),
-                )
-                conn.commit()
-                conn.close()
-
-        try:
-            retry(_update, label="SnapshotAuditEngine._update_pairing")
-        except Exception as exc:
-            logger.error(
-                "SnapshotAuditEngine: failed to update pairing for %s: %s",
-                snapshot_id, exc,
-            )
-
-    def _load_snapshot(self, snapshot_id: str) -> Optional[SnapshotEntry]:
-        """Load a single SnapshotEntry from SQLite by snapshot_id."""
-
-        def _query() -> Optional[SnapshotEntry]:
-            with self._lock:
-                conn = sqlite3.connect(self._db_path)
-                conn.row_factory = sqlite3.Row
-                row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                    "SELECT * FROM snapshots WHERE snapshot_id = ?",
-                    (snapshot_id,),
-                ).fetchone()
-                conn.close()
-            if row is None:
-                return None
-            return self._row_to_entry(dict(row))
-
-        try:
-            return retry(_query, label="SnapshotAuditEngine._load_snapshot")
-        except Exception as exc:
-            logger.error(
-                "SnapshotAuditEngine: failed to load snapshot %s: %s",
-                snapshot_id, exc,
-            )
-            return None
-
-    @staticmethod
-    def _row_to_entry(row: Dict[str, Any]) -> SnapshotEntry:
-        """Convert a raw DB row dict to a SnapshotEntry."""
-        data_raw = row.get("data", "{}")
-        if isinstance(data_raw, str):
-            try:
-                data = json.loads(data_raw)
-            except (json.JSONDecodeError, TypeError):
-                data = {"_raw": data_raw}
-        elif isinstance(data_raw, dict):
-            data = data_raw
-        else:
-            data = {}
-
-        return SnapshotEntry(
-            snapshot_id=row.get("snapshot_id", ""),
-            entity_type=row.get("entity_type", ""),
-            entity_id=row.get("entity_id", ""),
-            tenant_id=row.get("tenant_id", ""),
-            data=data,
-            captured_at=row.get("captured_at", ""),
-            captured_at_epoch=row.get("captured_at_epoch", 0.0),
-            snapshot_kind=row.get("snapshot_kind", ""),
-            paired_snapshot_id=row.get("paired_snapshot_id", ""),
-            pair_id=row.get("pair_id", ""),
-        )

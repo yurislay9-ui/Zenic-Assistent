@@ -1,0 +1,96 @@
+// ─── Observability: Distributed Tracing (Phase 2) ──────────────────
+
+model Trace {
+  id          String   @id @default(cuid())
+  traceId     String   @unique               // Distributed trace ID (W3C format)
+  sessionId   String?                         // Business session ID
+  decisionId  String?                         // Verdict decision correlation ID
+  tenantId    String?                         // Tenant isolation
+  rootSpanId  String?                         // First span in the trace
+  status      String   @default("ok")        // ok | error | timeout | partial
+  verdict     String?                         // allow | deny | conditional — final verdict
+  duration    Int?                            // Total trace duration in ms
+  spanCount   Int      @default(0)           // Number of spans in this trace
+  serviceName String   @default("zenic-gateway")
+  attributes  String   @default("{}")        // JSON: arbitrary key-value attributes
+  createdAt   DateTime @default(now())
+  completedAt DateTime?
+
+  spans       Span[]
+
+  @@index([traceId])
+  @@index([sessionId])
+  @@index([decisionId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([verdict])
+  @@index([createdAt])
+  @@map("traces")
+}
+
+model Span {
+  id           String   @id @default(cuid())
+  spanId       String   @unique               // W3C span ID
+  traceId      String                         // FK to Trace.traceId
+  parentSpanId String?                         // Parent span for nesting
+  name         String                         // e.g. "gateway.tool_resolution", "gateway.auth_check"
+  kind         String   @default("internal")  // internal | server | client | producer | consumer
+  status       String   @default("ok")        // ok | error | timeout
+  statusMessage String?                        // Error message if status=error
+  startTime    DateTime                       // Span start timestamp
+  endTime      DateTime?                      // Span end timestamp
+  duration     Int?                           // Duration in ms
+  service      String   @default("zenic-gateway")
+  resource     String?                        // e.g. "tool", "policy", "role"
+  resourceId   String?                        // e.g. tool name or ID
+  action       String?                        // e.g. "execute", "check", "resolve"
+  outcome      String?                        // success | failure | denied | error
+  attributes   String   @default("{}")        // JSON: span-specific key-value attributes
+  events       String   @default("[]")        // JSON: array of { name, timestamp, attributes }
+  links        String   @default("[]")        // JSON: array of { traceId, spanId, attributes }
+  createdAt    DateTime @default(now())
+
+  trace        Trace    @relation(fields: [traceId], references: [traceId], onDelete: Cascade)
+
+  @@index([spanId])
+  @@index([traceId])
+  @@index([parentSpanId])
+  @@index([name])
+  @@index([status])
+  @@index([startTime])
+  @@map("spans")
+}
+
+// ─── Observability: Metric Time Series (Phase 2) ───────────────────
+
+model MetricSeries {
+  id          String   @id @default(cuid())
+  name        String   @unique               // e.g. "gateway.deny_rate", "business.cost_per_flow"
+  description String
+  category    String                          // business | security | resilience | operational
+  unit        String   @default("count")      // count | ms | percent | usd | ratio
+  labels      String   @default("{}")        // JSON: default labels for all points
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  points      MetricPoint[]
+
+  @@index([category])
+  @@map("metric_series")
+}
+
+model MetricPoint {
+  id         String   @id @default(cuid())
+  seriesId   String                         // FK to MetricSeries
+  value      Float                           // The metric value
+  labels     String   @default("{}")        // JSON: point-specific labels { "tool": "db_query", "risk": "high" }
+  timestamp  DateTime                        // Observation time
+  createdAt  DateTime @default(now())
+
+  series     MetricSeries @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@index([seriesId])
+  @@index([timestamp])
+  @@index([seriesId, timestamp])
+  @@map("metric_points")
+}

@@ -1,0 +1,103 @@
+# ============================================================================
+# professional_glossary — Error Messages
+# ============================================================================
+# Mensajes de error pulidos para comunicación orientada al cliente.
+# Transforma mensajes técnicos crípticos en comunicación profesional.
+# ============================================================================
+transformation_rules:
+  error_messages:
+    - original: "Connection refused"
+      polished: "El servicio solicitado se encuentra temporalmente en proceso de mantenimiento. Nuestro equipo técnico ha sido notificado y trabajará en restablecer la conexión a la brevedad."
+      severity: "warning"
+
+    - original: "404 Not Found"
+      polished: "El recurso solicitado no se encuentra disponible en este momento. Verifique la información proporcionada e intente nuevamente. Si el problema persiste, contacte a su ejecutivo de cuenta."
+      severity: "error"
+
+    - original: "500 Internal Server Error"
+      polished: "Hemos detectado una incidencia técnica interna. Nuestro equipo de operaciones trabaja activamente en su resolución. Disculpe las molestias ocasionadas."
+      severity: "error"
+
+    - original: "503 Service Unavailable"
+      polished: "El servicio se encuentra temporalmente no disponible debido a tareas de mantenimiento programado. La operativa se restablecerá próximamente. Agradecemos su comprensión."
+      severity: "warning"
+
+    - original: "502 Bad Gateway"
+      polished: "Se ha producido una interrupción en la comunicación entre nuestros servicios. Nuestro equipo de infraestructura está verificando la conectividad para restaurar la operatividad."
+      severity: "error"
+
+    - original: "401 Unauthorized"
+      polished: "Las credenciales proporcionadas no han podido ser verificadas. Por favor, confirme sus datos de acceso e intente nuevamente. Si el inconveniente persiste, contacte al administrador de su cuenta."
+      severity: "warning"
+
+    - original: "403 Forbidden"
+      polished: "Su perfil actual no cuenta con los permisos necesarios para acceder a este recurso. Contacte a su administrador para solicitar las autorizaciones correspondientes."
+      severity: "warning"
+
+    - original: "429 Too Many Requests"
+      polished: "Se ha superado el volumen de solicitudes permitido para su cuenta. Por favor, espere unos momentos antes de reintentar la operación."
+      severity: "warning"
+
+    - original: "408 Request Timeout"
+      polished: "La operación ha excedido el tiempo máximo de espera establecido. Verifique su conexión e intente nuevamente. Si el problema continúa, nuestro equipo de soporte está a su disposición."
+      severity: "warning"
+
+    - original: "400 Bad Request"
+      polished: "Los datos proporcionados no cumplen con el formato requerido. Revise la información ingresada y asegúrese de completar todos los campos obligatorios correctamente."
+      severity: "warning"
+
+    - original: "Database connection failed"
+      polished: "No se ha podido establecer conexión con el Repositorio Central de Información. Nuestro equipo técnico ha sido alertado y trabaja en restaurar la disponibilidad del servicio."
+      severity: "error"
+
+    - original: "Out of memory"
+      polished: "El sistema ha alcanzado su capacidad máxima de procesamiento temporal. Nuestro equipo de infraestructura está escalando los recursos para restaurar la operatividad óptima."
+      severity: "error"
+
+    - original: "Permission denied"
+      polished: "Su perfil de usuario no dispone de las autorizaciones necesarias para completar esta acción. Póngase en contacto con el administrador de su organización para gestionar los permisos correspondientes."
+      severity: "warning"
+
+    - original: "Rate limit exceeded"
+      polished: "Se ha alcanzado el límite de uso establecido por la Política de Uso Responsable del Servicio. Su acceso será restablecido automáticamente en breve."
+      severity: "info"
+
+    - original: "SSL certificate error"
+      polished: "Hemos detectado una incidencia en la certificación de comunicaciones cifradas. Por seguridad, la conexión ha sido protegida. Nuestro equipo de seguridad trabaja en su resolución."
+      severity: "error"
+
+    - original: "Disk space full"
+      polished: "El sistema de almacenamiento ha alcanzado su capacidad máxima. Se han iniciado los protocolos de expansión de capacidad para garantizar la continuidad operativa."
+      severity: "error"
+
+    - original: "DNS resolution failed"
+      polished: "No se ha podido resolver la dirección del servicio solicitado. Nuestro equipo de infraestructura está verificando la configuración de red para restaurar el acceso."
+      severity: "error"
+
+    - original: "Migration failed"
+      polished: "La Transición Estructurada de Datos ha encontrado una incidencia. Se ha activado el protocolo de integridad para garantizar la consistencia de la información. Nuestro equipo le mantendrá informado."
+      severity: "error"
+
+    - original: "Webhook delivery failed"
+      polished: "No se ha podido completar la notificación en tiempo real al sistema integrado. El sistema reintentará automáticamente la entrega. Si la incidencia persiste, nuestro equipo de integración le asistirá."
+      severity: "warning"
+
+    - original: "Invalid API key"
+      polished: "La credencial de integración proporcionada no es válida o ha expirado. Por favor, verifique sus credenciales de acceso en el panel de administración o solicite unas nuevas a nuestro equipo de soporte."
+      severity: "warning"
+
+    - original: "CORS error"
+      polished: "La solicitud no ha sido autorizada por las políticas de seguridad de origen cruzado. Nuestro equipo de configuración revisará los permisos de acceso para habilitar la integración."
+      severity: "warning"
+
+    - original: "File not found"
+      polished: "El documento solicitado no se encuentra disponible en el sistema. Verifique la ubicación del archivo y asegúrese de que no haya sido movido o eliminado."
+      severity: "warning"
+
+    - original: "Session expired"
+      polished: "Su sesión ha expirado por motivos de seguridad. Por favor, inicie sesión nuevamente para continuar con sus operaciones. Sus datos han sido protegidos automáticamente."
+      severity: "info"
+
+    - original: "Validation error"
+      polished: "Los datos ingresados no cumplen con las reglas de validación establecidas. Revise los campos señalados y corrija la información según las indicaciones proporcionadas."
+      severity: "warning"

@@ -1,0 +1,256 @@
+// ─── Users & Identity ──────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  avatar    String?
+  status    String   @default("active") // active | suspended | deactivated
+  lastLogin DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  roles     UserRole[]
+  auditLogs AuditLog[]
+  toolExecs ToolExecution[]
+
+  @@map("users")
+}
+
+// ─── RBAC: Roles & Permissions ─────────────────────────────────────
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  displayName String
+  description String
+  color       String   @default("#6b7280") // UI badge color
+  isSystem    Boolean  @default(false)      // system roles cannot be deleted
+  priority    Int      @default(0)          // higher = more permissions
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g. "tool:execute", "audit:read", "policy:write"
+  resource    String                          // e.g. "tool", "audit", "policy", "role", "server"
+  action      String                          // e.g. "read", "write", "execute", "delete", "admin"
+  displayName String
+  description String
+  isDangerous Boolean  @default(false)        // requires extra approval
+  createdAt   DateTime @default(now())
+
+  roles RolePermission[]
+
+  @@unique([resource, action])
+  @@map("permissions")
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  grantedBy String?                // userId who granted
+  expiresAt DateTime?              // optional expiry
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id         String   @id @default(cuid())
+  roleId     String
+  permissionId String
+  constraints String? @default("{}") // JSON: { "tools": ["weather_*"], "maxCalls": 100 }
+  createdAt  DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ─── MCP Tools Registry ────────────────────────────────────────────
+
+model McpTool {
+  id          String   @id @default(cuid())
+  name        String   @unique // e.g. "weather_lookup", "db_query", "file_read"
+  displayName String
+  description String
+  category    String                          // e.g. "data", "communication", "compute", "storage", "external"
+  version     String   @default("1.0.0")
+  icon        String?                         // lucide icon name
+  endpoint    String                          // URL or internal path
+  method      String   @default("POST")       // HTTP method
+  inputSchema String                          // JSON Schema for input validation
+  outputSchema String?                        // JSON Schema for output validation
+  timeout     Int      @default(30000)        // ms
+  retries     Int      @default(2)
+  rateLimit   Int      @default(100)          // calls per minute
+  riskLevel   String   @default("low")        // low | medium | high | critical
+  status      String   @default("active")     // active | deprecated | disabled | testing
+  requiresApproval Boolean @default(false)    // needs human-in-the-loop
+  tags        String   @default("[]")         // JSON array of tags
+  metadata    String   @default("{}")         // JSON: extra config
+  serverId    String?                          // linked MCP server
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  server      McpServer?  @relation(fields: [serverId], references: [id], onDelete: SetNull)
+  executions  ToolExecution[]
+  accessPolicies ToolAccessPolicy[]
+
+  @@index([category])
+  @@index([riskLevel])
+  @@index([status])
+  @@index([serverId])
+  @@map("mcp_tools")
+}
+
+model McpServer {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  displayName   String
+  description   String
+  url           String
+  protocol      String   @default("http") // http | websocket | grpc | stdio
+  status        String   @default("active") // active | unhealthy | offline | maintenance
+  healthCheckUrl String?
+  lastPing      DateTime?
+  lastError     String?
+  authType      String   @default("none") // none | api_key | oauth2 | mtls
+  authConfig    String   @default("{}")   // JSON (encrypted at app layer)
+  capabilities  String   @default("[]")   // JSON array
+  metadata      String   @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tools McpTool[]
+
+  @@index([status])
+  @@map("mcp_servers")
+}
+
+// ─── Gateway Execution & Audit ──────────────────────────────────────
+
+model ToolExecution {
+  id           String   @id @default(cuid())
+  toolId       String
+  executorId   String?                        // userId or service account
+  status       String   @default("pending")   // pending | approved | running | completed | failed | denied | timeout
+  input        String                          // JSON input payload
+  output       String?                         // JSON output payload
+  errorMessage String?
+  duration     Int?                            // ms
+  verdict      String?                         // allow | deny | conditional
+  verdictReason String?                        // why the verdict was given
+  retryCount   Int      @default(0)
+  parentExecId String?                         // for chained calls
+  correlationId String?                        // cross-service tracing
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  completedAt  DateTime?
+
+  tool        McpTool  @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  executor    User?    @relation(fields: [executorId], references: [id], onDelete: SetNull)
+  auditLogId  String?  @unique
+  auditLog    AuditLog?  @relation(fields: [auditLogId], references: [id], onDelete: SetNull)
+
+  @@index([toolId])
+  @@index([executorId])
+  @@index([status])
+  @@index([verdict])
+  @@index([createdAt])
+  @@map("tool_executions")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  actorId      String?                        // userId or "system"
+  actorType    String   @default("user")      // user | system | service | agent
+  action       String                          // e.g. "tool.execute", "role.assign", "policy.update"
+  resource     String                          // e.g. "tool", "role", "policy"
+  resourceId   String?                         // specific resource id
+  resourceName String?                         // human-readable name
+  severity     String   @default("info")      // debug | info | warn | error | critical
+  outcome      String   @default("success")   // success | failure | denied | error
+  details      String   @default("{}")        // JSON: before/after state, diff
+  ipAddress    String?
+  userAgent    String?
+  sessionId    String?
+  traceId      String?                         // distributed tracing
+  tags         String   @default("[]")        // JSON array for filtering
+  createdAt    DateTime @default(now())
+
+  actor        User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  execution    ToolExecution? // reverse side of one-to-one
+
+  @@index([actorId])
+  @@index([action])
+  @@index([resource])
+  @@index([severity])
+  @@index([outcome])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─── Access Policies & Rules ───────────────────────────────────────
+
+model AccessPolicy {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  type        String   @default("allow")     // allow | deny | conditional | quota
+  priority    Int      @default(0)           // higher = evaluated first
+  isEnabled   Boolean  @default(true)
+  conditions  String   @default("[]")        // JSON: array of condition objects
+  effect      String   @default("allow")     // allow | deny | require_approval
+  timeWindow  String?                         // JSON: { "start": "09:00", "end": "17:00", "tz": "UTC" }
+  quota       String?                         // JSON: { "maxCalls": 100, "window": "1h" }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  toolAccessPolicies ToolAccessPolicy[]
+
+  @@index([isEnabled])
+  @@index([priority])
+  @@map("access_policies")
+}
+
+model ToolAccessPolicy {
+  id         String   @id @default(cuid())
+  toolId     String
+  policyId   String
+  createdAt  DateTime @default(now())
+
+  tool       McpTool      @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  policy     AccessPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  @@unique([toolId, policyId])
+  @@map("tool_access_policies")
+}
+
+// ─── Dashboard Metrics (materialized) ──────────────────────────────
+
+model MetricSnapshot {
+  id         String   @id @default(cuid())
+  metricKey  String                          // e.g. "tools.total", "executions.today", "audit.critical_24h"
+  metricValue Float
+  dimensions String   @default("{}")        // JSON: { "category": "data", "riskLevel": "high" }
+  capturedAt DateTime @default(now())
+
+  @@unique([metricKey, dimensions])
+  @@map("metric_snapshots")
+}

@@ -18,6 +18,11 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from ._helpers import retry_db_operation, row_to_measurement
+from ._trend_analysis import (
+    get_objective_progress as _get_objective_progress,
+    get_trend as _get_trend,
+    measure_all_for_objective as _measure_all_for_objective,
+)
 from ._types import KPIMeasurement, KPITrend
 
 logger = logging.getLogger(__name__)
@@ -222,9 +227,7 @@ class KPITracker:
     ) -> KPITrend:
         """Calculate trend for a metric over the specified period.
 
-        Uses linear regression on the measurement values to determine
-        the trend direction and average rate of change, then projects
-        the achievement date based on that rate.
+        Delegates to the standalone _get_trend function.
 
         Args:
             objective_id: The objective ID.
@@ -235,120 +238,7 @@ class KPITracker:
             A KPITrend with direction, rate of change, and projected date.
         """
         self._ensure_schema()
-        with self._lock:
-
-            def _fetch_history() -> List[KPIMeasurement]:
-                conn = sqlite3.connect(self._db_path)
-                conn.row_factory = sqlite3.Row
-                try:
-                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                        """SELECT * FROM _zenic_kpi_measurements
-                           WHERE objective_id = ? AND metric_name = ?
-                           ORDER BY timestamp ASC""",
-                        (objective_id, metric_name),
-                    ).fetchall()
-                    return [row_to_measurement(r) for r in rows]
-                finally:
-                    conn.close()
-
-            measurements = retry_db_operation(_fetch_history)
-
-            if len(measurements) < 2:
-                return KPITrend(
-                    metric_name=metric_name,
-                    values=[m.value for m in measurements],
-                    timestamps=[m.timestamp for m in measurements],
-                    trend_direction="stable",
-                    avg_rate_of_change=0.0,
-                )
-
-            # Filter to recent measurements within the lookback window
-            now = datetime.now(timezone.utc)
-            cutoff_dt = now
-            try:
-                from datetime import timedelta
-                cutoff_dt = now - timedelta(days=days)
-            except Exception:
-                pass
-
-            recent: List[KPIMeasurement] = []
-            for m in measurements:
-                try:
-                    m_dt = datetime.fromisoformat(m.timestamp)
-                    if m_dt.tzinfo is None:
-                        m_dt = m_dt.replace(tzinfo=timezone.utc)
-                    if m_dt >= cutoff_dt:
-                        recent.append(m)
-                except (ValueError, TypeError):
-                    recent.append(m)
-
-            if len(recent) < 2:
-                recent = measurements[-2:]
-
-            values = [m.value for m in recent]
-            timestamps = [m.timestamp for m in recent]
-
-            # Simple linear regression
-            n = len(values)
-            x_indices = list(range(n))
-            x_mean = sum(x_indices) / n
-            y_mean = sum(values) / n
-
-            numerator = sum(
-                (xi - x_mean) * (yi - y_mean)
-                for xi, yi in zip(x_indices, values)
-            )
-            denominator = sum((xi - x_mean) ** 2 for xi in x_indices)
-
-            slope = numerator / denominator if denominator != 0 else 0.0
-
-            # Determine trend direction relative to target
-            target = measurements[-1].target_value
-            current = measurements[-1].value
-
-            if abs(slope) < 1e-9:
-                direction = "stable"
-            elif target < current:
-                # We need to go down; negative slope = improving
-                direction = "improving" if slope < 0 else "declining"
-            else:
-                # We need to go up; positive slope = improving
-                direction = "improving" if slope > 0 else "declining"
-
-            # Project achievement date
-            projected_date = ""
-            if abs(slope) > 1e-9:
-                remaining = abs(target - current)
-                steps_to_target = remaining / abs(slope) if abs(slope) > 0 else float("inf")
-                if steps_to_target != float("inf") and steps_to_target > 0:
-                    try:
-                        from datetime import timedelta
-                        # Estimate time per step from measurement intervals
-                        if len(recent) >= 2:
-                            first_dt = datetime.fromisoformat(recent[0].timestamp)
-                            last_dt = datetime.fromisoformat(recent[-1].timestamp)
-                            if first_dt.tzinfo is None:
-                                first_dt = first_dt.replace(tzinfo=timezone.utc)
-                            if last_dt.tzinfo is None:
-                                last_dt = last_dt.replace(tzinfo=timezone.utc)
-                            elapsed = (last_dt - first_dt).total_seconds()
-                            seconds_per_step = elapsed / (n - 1) if n > 1 else 86400
-                        else:
-                            seconds_per_step = 86400
-                        eta_seconds = steps_to_target * seconds_per_step
-                        projected = now + timedelta(seconds=eta_seconds)
-                        projected_date = projected.isoformat()
-                    except Exception:
-                        pass
-
-            return KPITrend(
-                metric_name=metric_name,
-                values=values,
-                timestamps=timestamps,
-                trend_direction=direction,
-                avg_rate_of_change=round(slope, 6),
-                projected_achievement_date=projected_date,
-            )
+        return _get_trend(self._db_path, objective_id, metric_name, days)
 
     def measure_all_for_objective(
         self,
@@ -356,9 +246,7 @@ class KPITracker:
     ) -> List[KPIMeasurement]:
         """Measure all KPIs for an objective.
 
-        For each target in the objective, queries the database for the
-        latest measurement value. Uses lazy-loaded database executor
-        for real DB queries when available.
+        Delegates to the standalone _measure_all_for_objective function.
 
         Args:
             objective: An Objective instance with targets.
@@ -366,28 +254,16 @@ class KPITracker:
         Returns:
             A list of KPIMeasurements, one per target.
         """
-        results: List[KPIMeasurement] = []
-        for target in objective.targets:
-            latest = self.get_latest(objective.objective_id, target.metric_name)
-            if latest is not None:
-                results.append(latest)
-            else:
-                # Record initial measurement from target's current_value
-                measurement = self.measure(
-                    objective_id=objective.objective_id,
-                    metric_name=target.metric_name,
-                    value=target.current_value,
-                    target_value=target.target_value,
-                    unit=target.unit,
-                    source="objective_target",
-                )
-                results.append(measurement)
-        return results
+        return _measure_all_for_objective(
+            objective, self.measure, self.get_latest,
+        )
 
     def get_objective_progress(
         self, objective_id: str,
     ) -> Dict[str, Any]:
         """Get comprehensive progress information for an objective.
+
+        Delegates to the standalone _get_objective_progress function.
 
         Args:
             objective_id: The objective ID to query.
@@ -396,63 +272,9 @@ class KPITracker:
             Dictionary with progress percentage, trend, and projected completion.
         """
         self._ensure_schema()
-
-        # Get all distinct metric names for this objective
-        with self._lock:
-
-            def _get_metrics() -> List[str]:
-                conn = sqlite3.connect(self._db_path)
-                try:
-                    cursor = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                        """SELECT DISTINCT metric_name FROM _zenic_kpi_measurements
-                           WHERE objective_id = ?""",
-                        (objective_id,),
-                    )
-                    return [row[0] for row in cursor.fetchall()]
-                finally:
-                    conn.close()
-
-            metrics = retry_db_operation(_get_metrics)
-
-        if not metrics:
-            return {
-                "objective_id": objective_id,
-                "progress_percent": 0.0,
-                "metrics": {},
-                "trends": {},
-            }
-
-        metric_progress: Dict[str, Any] = {}
-        metric_trends: Dict[str, Any] = {}
-        progress_values: List[float] = []
-
-        for metric_name in metrics:
-            latest = self.get_latest(objective_id, metric_name)
-            trend = self.get_trend(objective_id, metric_name)
-
-            if latest is not None:
-                gap = latest.gap()
-                total_range = abs(latest.target_value) if abs(latest.target_value) > 0 else 1.0
-                progress = max(0.0, min(100.0, (1.0 - abs(gap) / total_range) * 100.0))
-                progress_values.append(progress)
-                metric_progress[metric_name] = {
-                    "value": latest.value,
-                    "target": latest.target_value,
-                    "gap": gap,
-                    "improving": latest.is_improving(),
-                    "progress_percent": round(progress, 2),
-                }
-
-            metric_trends[metric_name] = trend.to_dict()
-
-        avg_progress = round(sum(progress_values) / len(progress_values), 2) if progress_values else 0.0
-
-        return {
-            "objective_id": objective_id,
-            "progress_percent": avg_progress,
-            "metrics": metric_progress,
-            "trends": metric_trends,
-        }
+        return _get_objective_progress(
+            self._db_path, objective_id, self.get_latest, self.get_trend,
+        )
 
     # ── Internal Helpers ────────────────────────────────────
 

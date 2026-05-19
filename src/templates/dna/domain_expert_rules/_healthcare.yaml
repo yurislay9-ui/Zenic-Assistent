@@ -1,0 +1,242 @@
+# domain_expert_rules — Healthcare Industries
+# Industries: healthcare_clinic, healthcare_hospital, dental_practice, pharmacy, mental_health
+
+industries:
+
+  # ===========================================================================
+  # 2. HEALTHCARE CLINIC
+  # ===========================================================================
+  - name: "healthcare_clinic"
+    display_name: "Clinica Medica"
+    description: "Reglas criticas para clinicas medicas ambulatorias, incluyendo gestion de citas, historiales clinicos y cumplimiento normativo sanitario."
+    mandatory_logic:
+      - "patient_consent_before_consultation": "Consentimiento informado del paciente obligatorio antes de cualquier consulta o procedimiento"
+      - "medical_record_immutability": "Los registros medicos son inmutables; solo se permiten adendas, nunca borrados"
+      - "appointment_no_show_policy_24h": "Politica de no-show: notificacion si el paciente no confirma 24 horas antes"
+      - "prescription_expiration_validation": "Las recetas medicas expiran automaticamente segun el tipo de medicamento (30/90 dias)"
+      - "referral_required_for_specialist": "Derivacion obligatoria del medico general para citas con especialistas"
+      - "vaccination_schedule_reminder": "Recordatorio automatico de calendario de vacunacion para pacientes pediátricos"
+      - "lab_results_access_control": "Resultados de laboratorio solo accesibles por el medico tratante y el paciente autorizado"
+    ux_patterns:
+      - "patient_portal_self_service_scheduling"
+      - "intake_form_digital_pre_visit"
+      - "appointment_reminder_sms_email_sequence"
+      - "lab_results_timeline_view"
+    compliance_requirements:
+      - "HIPAA_data_privacy_and_security"
+      - "Norma_Oficial_Mexicana_NOM_004_SSA3_historial_clinico"
+      - "Ley_General_de_Salud_regulacion_de_datos_medicos"
+    business_invariants:
+      - "Ningun paciente puede ser atendido sin historial clinico creado"
+      - "Las recetas electronicas deben llevar firma digital del medico con cedula profesional"
+      - "No se puede agendar cita con medico inactivo o sin licencia vigente"
+      - "Todo procedimiento requiere consentimiento firmado con timestamp"
+    edge_cases:
+      - "Paciente menor de edad sin tutor presente — requerir consentimiento del tutor antes de atender"
+      - "Receta medica con medicamento en lista de controlados — requerir codigo de autorizacion adicional"
+      - "Resultado de laboratorio critico fuera de horario — escalar a medico guardia automaticamente"
+    suggested_entities:
+      - "Paciente"
+      - "CitaMedica"
+      - "HistorialClinico"
+      - "RecetaMedica"
+      - "Medico"
+      - "ResultadoLaboratorio"
+    notification_triggers:
+      - "cita_proxima_24h:Recordatorio al paciente con instrucciones de preparacion"
+      - "resultado_laboratorio_disponible:Aviso al medico y paciente de nuevos resultados"
+      - "receta_por_expirar:Alerta al paciente 7 dias antes del vencimiento de receta"
+      - "no_show_detected:Notificacion al equipo administrativo para aplicar politica"
+      - "vacunacion_pendiente:Recordatorio de dosis pendiente segun calendario"
+
+  # ===========================================================================
+  # 3. HEALTHCARE HOSPITAL
+  # ===========================================================================
+  - name: "healthcare_hospital"
+    display_name: "Hospital"
+    description: "Reglas obligatorias para instituciones hospitalarias, incluyendo gestion de camas, cirugias, urgencias y cumplimiento regulatorio avanzado."
+    mandatory_logic:
+      - "triage_protocol_on_admission": "Protocolo de triage obligatorio con clasificacion de prioridad (1-5) en toda admision a urgencias"
+      - "bed_management_real_time_occupancy": "Gestion de camas en tiempo real con actualizacion automatica de ocupacion por piso"
+      - "surgical_checklist_who_protocol": "Lista de verificacion quirurgica OMS obligatoria antes, durante y despues de cirugia"
+      - "medication_administration_barcode_scan": "Escaneo de codigo de barras obligatorio para administracion de medicamento a paciente"
+      - "infection_control_surveillance": "Vigilancia activa de infecciones nosocomiales con reporte automatico a epidemiologia"
+      - "discharge_summary_within_24h": "Resumen de alta debe completarse en un maximo de 24 horas posteriores al alta"
+      - "blood_transfusion_dual_verification": "Verificacion dual obligatoria (enfermera + medico) antes de cualquier transfusion sanguinea"
+      - "code_blue_response_activation": "Activacion automatica de equipo de codigo azul con notificacion inmediata al equipo de emergencia"
+    ux_patterns:
+      - "dashboard_ocupacion_hospitalaria_en_tiempo_real"
+      - "kanban_de_camas_por_piso_y_estado"
+      - "timeline_quirurgico_con_checklist_interactivo"
+      - "alerta_temprana_deterioro_paciente_early_warning_score"
+      - "panel_control_urgencias_con_triage_visual"
+    compliance_requirements:
+      - "Joint_Commission_International_accreditation_standards"
+      - "Norma_Oficial_Mexicana_NOM_197_SSA1_establecimientos_hospitalarios"
+      - "HIPAA_hospital_data_security_breaches_reporting"
+      - "Ley_General_de_Salud_capitulo_de_establecimientos"
+    business_invariants:
+      - "Ninguna cirugia procede sin lista de verificacion OMS completada y firmada"
+      - "No se puede dar de alta a un paciente sin resumen de alta firmado por el medico"
+      - "Toda transfusion requiere verificacion dual con registro de identidades"
+      - "El triage de urgencias debe completarse en los primeros 5 minutos de llegada"
+      - "No se puede administrar medicamento sin escaneo de codigo de barras paciente-medicamento"
+    edge_cases:
+      - "Paciente en urgencias sin identidad conocida — asignar ID temporal John/Jane Doe con protocolo especial"
+      - "Camas agotadas en UCI — activar protocolo de desvío con hospital mas cercano disponible"
+      - "Cirugia emergencia sin consentimiento firmado — documentar razon medica y obtener consentimiento post-procedimiento"
+      - "Desastre masivo que excede capacidad — activar plan de contingencia con triage modificado"
+    suggested_entities:
+      - "PacienteHospitalizado"
+      - "Cama"
+      - "Cirugia"
+      - "EquipoMedico"
+      - "TransfusionSanguinea"
+      - "TriageUrgencias"
+    notification_triggers:
+      - "cama_disponible:Liberacion de cama notifica a admision y piso correspondiente"
+      - "codigo_azul_activado:Alerta critica a todo el equipo de emergencia en el hospital"
+      - "infeccion_nosocomial_detectada:Notificacion a epidemiologia y comite de infecciones"
+      - "alta_pendiente_resumen:Aviso al medico tratante si pasan 12 horas sin resumen de alta"
+      - "medicamento_no_escaneado:Alerta si se omite escaneo en administracion de medicamento"
+
+  # ===========================================================================
+  # 4. DENTAL PRACTICE
+  # ===========================================================================
+  - name: "dental_practice"
+    display_name: "Consulta Dental"
+    description: "Reglas mandatorias para practicas dentales, incluyendo retencion de radiografias, consentimientos informados y planes de tratamiento dental."
+    mandatory_logic:
+      - "xray_retention_policy_7_years": "Politica de retencion de radiografias por 7 anos minimos segun regulacion sanitaria"
+      - "informed_consent_per_procedure": "Consentimiento informado especifico por procedimiento dental (no generico) antes de iniciar"
+      - "treatment_plan_approval_before_work": "Plan de tratamiento debe ser aprobado y firmado por el paciente antes de cualquier procedimiento"
+      - "antibiotic_prophylaxis_for_at_risk_patients": "Profilaxis antibiotica obligatoria para pacientes con riesgo endocarditis antes de procedimientos invasivos"
+      - "dental_chart_numbering_standard": "Numeracion dental estandarizada (FDI o Universal) obligatoria en todo registro clinico"
+      - "anesthesia_dosage_weight_based": "Calculo de dosificacion de anestesia local basado en peso del paciente con limite maximo"
+      - "sterilization_tracking_per_instrument": "Rastreo de esterilizacion por lote para cada instrumento reutilizable"
+    ux_patterns:
+      - "odontograma_interactivo_visual"
+      - "plan_tratamiento_timeline_con_costos"
+      - "recordatorio_higiene_cada_6_meses"
+      - "galeria_antes_despues_con_consentimiento"
+      - "agenda_bloques_por_tipo_procedimiento"
+    compliance_requirements:
+      - "Norma_Oficial_Mexicana_NOM_013_SSA2_prevencion_enfermedades_bucales"
+      - "HIPAA_dental_patient_records_privacy"
+      - "OSHA_bloodborne_pathogen_standard_dental"
+    business_invariants:
+      - "No se realiza procedimiento invasivo sin consentimiento informado especifico firmado"
+      - "Todo instrumento reutilizable debe tener registro de esterilizacion vigente"
+      - "Las radiografias no pueden ser eliminadas antes del periodo de retencion de 7 anos"
+      - "La dosificacion de anestesia no puede exceder el limite calculado por peso corporal"
+    edge_cases:
+      - "Paciente con alergia a latex y anestesia con epinefrina — usar alternativas y actualizar expediente"
+      - "Tratamiento de ortodoncia en menor sin consentimiento de ambos padres — requerir firma conjunta"
+      - "Emergencia dental fuera de horario — protocolo de contacto con dentista de guardia"
+    suggested_entities:
+      - "PacienteDental"
+      - "Tratamiento"
+      - "Radiografia"
+      - "CitaDental"
+      - "InstrumentoEsterilizable"
+      - "PlanTratamiento"
+    notification_triggers:
+      - "cita_recordatorio_48h:Recordatorio de cita con instrucciones de preparacion pre-procedimiento"
+      - "seguimiento_post_procedimiento:Notificacion de seguimiento 24h despues de procedimiento invasivo"
+      - "retencion_radiografia_por_expirar:Alerta 90 dias antes de fecha minima de disposicion"
+      - "instrumento_sin_esterilizar:Alerta si instrumento esta en uso sin registro de esterilizacion vigente"
+      - "profilaxis_antibiotica_requerida:Recordatorio automatico para pacientes de alto riesgo al agendar"
+
+  # ===========================================================================
+  # 5. PHARMACY
+  # ===========================================================================
+  - name: "pharmacy"
+    display_name: "Farmacia"
+    description: "Reglas criticas para farmacias, incluyendo verificacion de interacciones medicamentosas, control de sustancias y dispensacion segura."
+    mandatory_logic:
+      - "drug_interaction_check_before_dispensing": "Verificacion obligatoria de interacciones medicamentosas antes de dispensar cualquier receta"
+      - "controlled_substance_tracking_dea_schedule": "Rastreo de sustancias controladas con registro segun clasificacion DEA/CVE"
+      - "prescription_validation_against_prescriber_license": "Validacion de receta contra la licencia del prescriptor vigente en el registro profesional"
+      - "expiration_date_blocking_at_dispensing": "Bloqueo automatico de dispensacion de medicamentos vencidos o por vencer en 30 dias"
+      - "cold_chain_monitoring_for_biologics": "Monitoreo de cadena de frio para biologicos y vacunas con alerta de desviacion de temperatura"
+      - "patient_medication_profile_cross_reference": "Perfil de medicacion del paciente con cruce de referencia en cada nueva dispensacion"
+      - "refill_too_early_detection": "Deteccion automatica de reabastecimiento prematuro segun frecuencia de dosificacion prescrita"
+    ux_patterns:
+      - "escaneo_receta_para_verificacion_automatica"
+      - "perfil_medicamento_paciente_con_interacciones"
+      - "alerta_visual_medicamento_controlado_en_dispensacion"
+      - "busqueda_medicamento_por_principio_activo_y_marca"
+    compliance_requirements:
+      - "DEA_controlled_substances_act"
+      - "Norma_Oficial_Mexicana_NOM_059_SSA1_estupefacientes_psicotropicos"
+      - "Farmacopea_de_los_Estados_Unidos_Mexicanos_FEUM"
+      - "Good_Pharmacy_Practice_GPP_OMS"
+    business_invariants:
+      - "Ningun medicamento se dispensa sin receta valida para productos de venta bajo receta"
+      - "No se dispensa medicamento vencido ni con fecha de caducidad menor a 30 dias"
+      - "Toda dispensacion de controlado debe tener registro con firma digital del farmaceutico"
+      - "Las interacciones criticas (contraindicadas) bloquean la dispensacion automaticamente"
+    edge_cases:
+      - "Receta con medicamento controlado de alto riesgo (opiaceos) — doble verificacion y registro en libro de controlados"
+      - "Vacuna con cadena de frio rota — bloquear dispensacion y reportar al proveedor"
+      - "Paciente con alergia documentada a principio activo prescrito — bloquear y contactar prescriptor"
+      - "Reabastecimiento solicitado antes del 75% del periodo de dosificacion — investigar y documentar"
+    suggested_entities:
+      - "Medicamento"
+      - "RecetaMedica"
+      - "Dispensacion"
+      - "Farmaceutico"
+      - "InventarioFarmacia"
+      - "PacienteFarmacia"
+    notification_triggers:
+      - "interaccion_medicamentosa_critica:Alerta bloqueante al farmaceutico con detalle de interaccion"
+      - "medicamento_por_vencer_30_dias:Notificacion para rotacion o devolucion al proveedor"
+      - "cadena_frio_desviacion:Alerta critica de temperatura fuera de rango para biologicos"
+      - "reabastecimiento_prematuro_detectado:Notificacion al farmaceutico para verificacion"
+      - "stock_agotado_medicamento_esencial:Alerta de desabasto para medicamento de alto giro"
+
+  # ===========================================================================
+  # 6. MENTAL HEALTH
+  # ===========================================================================
+  - name: "mental_health"
+    display_name: "Salud Mental y Psicologia"
+    description: "Reglas obligatorias para practicas de salud mental, incluyendo confidencialidad extrema, gestion de crisis y documentacion clinica sensible."
+    mandatory_logic:
+      - "mandatory_reporting_duty_for_harm": "Obligacion de reportar cuando el paciente representa riesgo de dano a si mismo o terceros"
+      - "session_notes_locked_after_48h": "Notas de sesion bloqueadas contra edicion despues de 48 horas de la cita"
+      - "crisis_protocol_suicide_risk_assessment": "Protocolo de crisis con evaluacion de riesgo suicida (Columbia o PHQ-9) en cada sesion"
+      - "dual_relationship_boundary_enforcement": "Prevencion de relaciones duales — el sistema bloquea contacto fuera del marco terapeutico"
+      - "psychotherapy_notes_separate_from_medical_record": "Notas de psicoterapia separadas del expediente medico general con acceso restringido"
+      - "informed_consent_therapeutic_framework": "Consentimiento informado especifico al marco terapeutico (CBT, psicoanalisis, EMDR, etc.)"
+      - "no_show_3_consecutive_discharge_protocol": "Protocolo de alta administrativa tras 3 faltas consecutivas sin justificacion"
+    ux_patterns:
+      - "mood_tracker_diario_para_paciente"
+      - "evaluacion_riesgo_pre_sesion_cuestionario"
+      - "portal_paciente_con_acceso_limitado_notas"
+      - "agenda_terapeuta_con_bloques_emocionales"
+      - "recursos_crisis_visible_en_toda_pantalla"
+    compliance_requirements:
+      - "HIPAA_special_protections_psychotherapy_notes"
+      - "Codigo_Etico_del_Colegio_de_Psicologos"
+      - "Ley_General_de_Salud_secreto_profesional"
+    business_invariants:
+      - "Las notas de psicoterapia NUNCA se comparten con seguros sin autorizacion explicita del paciente"
+      - "Toda sesion requiere evaluacion de riesgo documentada"
+      - "No se puede eliminar ningun registro clinico de sesion, solo adendas"
+      - "El terapeuta no puede atender a familiares o cercanos de pacientes actuales"
+    edge_cases:
+      - "Paciente en crisis suicida activa durante sesion — activar protocolo de emergencia con linea de crisis"
+      - "Subpoena de notas de psicoterapia — requerir orden judicial antes de cualquier divulgacion"
+      - "Menor de edad que solicita terapia sin conocimiento de padres — evaluar marco legal por jurisdiccion"
+    suggested_entities:
+      - "PacientePsicologico"
+      - "SesionTerapeutica"
+      - "NotaProgreso"
+      - "EvaluacionRiesgo"
+      - "PlanSeguridad"
+      - "Terapeuta"
+    notification_triggers:
+      - "riesgo_suicida_elevado:Alerta inmediata al terapeuta y equipo de crisis"
+      - "3_faltas_consecutivas:Notificacion para iniciar protocolo de alta administrativa"
+      - "nota_sesion_sin_completar_24h:Recordatorio al terapeuta para completar notas"
+      - "consentimiento_por_vencer:Recordatorio de renovacion de consentimiento informado anual"

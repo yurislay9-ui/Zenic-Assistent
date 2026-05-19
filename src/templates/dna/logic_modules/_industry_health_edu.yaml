@@ -1,0 +1,183 @@
+# logic_modules — Industry Modules: Healthcare & Education
+
+modules:
+  # ===========================================================================
+  # 12. HEALTHCARE (4 modules)
+  # ===========================================================================
+  - id: "patient_register"
+    domain: "healthcare"
+    description: "Registra un nuevo paciente con validación de datos demográficos y asignación de ID médico"
+    code_block: |
+      import uuid
+      from datetime import datetime, timezone
+      from typing import Dict, Any, List, Optional
+
+      def patient_register(patient_data: Dict[str, Any], required_fields: Optional[List[str]] = None) -> Dict[str, Any]:
+          """Register a new patient with validation and medical ID assignment."""
+          if required_fields is None:
+              required_fields = ["first_name", "last_name", "date_of_birth"]
+          missing = [f for f in required_fields if f not in patient_data or not patient_data[f]]
+          if missing:
+              return {"success": False, "error": f"missing_required:{missing}"}
+          patient_id = f"PAT-{uuid.uuid4().hex[:8].upper()}"
+          record = {"patient_id": patient_id, **patient_data, "registered_at": datetime.now(timezone.utc).isoformat(), "status": "active", "allergies": patient_data.get("allergies", []), "emergency_contact": patient_data.get("emergency_contact", {})}
+          return {"success": True, "patient": record}
+    dependencies: []
+    verification_rule: "missing_fields_rejected"
+    inputs: ["patient_data:Dict[str,Any]", "required_fields:Optional[List[str]]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "prescription_validate"
+    domain: "healthcare"
+    description: "Valida una prescripción verificando dosis, interacciones medicamentosas y restricciones del paciente"
+    code_block: |
+      from typing import Dict, Any, List
+
+      def prescription_validate(prescription: Dict[str, Any], patient: Dict[str, Any], drug_database: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+          """Validate a prescription checking dosage, interactions, and patient restrictions."""
+          warnings = []
+          errors = []
+          for med in prescription.get("medications", []):
+              drug_info = drug_database.get(med["drug_name"])
+              if not drug_info:
+                  errors.append(f"unknown_drug:{med['drug_name']}")
+                  continue
+              if med["dosage"] > drug_info.get("max_dosage", float("inf")):
+                  errors.append(f"overdose:{med['drug_name']}")
+              for allergy in patient.get("allergies", []):
+                  if allergy.lower() in drug_info.get("allergen_tags", []):
+                      errors.append(f"allergy_conflict:{med['drug_name']}")
+              for existing_med in patient.get("current_medications", []):
+                  if existing_med in drug_info.get("interactions", []):
+                      warnings.append(f"interaction:{med['drug_name']}+{existing_med}")
+          return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
+    dependencies: []
+    verification_rule: "allergy_conflict_detected"
+    inputs: ["prescription:Dict[str,Any]", "patient:Dict[str,Any]", "drug_database:Dict[str,Dict[str,Any]]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "appointment_triage"
+    domain: "healthcare"
+    description: "Realiza triaje de citas médicas clasificando urgencia según síntomas y signos vitales"
+    code_block: |
+      from typing import Dict, Any, List
+
+      def appointment_triage(symptoms: List[str], vitals: Dict[str, float], triage_rules: Dict[str, Any] = None) -> Dict[str, Any]:
+          """Triage a medical appointment based on symptoms and vitals to determine urgency."""
+          if triage_rules is None:
+              triage_rules = {"critical_symptoms": ["chest_pain", "difficulty_breathing", "unconscious"], "critical_vitals": {"heart_rate_max": 130, "heart_rate_min": 40, "systolic_max": 180, "temperature_max": 39.5}}
+          urgency = "routine"
+          reasons = []
+          for symptom in symptoms:
+              if symptom in triage_rules.get("critical_symptoms", []):
+                  urgency = "emergency"
+                  reasons.append(f"critical_symptom:{symptom}")
+          hr = vitals.get("heart_rate", 70)
+          if hr > triage_rules["critical_vitals"]["heart_rate_max"] or hr < triage_rules["critical_vitals"]["heart_rate_min"]:
+              urgency = "urgent" if urgency != "emergency" else urgency
+              reasons.append(f"abnormal_heart_rate:{hr}")
+          if vitals.get("temperature", 37.0) > triage_rules["critical_vitals"]["temperature_max"]:
+              urgency = "urgent" if urgency != "emergency" else urgency
+              reasons.append(f"high_fever:{vitals['temperature']}")
+          return {"urgency": urgency, "reasons": reasons, "symptoms": symptoms, "vitals": vitals}
+    dependencies: []
+    verification_rule: "critical_symptom_emergency"
+    inputs: ["symptoms:List[str]", "vitals:Dict[str,float]", "triage_rules:Dict[str,Any]"]
+    outputs: ["triage:Dict[str,Any]"]
+
+  - id: "vital_alert"
+    domain: "healthcare"
+    description: "Genera alertas cuando los signos vitales de un paciente exceden los umbrales críticos definidos"
+    code_block: |
+      from typing import Dict, Any, List
+
+      def vital_alert(patient_id: str, vitals: Dict[str, float], thresholds: Dict[str, Dict[str, float]]) -> List[Dict[str, Any]]:
+          """Generate alerts when patient vitals exceed defined critical thresholds."""
+          alerts = []
+          for vital_name, value in vitals.items():
+              rules = thresholds.get(vital_name)
+              if not rules:
+                  continue
+              if "min" in rules and value < rules["min"]:
+                  alerts.append({"patient_id": patient_id, "vital": vital_name, "value": value, "direction": "low", "threshold": rules["min"], "severity": "critical" if value < rules.get("critical_min", rules["min"]) else "warning"})
+              if "max" in rules and value > rules["max"]:
+                  alerts.append({"patient_id": patient_id, "vital": vital_name, "value": value, "direction": "high", "threshold": rules["max"], "severity": "critical" if value > rules.get("critical_max", rules["max"]) else "warning"})
+          return alerts
+    dependencies: []
+    verification_rule: "threshold_breach_alerted"
+    inputs: ["patient_id:str", "vitals:Dict[str,float]", "thresholds:Dict[str,Dict[str,float]]"]
+    outputs: ["alerts:List[Dict[str,Any]]"]
+
+  # ===========================================================================
+  # 13. EDUCATION (3 modules)
+  # ===========================================================================
+  - id: "enrollment_process"
+    domain: "education"
+    description: "Procesa la matrícula de un estudiante verificando prerequisitos, cupo y generando el registro"
+    code_block: |
+      import uuid
+      from datetime import datetime, timezone
+      from typing import Dict, Any, List
+
+      def enrollment_process(student: Dict[str, Any], course: Dict[str, Any], completed_courses: List[str], enrollment_capacity: Dict[str, int]) -> Dict[str, Any]:
+          """Process a student enrollment checking prerequisites and capacity."""
+          prerequisites = course.get("prerequisites", [])
+          unmet = [p for p in prerequisites if p not in completed_courses]
+          if unmet:
+              return {"success": False, "reason": "prerequisites_unmet", "missing": unmet}
+          course_id = course["id"]
+          current_enrolled = enrollment_capacity.get(f"{course_id}_enrolled", 0)
+          max_capacity = enrollment_capacity.get(f"{course_id}_max", 0)
+          if current_enrolled >= max_capacity:
+              return {"success": False, "reason": "course_full"}
+          enrollment_id = f"ENR-{uuid.uuid4().hex[:8].upper()}"
+          return {"success": True, "enrollment_id": enrollment_id, "student_id": student["id"], "course_id": course_id, "enrolled_at": datetime.now(timezone.utc).isoformat(), "status": "active"}
+    dependencies: []
+    verification_rule: "prerequisite_unmet_rejected"
+    inputs: ["student:Dict[str,Any]", "course:Dict[str,Any]", "completed_courses:List[str]", "enrollment_capacity:Dict[str,int]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "grade_calculate"
+    domain: "education"
+    description: "Calcula la calificación final de un estudiante ponderando componentes evaluativos con redondeo configurable"
+    code_block: |
+      from typing import Dict, Any, List
+
+      def grade_calculate(grades: Dict[str, float], weight_scheme: Dict[str, float], scale: str = "100", round_to: int = 1) -> Dict[str, Any]:
+          """Calculate a weighted final grade from component grades and a weight scheme."""
+          total_weight = sum(weight_scheme.values())
+          if abs(total_weight - 1.0) > 0.01:
+              return {"success": False, "error": "weights_do_not_sum_to_1", "total_weight": total_weight}
+          weighted_sum = 0.0
+          breakdown = []
+          for component, grade in grades.items():
+              weight = weight_scheme.get(component, 0.0)
+              contribution = grade * weight
+              weighted_sum += contribution
+              breakdown.append({"component": component, "grade": grade, "weight": weight, "contribution": round(contribution, round_to)})
+          final_grade = round(weighted_sum, round_to)
+          letter = "A" if final_grade >= 90 else "B" if final_grade >= 80 else "C" if final_grade >= 70 else "D" if final_grade >= 60 else "F"
+          return {"success": True, "final_grade": final_grade, "letter_grade": letter, "breakdown": breakdown}
+    dependencies: []
+    verification_rule: "weights_sum_to_one"
+    inputs: ["grades:Dict[str,float]", "weight_scheme:Dict[str,float]", "scale:str", "round_to:int"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "certificate_generate"
+    domain: "education"
+    description: "Genera un certificado de finalización verificable con código único y datos del curso"
+    code_block: |
+      import uuid
+      from datetime import datetime, timezone
+      from typing import Dict, Any
+
+      def certificate_generate(student_name: str, course_name: str, completion_date: str, issuer: str, grade: str = "") -> Dict[str, Any]:
+          """Generate a completion certificate with a unique verification code."""
+          cert_id = f"CERT-{uuid.uuid4().hex[:12].upper()}"
+          verification_code = uuid.uuid4().hex
+          certificate = {"certificate_id": cert_id, "verification_code": verification_code, "student_name": student_name, "course_name": course_name, "completion_date": completion_date, "grade": grade, "issuer": issuer, "issued_at": datetime.now(timezone.utc).isoformat(), "status": "valid"}
+          return certificate
+    dependencies: []
+    verification_rule: "verification_code_unique"
+    inputs: ["student_name:str", "course_name:str", "completion_date:str", "issuer:str", "grade:str"]
+    outputs: ["certificate:Dict[str,Any]"]

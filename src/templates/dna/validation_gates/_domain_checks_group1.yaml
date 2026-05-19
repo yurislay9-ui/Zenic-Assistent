@@ -1,0 +1,217 @@
+# validation_gates — Domain-Specific Checks (Group 1: healthcare..real_estate)
+# 7 domains with 3-5 checks each
+
+domain_specific_checks:
+
+  # ── 1. HEALTHCARE ─────────────────────────────────────────────────────────
+  - domain: "healthcare"
+    checks:
+      - id: "hipaa_compliance"
+        rule: "Cumplimiento HIPAA: controles de acceso, logging y protección de PHI (Protected Health Information)"
+        action: "Verificar que el acceso a datos de salud requiera autenticación, autorización por rol y logging de acceso"
+        severity: "critical"
+        applies_to: ["patient_records", "medical_reports", "prescription_services"]
+
+      - id: "patient_data_encryption"
+        rule: "Los registros de pacientes deben estar cifrados en tránsito (TLS 1.2+) y en reposo (AES-256)"
+        action: "Validar configuración TLS del servicio y cifrado de columnas con datos de pacientes"
+        severity: "critical"
+        applies_to: ["patient_records", "lab_results", "imaging_systems"]
+
+      - id: "audit_trail_required"
+        rule: "Cada acceso o modificación a datos de pacientes debe generar traza de auditoría con identidad del usuario"
+        action: "Verificar que el sistema registre quién, cuándo y qué accedió/modificó en datos clínicos"
+        severity: "critical"
+        applies_to: ["patient_records", "ehr_systems", "billing_services"]
+
+      - id: "minimum_necessary_access"
+        rule: "Principio de mínimo necesario: los usuarios solo acceden al subconjunto de PHI que necesitan para su función"
+        action: "Revisar que las reglas de autorización segmenten el acceso a datos clínicos por rol y necesidad"
+        severity: "critical"
+        applies_to: ["access_control", "ehr_systems", "patient_portal"]
+
+      - id: "phi_export_restrictions"
+        rule: "La exportación de PHI debe requerir autorización explícita y registro de la descarga"
+        action: "Verificar que las funciones de exportación/reportes de datos de pacientes requieran aprobación y log"
+        severity: "warning"
+        applies_to: ["reporting_services", "data_export", "analytics"]
+
+  # ── 2. FINANCE ────────────────────────────────────────────────────────────
+  - domain: "finance"
+    checks:
+      - id: "pci_dss_compliance"
+        rule: "Cumplimiento PCI-DSS: prohibir almacenamiento de números de tarjeta; usar tokenización"
+        action: "Escanea código y DB para detectar números de tarjeta almacenados; verificar uso de pasarela tokenizada"
+        severity: "critical"
+        applies_to: ["payment_processing", "billing_services", "wallet_services"]
+
+      - id: "transaction_immutability"
+        rule: "Las transacciones financieras son inmutables: solo se permiten compensaciones (reversals), nunca borrado"
+        action: "Verificar que las tablas de transacciones no tengan DELETE habilitado y que las actualizaciones creen registros de compensación"
+        severity: "critical"
+        applies_to: ["transaction_services", "ledger_systems", "settlement_services"]
+
+      - id: "dual_approval_large_amounts"
+        rule: "Transacciones por encima del umbral configurado requieren aprobación dual antes de ejecución"
+        action: "Verificar que el flujo de transacciones exija second_factor/approval para montos mayores al límite"
+        severity: "critical"
+        applies_to: ["transfer_services", "payment_processing", "wire_transfer"]
+
+      - id: "reconciliation_mechanism"
+        rule: "Cada módulo financiero debe implementar conciliación automática diaria entre registros internos y externos"
+        action: "Verificar existencia de job/proceso de conciliación que compare balances y alerte discrepancias"
+        severity: "warning"
+        applies_to: ["ledger_systems", "banking_integration", "settlement_services"]
+
+      - id: "fractional_cent_handling"
+        rule: "Los cálculos monetarios deben usar precisión decimal fija; prohibir punto flotante para dinero"
+        action: "Detectar uso de float/double en campos monetarios; exigir Decimal o entero en centavos"
+        severity: "critical"
+        applies_to: ["transaction_services", "pricing_engine", "tax_calculation"]
+
+  # ── 3. EDUCATION ──────────────────────────────────────────────────────────
+  - domain: "education"
+    checks:
+      - id: "ferpa_compliance"
+        rule: "Cumplimiento FERPA: los registros educativos solo son accesibles por el estudiante y personal autorizado"
+        action: "Verificar que las APIs de registros estudiantiles apliquen control de acceso basado en FERPA"
+        severity: "critical"
+        applies_to: ["student_records", "grade_systems", "enrollment_services"]
+
+      - id: "student_data_privacy"
+        rule: "Los datos de estudiantes menores de 13 requieren consentimiento parental verificable (COPPA)"
+        action: "Verificar flujo de consentimiento parental antes de permitir acceso a datos de menores"
+        severity: "critical"
+        applies_to: ["student_portal", "learning_management", "assessment_systems"]
+
+      - id: "grade_immutability"
+        rule: "Las calificaciones publicadas son inmutables; cambios requieren proceso formal de apelación"
+        action: "Verificar que las tablas de calificaciones solo acepten INSERT y UPDATE via proceso de apelación auditado"
+        severity: "critical"
+        applies_to: ["grade_systems", "transcript_services", "assessment_systems"]
+
+      - id: "academic_integrity_monitoring"
+        rule: "Las entregas deben pasar por verificación de integridad académica (plagio, IA) antes de aceptarse"
+        action: "Verificar integración con servicio de detección de similitud en el flujo de submission"
+        severity: "warning"
+        applies_to: ["assignment_systems", "assessment_systems", "learning_management"]
+
+  # ── 4. E-COMMERCE ─────────────────────────────────────────────────────────
+  - domain: "ecommerce"
+    checks:
+      - id: "price_tampering_prevention"
+        rule: "El precio enviado al checkout debe validarse contra el catálogo del servidor; nunca confiar en el cliente"
+        action: "Verificar que el backend re-consulte el precio antes de crear la orden de pago"
+        severity: "critical"
+        applies_to: ["cart_services", "checkout_services", "pricing_engine"]
+
+      - id: "inventory_atomic_reservation"
+        rule: "La reserva de inventario debe ser atómica (lock o versionado) para prevenir overselling"
+        action: "Verificar que la reducción de stock use optimistic locking o SELECT FOR UPDATE"
+        severity: "critical"
+        applies_to: ["inventory_services", "order_management", "warehouse_systems"]
+
+      - id: "order_state_machine"
+        rule: "Los pedidos deben seguir una máquina de estados estricta; prohibir transiciones inválidas"
+        action: "Validar que cada transición de estado del pedido esté dentro de las permitidas por el state machine"
+        severity: "critical"
+        applies_to: ["order_management", "fulfillment_services", "return_services"]
+
+      - id: "cart_abandonment_tracking"
+        rule: "Los carritos abandonados deben ser detectados y seguidos para recuperación sin retener datos de pago"
+        action: "Verificar que el sistema identifique carritos inactivos y limpie datos de tarjeta después de timeout"
+        severity: "warning"
+        applies_to: ["cart_services", "marketing_automation", "analytics"]
+
+      - id: "tax_calculation_compliance"
+        rule: "El cálculo de impuestos debe usar el servicio de tax compliance configurado; prohibir cálculos manuales"
+        action: "Verificar que las funciones de cálculo de tax deleguen al servicio externo (Avalara/TaxJar)"
+        severity: "critical"
+        applies_to: ["checkout_services", "pricing_engine", "invoice_services"]
+
+  # ── 5. LEGAL ──────────────────────────────────────────────────────────────
+  - domain: "legal"
+    checks:
+      - id: "attorney_client_privilege"
+        rule: "Las comunicaciones abogado-cliente deben estar aisladas con cifrado extremo a extremo"
+        action: "Verificar que los canales de comunicación legal usen E2EE y acceso restringido por privilegio"
+        severity: "critical"
+        applies_to: ["case_management", "communication_systems", "document_vault"]
+
+      - id: "document_version_immutability"
+        rule: "Las versiones de documentos legales son inmutables; toda edición crea una nueva versión"
+        action: "Verificar que el sistema de documentos use versionado append-only sin permitir modificación de versiones previas"
+        severity: "critical"
+        applies_to: ["document_management", "contract_services", "compliance_tracking"]
+
+      - id: "conflict_of_interest_check"
+        rule: "Cada nuevo caso debe pasar por verificación de conflicto de intereses antes de ser aceptado"
+        action: "Verificar que el flujo de creación de caso incluya paso obligatorio de conflict check"
+        severity: "critical"
+        applies_to: ["case_management", "client_onboarding", "conflict_check_services"]
+
+      - id: "statute_of_limitations_tracking"
+        rule: "El sistema debe rastrear fechas de prescripción y alertar antes del vencimiento"
+        action: "Verificar que los eventos con deadlines legales tengan cálculo automático de prescripción y alertas"
+        severity: "warning"
+        applies_to: ["case_management", "deadline_tracking", "calendar_services"]
+
+  # ── 6. GOVERNMENT ─────────────────────────────────────────────────────────
+  - domain: "government"
+    checks:
+      - id: "foia_compliance"
+        rule: "Los sistemas deben poder responder solicitudes FOIA extrayendo datos no exentos eficientemente"
+        action: "Verificar que los datos tengan metadata de clasificación y existan APIs de exportación para solicitudes FOIA"
+        severity: "critical"
+        applies_to: ["records_management", "public_portals", "data_repositories"]
+
+      - id: "classified_data_handling"
+        rule: "Los datos clasificados deben seguir controles de seguridad según su nivel (Unclassified/Secret/Top Secret)"
+        action: "Verificar que los datos marcados como clasificados tengan los controles de acceso y cifrado correspondientes"
+        severity: "critical"
+        applies_to: ["classified_systems", "records_management", "communication_systems"]
+
+      - id: "multi_factor_authentication_mandatory"
+        rule: "Todos los accesos a sistemas gubernamentales requieren autenticación multifactor"
+        action: "Verificar que la configuración de auth exija MFA sin excepción para todos los roles"
+        severity: "critical"
+        applies_to: ["access_control", "citizen_portals", "internal_systems"]
+
+      - id: "accessibility_wcag"
+        rule: "Las interfaces públicas deben cumplir WCAG 2.1 AA para accesibilidad universal"
+        action: "Ejecutar auditoría de accesibilidad automatizada (axe-core) y verificar cumplimiento de criterios AA"
+        severity: "warning"
+        applies_to: ["public_portals", "citizen_services", "information_systems"]
+
+      - id: "public_records_retention"
+        rule: "Los registros públicos deben conservarse según la política de retención estipulada por ley"
+        action: "Verificar configuración de retención y que no existan procesos de purga prematura de registros públicos"
+        severity: "critical"
+        applies_to: ["records_management", "archive_systems", "data_repositories"]
+
+  # ── 7. REAL_ESTATE ────────────────────────────────────────────────────────
+  - domain: "real_estate"
+    checks:
+      - id: "fair_housing_compliance"
+        rule: "Cumplimiento de Fair Housing Act: prohibir filtrado por raza, religión, género, familia u origen nacional"
+        action: "Verificar que los filtros de búsqueda y algoritmos de recomendación excluyan campos protegidos"
+        severity: "critical"
+        applies_to: ["property_listings", "search_services", "recommendation_engine"]
+
+      - id: "escrow_transaction_integrity"
+        rule: "Los fondos en depósito (escrow) deben estar en cuenta segregada y solo liberarse con condiciones verificadas"
+        action: "Verificar que el flujo de escrow use cuentas segregadas y requiera verificación antes de release"
+        severity: "critical"
+        applies_to: ["transaction_services", "escrow_services", "closing_services"]
+
+      - id: "disclosure_document_tracking"
+        rule: "Todos los documentos de divulgación obligatoria deben ser rastreados con firma y fecha del receptor"
+        action: "Verificar que el sistema registre recepción, firma y fecha de cada disclosure requerido"
+        severity: "warning"
+        applies_to: ["disclosure_services", "document_management", "compliance_tracking"]
+
+      - id: "property_valuation_audit"
+        rule: "Las valoraciones de propiedad deben ser auditables con metodología y fuente de datos documentadas"
+        action: "Verificar que cada valuación guarde referencia a la metodología, comparables y fuente de datos usada"
+        severity: "warning"
+        applies_to: ["valuation_services", "appraisal_systems", "market_analytics"]

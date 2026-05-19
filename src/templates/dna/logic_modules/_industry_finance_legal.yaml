@@ -1,0 +1,278 @@
+# logic_modules — Industry Modules: Finance, Legal, Logistics
+
+modules:
+  # ===========================================================================
+  # 14. FINANCE (4 modules)
+  # ===========================================================================
+  - id: "interest_calculate"
+    domain: "finance"
+    description: "Calcula interés simple o compuesto con frecuencia de capitalización configurable"
+    code_block: |
+      from typing import Dict, Any
+
+      def interest_calculate(principal: float, annual_rate: float, periods: int, compounding: str = "monthly") -> Dict[str, Any]:
+          """Calculate simple or compound interest over a number of periods."""
+          freq_map = {"annually": 1, "semi_annually": 2, "quarterly": 4, "monthly": 12, "daily": 365}
+          n = freq_map.get(compounding, 12)
+          rate_per_period = annual_rate / n
+          total_periods = periods * n
+          compound_amount = principal * (1 + rate_per_period) ** total_periods
+          compound_interest = compound_amount - principal
+          simple_interest = principal * annual_rate * periods
+          return {"principal": principal, "annual_rate": annual_rate, "periods": periods, "compounding": compounding, "compound_interest": round(compound_interest, 2), "compound_amount": round(compound_amount, 2), "simple_interest": round(simple_interest, 2)}
+    dependencies: []
+    verification_rule: "compound_gt_simple"
+    inputs: ["principal:float", "annual_rate:float", "periods:int", "compounding:str"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "credit_score"
+    domain: "finance"
+    description: "Calcula un score crediticio basado en factores de pago, utilización, antigüedad y consultas"
+    code_block: |
+      from typing import Dict, Any
+
+      def credit_score(factors: Dict[str, Any]) -> Dict[str, Any]:
+          """Calculate a credit score from payment history, utilization, age, and inquiries."""
+          payment_weight = 0.35
+          utilization_weight = 0.30
+          age_weight = 0.15
+          inquiries_weight = 0.10
+          mix_weight = 0.10
+          payment_score = factors.get("on_time_payment_rate", 1.0) * 850
+          utilization = factors.get("credit_utilization", 0.0)
+          utilization_score = max(0, (1 - utilization) * 850)
+          age_score = min(factors.get("credit_age_months", 0) / 240, 1.0) * 850
+          inquiries = factors.get("recent_inquiries", 0)
+          inquiries_score = max(0, 850 - inquiries * 30)
+          mix_score = min(factors.get("credit_mix_types", 0) / 4, 1.0) * 850
+          raw = (payment_score * payment_weight + utilization_score * utilization_weight + age_score * age_weight + inquiries_score * inquiries_weight + mix_score * mix_weight)
+          score = max(300, min(850, int(raw)))
+          rating = "excellent" if score >= 750 else "good" if score >= 700 else "fair" if score >= 650 else "poor"
+          return {"score": score, "rating": rating, "factors": factors}
+    dependencies: []
+    verification_rule: "score_between_300_850"
+    inputs: ["factors:Dict[str,Any]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "amortization_schedule"
+    domain: "finance"
+    description: "Genera una tabla de amortización para un préstamo con pagos mensuales fijos"
+    code_block: |
+      from typing import List, Dict, Any
+
+      def amortization_schedule(principal: float, annual_rate: float, term_months: int) -> Dict[str, Any]:
+          """Generate an amortization schedule for a fixed-rate loan."""
+          monthly_rate = annual_rate / 12
+          if monthly_rate == 0:
+              monthly_payment = principal / term_months
+          else:
+              monthly_payment = principal * (monthly_rate * (1 + monthly_rate) ** term_months) / ((1 + monthly_rate) ** term_months - 1)
+          schedule = []
+          balance = principal
+          for month in range(1, term_months + 1):
+              interest = round(balance * monthly_rate, 2)
+              principal_paid = round(monthly_payment - interest, 2)
+              balance = round(balance - principal_paid, 2)
+              if balance < 0:
+                  balance = 0
+              schedule.append({"month": month, "payment": round(monthly_payment, 2), "principal": principal_paid, "interest": interest, "balance": balance})
+          return {"monthly_payment": round(monthly_payment, 2), "total_paid": round(monthly_payment * term_months, 2), "total_interest": round(monthly_payment * term_months - principal, 2), "schedule": schedule}
+    dependencies: []
+    verification_rule: "final_balance_zero"
+    inputs: ["principal:float", "annual_rate:float", "term_months:int"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "transaction_reconcile"
+    domain: "finance"
+    description: "Concilia transacciones internas con extractos bancarios identificando discrepancias"
+    code_block: |
+      from typing import List, Dict, Any
+      from decimal import Decimal
+
+      def transaction_reconcile(internal_transactions: List[Dict[str, Any]], bank_statements: List[Dict[str, Any]], tolerance: float = 0.01) -> Dict[str, Any]:
+          """Reconcile internal transactions against bank statements within a tolerance."""
+          matched = []
+          unmatched_internal = []
+          unmatched_bank = list(bank_statements)
+          for txn in internal_transactions:
+              found = False
+              for i, bank_txn in enumerate(unmatched_bank):
+                  if txn.get("reference") == bank_txn.get("reference") and abs(Decimal(str(txn["amount"])) - Decimal(str(bank_txn["amount"]))) <= Decimal(str(tolerance)):
+                      matched.append({"internal": txn, "bank": bank_txn})
+                      unmatched_bank.pop(i)
+                      found = True
+                      break
+              if not found:
+                  unmatched_internal.append(txn)
+          return {"matched_count": len(matched), "unmatched_internal_count": len(unmatched_internal), "unmatched_bank_count": len(unmatched_bank), "unmatched_internal": unmatched_internal, "unmatched_bank": unmatched_bank}
+    dependencies: []
+    verification_rule: "all_matched_when_consistent"
+    inputs: ["internal_transactions:List[Dict[str,Any]]", "bank_statements:List[Dict[str,Any]]", "tolerance:float"]
+    outputs: ["reconciliation:Dict[str,Any]"]
+
+  # ===========================================================================
+  # 15. LEGAL (3 modules)
+  # ===========================================================================
+  - id: "contract_validate"
+    domain: "legal"
+    description: "Valida un contrato verificando cláusulas obligatorias, firmas y fechas de vigencia"
+    code_block: |
+      from datetime import datetime
+      from typing import Dict, Any, List
+
+      def contract_validate(contract: Dict[str, Any], required_clauses: List[str] = None, required_signatures: List[str] = None) -> Dict[str, Any]:
+          """Validate a contract checking mandatory clauses, signatures, and effective dates."""
+          if required_clauses is None:
+              required_clauses = ["parties", "consideration", "term", "governing_law"]
+          if required_signatures is None:
+              required_signatures = ["party_a", "party_b"]
+          issues = []
+          present_clauses = contract.get("clauses", {})
+          missing_clauses = [c for c in required_clauses if c not in present_clauses]
+          if missing_clauses:
+              issues.append({"type": "missing_clause", "details": missing_clauses})
+          signatures = contract.get("signatures", {})
+          missing_sigs = [s for s in required_signatures if s not in signatures or not signatures[s]]
+          if missing_sigs:
+              issues.append({"type": "missing_signature", "details": missing_sigs})
+          effective = contract.get("effective_date")
+          if effective:
+              eff_date = effective if isinstance(effective, datetime) else datetime.fromisoformat(effective)
+              if eff_date > datetime.now(eff_date.tzinfo):
+                  issues.append({"type": "not_yet_effective", "date": str(effective)})
+          return {"valid": len(issues) == 0, "issues": issues}
+    dependencies: []
+    verification_rule: "missing_clause_flagged"
+    inputs: ["contract:Dict[str,Any]", "required_clauses:List[str]", "required_signatures:List[str]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "deadline_track"
+    domain: "legal"
+    description: "Rastrea plazos legales calculando fechas límite y alertando sobre vencimientos próximos"
+    code_block: |
+      from datetime import datetime, timedelta, timezone
+      from typing import Dict, Any, List
+
+      def deadline_track(deadlines: List[Dict[str, Any]], warning_days: int = 7, reference_date: datetime = None) -> Dict[str, Any]:
+          """Track legal deadlines, compute remaining days, and flag upcoming ones."""
+          if reference_date is None:
+              reference_date = datetime.now(timezone.utc)
+          tracked = []
+          upcoming = []
+          overdue = []
+          for dl in deadlines:
+              due = dl["due_date"] if isinstance(dl["due_date"], datetime) else datetime.fromisoformat(dl["due_date"])
+              remaining = (due - reference_date).days
+              entry = {**dl, "remaining_days": remaining, "status": "overdue" if remaining < 0 else "upcoming" if remaining <= warning_days else "on_track"}
+              tracked.append(entry)
+              if remaining < 0:
+                  overdue.append(entry)
+              elif remaining <= warning_days:
+                  upcoming.append(entry)
+          return {"total": len(tracked), "overdue_count": len(overdue), "upcoming_count": len(upcoming), "tracked": tracked}
+    dependencies: []
+    verification_rule: "overdue_detected"
+    inputs: ["deadlines:List[Dict[str,Any]]", "warning_days:int", "reference_date:datetime"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "compliance_check"
+    domain: "legal"
+    description: "Verifica el cumplimiento de regulaciones específicas contra un conjunto de datos de la organización"
+    code_block: |
+      from typing import Dict, Any, List
+
+      def compliance_check(organization_data: Dict[str, Any], regulations: List[Dict[str, Any]]) -> Dict[str, Any]:
+          """Check organizational data against regulatory compliance requirements."""
+          violations = []
+          compliant_items = []
+          for reg in regulations:
+              reg_id = reg["id"]
+              checks = reg.get("checks", [])
+              reg_violations = []
+              for check in checks:
+                  field = check["field"]
+                  condition = check["condition"]
+                  value = organization_data.get(field)
+                  if condition == "required" and not value:
+                      reg_violations.append({"field": field, "issue": "missing_required"})
+                  elif condition == "min_length" and value and len(str(value)) < check["value"]:
+                      reg_violations.append({"field": field, "issue": f"below_min_length:{check['value']}"})
+                  elif condition == "one_of" and value not in check["values"]:
+                      reg_violations.append({"field": field, "issue": f"invalid_value"})
+              if reg_violations:
+                  violations.append({"regulation_id": reg_id, "issues": reg_violations})
+              else:
+                  compliant_items.append(reg_id)
+          return {"compliant": len(violations) == 0, "violations": violations, "compliant_regulations": compliant_items}
+    dependencies: []
+    verification_rule: "missing_required_flagged"
+    inputs: ["organization_data:Dict[str,Any]", "regulations:List[Dict[str,Any]]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  # ===========================================================================
+  # 16. LOGISTICS (3 modules)
+  # ===========================================================================
+  - id: "route_optimize"
+    domain: "logistics"
+    description: "Optimiza la ruta de entrega usando el algoritmo del vecino más cercano para múltiples paradas"
+    code_block: |
+      import math
+      from typing import List, Dict, Any
+
+      def route_optimize(locations: List[Dict[str, float]], start_index: int = 0) -> Dict[str, Any]:
+          """Optimize delivery route using nearest-neighbor heuristic for multiple stops."""
+          if len(locations) <= 1:
+              return {"route": locations, "total_distance": 0.0, "stops": len(locations)}
+          unvisited = set(range(len(locations)))
+          route_indices = [start_index]
+          unvisited.discard(start_index)
+          total_distance = 0.0
+          current = start_index
+          while unvisited:
+              nearest = min(unvisited, key=lambda i: math.hypot(locations[i]["lat"] - locations[current]["lat"], locations[i]["lng"] - locations[current]["lng"]))
+              dist = math.hypot(locations[nearest]["lat"] - locations[current]["lat"], locations[nearest]["lng"] - locations[current]["lng"])
+              total_distance += dist
+              route_indices.append(nearest)
+              unvisited.discard(nearest)
+              current = nearest
+          return {"route_indices": route_indices, "route": [locations[i] for i in route_indices], "total_distance": round(total_distance, 2), "stops": len(route_indices)}
+    dependencies: []
+    verification_rule: "all_locations_visited"
+    inputs: ["locations:List[Dict[str,float]]", "start_index:int"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "shipment_track"
+    domain: "logistics"
+    description: "Rastrea un envío devolviendo su estado actual, ubicación e historial de eventos"
+    code_block: |
+      from typing import Dict, Any, List, Optional
+
+      def shipment_track(tracking_id: str, shipment_database: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+          """Track a shipment returning current status, location, and event history."""
+          shipment = shipment_database.get(tracking_id)
+          if not shipment:
+              return {"found": False, "tracking_id": tracking_id}
+          events = shipment.get("events", [])
+          latest_event = events[-1] if events else None
+          return {"found": True, "tracking_id": tracking_id, "status": shipment.get("status", "unknown"), "carrier": shipment.get("carrier", ""), "origin": shipment.get("origin"), "destination": shipment.get("destination"), "latest_event": latest_event, "event_count": len(events), "estimated_delivery": shipment.get("estimated_delivery")}
+    dependencies: []
+    verification_rule: "unknown_tracking_not_found"
+    inputs: ["tracking_id:str", "shipment_database:Dict[str,Dict[str,Any]]"]
+    outputs: ["tracking:Dict[str,Any]"]
+
+  - id: "delivery_confirm"
+    domain: "logistics"
+    description: "Confirma la entrega de un envío registrando fecha, ubicación y firma o evidencia"
+    code_block: |
+      from datetime import datetime, timezone
+      from typing import Dict, Any, Optional
+
+      def delivery_confirm(tracking_id: str, delivered_by: str, delivery_location: Dict[str, float], signature: Optional[str] = None, photo_evidence: Optional[str] = None, notes: str = "") -> Dict[str, Any]:
+          """Confirm delivery of a shipment with timestamp, location, and evidence."""
+          confirmation = {"tracking_id": tracking_id, "status": "delivered", "delivered_at": datetime.now(timezone.utc).isoformat(), "delivered_by": delivered_by, "delivery_location": delivery_location, "signature": signature, "photo_evidence": photo_evidence, "notes": notes, "confirmed": True}
+          return confirmation
+    dependencies: []
+    verification_rule: "status_is_delivered"
+    inputs: ["tracking_id:str", "delivered_by:str", "delivery_location:Dict[str,float]", "signature:Optional[str]", "photo_evidence:Optional[str]", "notes:str"]
+    outputs: ["confirmation:Dict[str,Any]"]
+

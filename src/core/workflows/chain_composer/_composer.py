@@ -6,17 +6,15 @@ intents, instantiates them, validates, and executes step by step with
 retry logic and exponential backoff.
 
 Thread-safe via RLock. Persisted to SQLite (chain_composer.sqlite).
+DB operations delegated to _db_layer.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 import os
-import sqlite3
 import threading
 import time
-import uuid
 from typing import Any
 
 from ._optimizer import _STEP_EXECUTORS
@@ -31,6 +29,12 @@ from ._types import (
     ComposedChain,
 )
 from ._validator import validate_chain
+from ._db_layer import (
+    init_db as _init_db,
+    load_chains as _load_chains,
+    save_chain as _save_chain,
+    log_execution as _log_execution,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +55,8 @@ class DynamicChainComposer:
         self._lock = threading.RLock()
         self._chains: dict[str, ComposedChain] = {}
         os.makedirs(_DB_DIR, exist_ok=True)
-        self._init_db()
-        self._load_chains()
+        _init_db(_DB_PATH)
+        self._chains = _load_chains(_DB_PATH)
 
         # Lazy template library reference
         self._template_library: Any = None
@@ -72,164 +76,6 @@ class DynamicChainComposer:
         return self._template_library
 
     # ------------------------------------------------------------------
-    #  Database
-    # ------------------------------------------------------------------
-
-    def _init_db(self) -> None:
-        """Create the chains table if it does not exist."""
-        with sqlite3.connect(_DB_PATH) as conn:
-            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                """
-                CREATE TABLE IF NOT EXISTS composed_chains (
-                    chain_id     TEXT PRIMARY KEY,
-                    name         TEXT NOT NULL,
-                    description  TEXT NOT NULL DEFAULT '',
-                    steps        TEXT NOT NULL DEFAULT '[]',
-                    metadata     TEXT NOT NULL DEFAULT '{}',
-                    tenant_id    TEXT NOT NULL DEFAULT '',
-                    created_at   REAL NOT NULL DEFAULT 0.0,
-                    status       TEXT NOT NULL DEFAULT 'draft'
-                )
-                """
-            )
-            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                """
-                CREATE TABLE IF NOT EXISTS chain_execution_log (
-                    execution_id   TEXT PRIMARY KEY,
-                    chain_id       TEXT NOT NULL,
-                    success        INTEGER NOT NULL DEFAULT 0,
-                    step_results   TEXT NOT NULL DEFAULT '[]',
-                    total_duration_ms INTEGER NOT NULL DEFAULT 0,
-                    failed_step    TEXT,
-                    error          TEXT,
-                    executed_at    REAL NOT NULL DEFAULT 0.0
-                )
-                """
-            )
-            conn.commit()
-
-    def _load_chains(self) -> None:
-        """Load persisted chains from SQLite."""
-        with sqlite3.connect(_DB_PATH) as conn:
-            rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                "SELECT chain_id, name, description, steps, metadata, "
-                "tenant_id, created_at, status FROM composed_chains"
-            ).fetchall()
-
-        for row in rows:
-            chain_id = row[0]
-            try:
-                chain = ComposedChain(
-                    chain_id=chain_id,
-                    name=row[1],
-                    description=row[2],
-                    steps=self._deserialize_steps(json.loads(row[3]) if row[3] else []),
-                    metadata=json.loads(row[4]) if row[4] else {},
-                    tenant_id=row[5],
-                    created_at=row[6],
-                    status=ChainStatus(row[7]) if row[7] else ChainStatus.DRAFT,
-                )
-                self._chains[chain_id] = chain
-            except (json.JSONDecodeError, TypeError, ValueError, KeyError) as exc:
-                logger.warning("Failed to load chain %s: %s", chain_id, exc)
-
-    @staticmethod
-    def _serialize_steps(steps: list[ChainStep]) -> str:
-        from ._types import ChainStepType as _CST
-
-        return json.dumps([
-            {
-                "step_id": s.step_id,
-                "step_type": s.step_type.value if isinstance(s.step_type, _CST) else s.step_type,
-                "config": s.config,
-                "next_step_id": s.next_step_id,
-                "condition_expr": s.condition_expr,
-                "timeout_ms": s.timeout_ms,
-                "retry_count": s.retry_count,
-            }
-            for s in steps
-        ])
-
-    @staticmethod
-    def _deserialize_steps(raw: list[dict[str, Any]]) -> list[ChainStep]:
-        from ._types import ChainStepType as _CST
-
-        result: list[ChainStep] = []
-        for s in raw:
-            step_type_raw = s.get("step_type", "action")
-            try:
-                step_type = _CST(step_type_raw)
-            except ValueError:
-                step_type = _CST.ACTION
-            result.append(ChainStep(
-                step_id=s.get("step_id", ""),
-                step_type=step_type,
-                config=s.get("config", {}),
-                next_step_id=s.get("next_step_id", ""),
-                condition_expr=s.get("condition_expr", ""),
-                timeout_ms=s.get("timeout_ms", 30000),
-                retry_count=s.get("retry_count", 3),
-            ))
-        return result
-
-    def _save_chain(self, chain: ComposedChain) -> None:
-        """Persist a single chain to SQLite."""
-        with sqlite3.connect(_DB_PATH) as conn:
-            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                """
-                INSERT OR REPLACE INTO composed_chains
-                    (chain_id, name, description, steps, metadata,
-                     tenant_id, created_at, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    chain.chain_id,
-                    chain.name,
-                    chain.description,
-                    self._serialize_steps(chain.steps),
-                    json.dumps(chain.metadata),
-                    chain.tenant_id,
-                    chain.created_at,
-                    chain.status.value if isinstance(chain.status, ChainStatus) else chain.status,
-                ),
-            )
-            conn.commit()
-
-    def _log_execution(self, result: ChainExecutionResult) -> None:
-        """Record execution result to DB."""
-        execution_id = f"exec_{uuid.uuid4().hex[:12]}"
-        with sqlite3.connect(_DB_PATH) as conn:
-            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                """
-                INSERT INTO chain_execution_log
-                    (execution_id, chain_id, success, step_results,
-                     total_duration_ms, failed_step, error, executed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    execution_id,
-                    result.chain_id,
-                    1 if result.success else 0,
-                    json.dumps([
-                        {
-                            "step_id": sr.step_id,
-                            "success": sr.success,
-                            "output": sr.output,
-                            "duration_ms": sr.duration_ms,
-                            "retry_count": sr.retry_count,
-                            "error": sr.error,
-                        }
-                        for sr in result.step_results
-                    ]),
-                    result.total_duration_ms,
-                    result.failed_step,
-                    result.error,
-                    time.time(),
-                ),
-            )
-            conn.commit()
-
-    # ------------------------------------------------------------------
     #  Composition
     # ------------------------------------------------------------------
 
@@ -239,23 +85,15 @@ class DynamicChainComposer:
         event_data: dict[str, Any],
         tenant_id: str,
     ) -> ComposedChain | None:
-        """Given an event, select and compose relevant chain templates.
-
-        Looks up templates matching the event pattern, tries each one
-        (injecting event_type into variables), and returns the first
-        successfully instantiated chain.  Returns None if no template
-        can be instantiated.
-        """
+        """Given an event, select and compose relevant chain templates."""
         with self._lock:
             templates = self.template_library.find_templates_for_event(event_type)
             if not templates:
                 logger.info("No templates found for event_type=%s", event_type)
                 return None
 
-            # Inject event_type into variables so templates can use it
             enriched_data = {**event_data, "event_type": event_type}
 
-            # Try each matching template until one instantiates successfully
             for template in templates:
                 logger.info(
                     "Composing chain from event '%s' using template '%s'",
@@ -275,7 +113,7 @@ class DynamicChainComposer:
                 chain.tenant_id = tenant_id
                 chain.status = ChainStatus.READY
                 self._chains[chain.chain_id] = chain
-                self._save_chain(chain)
+                _save_chain(chain, _DB_PATH)
                 return chain
 
             logger.warning("No template could be instantiated for event '%s'", event_type)
@@ -287,18 +125,13 @@ class DynamicChainComposer:
         context: dict[str, Any],
         tenant_id: str,
     ) -> ComposedChain | None:
-        """Compose a chain from a natural language intent.
-
-        Uses keyword matching to find templates, tries each one until
-        instantiation succeeds, and returns the resulting chain.
-        """
+        """Compose a chain from a natural language intent."""
         with self._lock:
             templates = self.template_library.find_templates_for_intent(intent)
             if not templates:
                 logger.info("No templates found for intent: %s", intent)
                 return None
 
-            # Try each matching template (sorted by relevance)
             for template in templates:
                 logger.info(
                     "Composing chain from intent using template '%s'",
@@ -318,7 +151,7 @@ class DynamicChainComposer:
                 chain.tenant_id = tenant_id
                 chain.status = ChainStatus.READY
                 self._chains[chain.chain_id] = chain
-                self._save_chain(chain)
+                _save_chain(chain, _DB_PATH)
                 return chain
 
             logger.warning("No template could be instantiated for intent: %s", intent)
@@ -341,20 +174,14 @@ class DynamicChainComposer:
     # ------------------------------------------------------------------
 
     def execute_chain(self, chain: ComposedChain) -> ChainExecutionResult:
-        """Execute a composed chain step by step with retry and backoff.
-
-        Sequential execution: each step's output feeds into the next
-        step's context. On failure, retries with exponential backoff.
-        If a step exhausts retries, the chain is marked as failed.
-        """
+        """Execute a composed chain step by step with retry and backoff."""
         start_time = time.monotonic()
         step_results: list[ChainStepResult] = []
         context: dict[str, Any] = {}
 
         with self._lock:
-            # Mark chain as executing
             chain.status = ChainStatus.EXECUTING
-            self._save_chain(chain)
+            _save_chain(chain, _DB_PATH)
 
         steps_by_id = {s.step_id: s for s in chain.steps}
         if not chain.steps:
@@ -368,17 +195,15 @@ class DynamicChainComposer:
             )
             with self._lock:
                 chain.status = ChainStatus.FAILED
-                self._save_chain(chain)
-            self._log_execution(result)
+                _save_chain(chain, _DB_PATH)
+            _log_execution(result, _DB_PATH)
             return result
 
-        # Start from the first step
         current_step = chain.steps[0]
         visited: set[str] = set()
 
         while current_step is not None:
             if current_step.step_id in visited and current_step.next_step_id:
-                # Loop detection
                 result = ChainExecutionResult(
                     chain_id=chain.chain_id,
                     success=False,
@@ -389,8 +214,8 @@ class DynamicChainComposer:
                 )
                 with self._lock:
                     chain.status = ChainStatus.FAILED
-                    self._save_chain(chain)
-                self._log_execution(result)
+                    _save_chain(chain, _DB_PATH)
+                _log_execution(result, _DB_PATH)
                 return result
 
             visited.add(current_step.step_id)
@@ -398,7 +223,6 @@ class DynamicChainComposer:
             step_results.append(step_result)
 
             if not step_result.success:
-                # Chain failed
                 elapsed_ms = int((time.monotonic() - start_time) * 1000)
                 result = ChainExecutionResult(
                     chain_id=chain.chain_id,
@@ -410,21 +234,18 @@ class DynamicChainComposer:
                 )
                 with self._lock:
                     chain.status = ChainStatus.FAILED
-                    self._save_chain(chain)
-                self._log_execution(result)
+                    _save_chain(chain, _DB_PATH)
+                _log_execution(result, _DB_PATH)
                 return result
 
-            # Merge step output into context
             context.update(step_result.output)
 
-            # Determine next step
             next_id = current_step.next_step_id
             if next_id and next_id in steps_by_id:
                 current_step = steps_by_id[next_id]
             else:
                 current_step = None
 
-        # All steps completed
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
         result = ChainExecutionResult(
             chain_id=chain.chain_id,
@@ -436,8 +257,8 @@ class DynamicChainComposer:
         )
         with self._lock:
             chain.status = ChainStatus.COMPLETED
-            self._save_chain(chain)
-        self._log_execution(result)
+            _save_chain(chain, _DB_PATH)
+        _log_execution(result, _DB_PATH)
         logger.info(
             "Chain %s completed successfully in %dms (%d steps)",
             chain.chain_id, elapsed_ms, len(step_results),
@@ -471,7 +292,6 @@ class DynamicChainComposer:
                 output = executor(step.config, context)
                 duration_ms = int((time.monotonic() - step_start) * 1000)
 
-                # Check if the step self-reported failure
                 if isinstance(output, dict) and output.get("passed") is False:
                     last_error = output.get("details", "Step reported failure")
                     if attempt < max_retries:

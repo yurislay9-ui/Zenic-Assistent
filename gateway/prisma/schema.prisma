@@ -1,5 +1,7 @@
+
 // Zenic-Agents v3 — MCP Gateway with RBAC & Audit
-// Phase 1: Complete data model
+// DO NOT EDIT schema.prisma directly — it is auto-generated from schema_parts/
+// Run: npm run prisma:merge
 
 generator client {
   provider = "prisma-client-js"
@@ -1056,6 +1058,83 @@ model HitlNotificationLog {
   @@map("hitl_notification_logs")
 }
 
+// ─── Phase 5: Memory Chip — Adaptive Binary Memory ──────────────────
+
+model MemoryMapping {
+  id            String   @id @default(cuid())
+  mappingId     String   @unique               // Unique mapping identifier
+  origin        String                         // Source term/concept
+  relation      String                         // Relationship type (e.g. "renamed_to", "maps_to", "classified_as")
+  destination   String                         // Target term/concept
+  mechanism     String                         // schema_drift | intent_routing | policy_refinement | ontology_base
+  confidence    Float    @default(0.0)          // 0.0–1.0 confidence score
+  tenantId      String   @default("__anonymous__")
+  approved      Boolean  @default(false)        // Whether HITL approved this mapping
+  merkleHash    String?                         // BLAKE3 hash of approved mapping
+  metadata      String   @default("{}")         // JSON: additional metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  approvalRecord MemoryApprovalRecord?
+  lifecycleEpisodes MemoryLifecycleEpisode[]
+
+  @@index([mappingId])
+  @@index([origin])
+  @@index([tenantId])
+  @@index([mechanism])
+  @@index([approved])
+  @@index([createdAt])
+  @@map("memory_mappings")
+}
+
+model MemoryApprovalRecord {
+  id                    String   @id @default(cuid())
+  mappingId             String   @unique               // FK to MemoryMapping.mappingId
+  adminEvidenceReview   Boolean                        // GRIETA 3: Must be true
+  adminJustification    String                         // GRIETA 3: Min 50 chars
+  riskAcknowledgment    Boolean                        // GRIETA 3: Must be true
+  adminSessionId        String                         // GRIETA 3: Min 32 chars hex
+  iaQuestion            String   @default("")          // IA question asked
+  iaResponse            Boolean  @default(false)       // IA response
+  evidenceFor           String   @default("[]")        // JSON: string[] evidence supporting
+  evidenceAgainst       String   @default("[]")        // JSON: string[] evidence against
+  consensusScore        Float    @default(0.0)         // 0.0–1.0 consensus score
+  approvedBy            String?                         // Admin user ID
+  approvedAt            DateTime?                       // When approval was granted
+  merkleHash            String?                         // Hash of the approval payload
+  yamlRendered          Boolean  @default(false)       // Whether YAML was rendered
+  createdAt             DateTime @default(now())
+
+  mapping               MemoryMapping @relation(fields: [mappingId], references: [mappingId], onDelete: Cascade)
+
+  @@index([mappingId])
+  @@index([adminSessionId])
+  @@map("memory_approval_records")
+}
+
+model MemoryLifecycleEpisode {
+  id            String   @id @default(cuid())
+  episodeId     String   @unique               // Unique episode identifier
+  mappingId     String                         // FK to MemoryMapping.mappingId
+  currentPhase  String                         // observe | hypothesize | validate | approve | deploy | retire
+  phaseHistory  String   @default("[]")        // JSON: array of { phase, timestamp }
+  status        String   @default("active")    // active | completed | abandoned | failed
+  tenantId      String   @default("__anonymous__")
+  metadata      String   @default("{}")        // JSON: additional metadata
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  completedAt   DateTime?
+
+  mapping       MemoryMapping @relation(fields: [mappingId], references: [mappingId], onDelete: Cascade)
+
+  @@index([episodeId])
+  @@index([mappingId])
+  @@index([tenantId])
+  @@index([status])
+  @@index([currentPhase])
+  @@map("memory_lifecycle_episodes")
+}
+
 // ─── Subscriptions: USDT TRC20 Billing (Phase 6) ──────────────────────
 
 model Subscription {
@@ -1255,83 +1334,6 @@ model SagaStepRecord {
   @@index([stepIndex])
   @@index([status])
   @@map("saga_step_records")
-}
-
-// ─── Phase 5: Memory Chip — Adaptive Binary Memory ──────────────────
-
-model MemoryMapping {
-  id            String   @id @default(cuid())
-  mappingId     String   @unique               // Unique mapping identifier
-  origin        String                         // Source term/concept
-  relation      String                         // Relationship type (e.g. "renamed_to", "maps_to", "classified_as")
-  destination   String                         // Target term/concept
-  mechanism     String                         // schema_drift | intent_routing | policy_refinement | ontology_base
-  confidence    Float    @default(0.0)          // 0.0–1.0 confidence score
-  tenantId      String   @default("__anonymous__")
-  approved      Boolean  @default(false)        // Whether HITL approved this mapping
-  merkleHash    String?                         // BLAKE3 hash of approved mapping
-  metadata      String   @default("{}")         // JSON: additional metadata
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  approvalRecord MemoryApprovalRecord?
-  lifecycleEpisodes MemoryLifecycleEpisode[]
-
-  @@index([mappingId])
-  @@index([origin])
-  @@index([tenantId])
-  @@index([mechanism])
-  @@index([approved])
-  @@index([createdAt])
-  @@map("memory_mappings")
-}
-
-model MemoryApprovalRecord {
-  id                    String   @id @default(cuid())
-  mappingId             String   @unique               // FK to MemoryMapping.mappingId
-  adminEvidenceReview   Boolean                        // GRIETA 3: Must be true
-  adminJustification    String                         // GRIETA 3: Min 50 chars
-  riskAcknowledgment    Boolean                        // GRIETA 3: Must be true
-  adminSessionId        String                         // GRIETA 3: Min 32 chars hex
-  iaQuestion            String   @default("")          // IA question asked
-  iaResponse            Boolean  @default(false)       // IA response
-  evidenceFor           String   @default("[]")        // JSON: string[] evidence supporting
-  evidenceAgainst       String   @default("[]")        // JSON: string[] evidence against
-  consensusScore        Float    @default(0.0)         // 0.0–1.0 consensus score
-  approvedBy            String?                         // Admin user ID
-  approvedAt            DateTime?                       // When approval was granted
-  merkleHash            String?                         // Hash of the approval payload
-  yamlRendered          Boolean  @default(false)       // Whether YAML was rendered
-  createdAt             DateTime @default(now())
-
-  mapping               MemoryMapping @relation(fields: [mappingId], references: [mappingId], onDelete: Cascade)
-
-  @@index([mappingId])
-  @@index([adminSessionId])
-  @@map("memory_approval_records")
-}
-
-model MemoryLifecycleEpisode {
-  id            String   @id @default(cuid())
-  episodeId     String   @unique               // Unique episode identifier
-  mappingId     String                         // FK to MemoryMapping.mappingId
-  currentPhase  String                         // observe | hypothesize | validate | approve | deploy | retire
-  phaseHistory  String   @default("[]")        // JSON: array of { phase, timestamp }
-  status        String   @default("active")    // active | completed | abandoned | failed
-  tenantId      String   @default("__anonymous__")
-  metadata      String   @default("{}")        // JSON: additional metadata
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  completedAt   DateTime?
-
-  mapping       MemoryMapping @relation(fields: [mappingId], references: [mappingId], onDelete: Cascade)
-
-  @@index([episodeId])
-  @@index([mappingId])
-  @@index([tenantId])
-  @@index([status])
-  @@index([currentPhase])
-  @@map("memory_lifecycle_episodes")
 }
 
 // ─── API Credentials (External AI Services) ──────────────────────────

@@ -1,0 +1,337 @@
+# logic_modules — Industry Modules: Hospitality, Media, Real Estate, Nonprofit
+
+modules:
+  # ===========================================================================
+  # 17. HOSPITALITY (3 modules)
+  # ===========================================================================
+  - id: "reservation_manage"
+    domain: "hospitality"
+    description: "Gestiona reservas hoteleras: crear, modificar y cancelar con validación de disponibilidad"
+    code_block: |
+      import uuid
+      from datetime import datetime, timezone
+      from typing import Dict, Any, Optional
+
+      def reservation_manage(action: str, guest_id: str, room_type: str, check_in: str, check_out: str, existing_reservations: Dict[str, Dict[str, Any]], room_inventory: Dict[str, int], modification: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+          """Create, modify, or cancel a hotel reservation with availability validation."""
+          if action == "create":
+              available = room_inventory.get(room_type, 0)
+              occupied = sum(1 for r in existing_reservations.values() if r["room_type"] == room_type and r["status"] == "confirmed" and not (check_out <= r["check_in"] or check_in >= r["check_out"]))
+              if occupied >= available:
+                  return {"success": False, "reason": "no_availability"}
+              res_id = f"RES-{uuid.uuid4().hex[:8].upper()}"
+              return {"success": True, "reservation_id": res_id, "guest_id": guest_id, "room_type": room_type, "check_in": check_in, "check_out": check_out, "status": "confirmed"}
+          elif action == "cancel":
+              res_id = modification.get("reservation_id", "") if modification else ""
+              if res_id in existing_reservations:
+                  return {"success": True, "reservation_id": res_id, "status": "cancelled"}
+              return {"success": False, "reason": "not_found"}
+          return {"success": False, "reason": "unknown_action"}
+    dependencies: []
+    verification_rule: "no_double_booking"
+    inputs: ["action:str", "guest_id:str", "room_type:str", "check_in:str", "check_out:str", "existing_reservations:Dict[str,Dict[str,Any]]", "room_inventory:Dict[str,int]", "modification:Optional[Dict[str,Any]]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "room_availability"
+    domain: "hospitality"
+    description: "Consulta la disponibilidad de habitaciones por tipo y rango de fechas"
+    code_block: |
+      from typing import Dict, Any, List
+
+      def room_availability(room_inventory: Dict[str, int], reservations: List[Dict[str, Any]], check_in: str, check_out: str) -> Dict[str, Any]:
+          """Check room availability by type for a given date range."""
+          availability = {}
+          for room_type, total in room_inventory.items():
+              occupied = sum(1 for r in reservations if r.get("room_type") == room_type and r.get("status") == "confirmed" and not (check_out <= r["check_in"] or check_in >= r["check_out"]))
+              available = total - occupied
+              availability[room_type] = {"total": total, "occupied": occupied, "available": available, "can_book": available > 0}
+          return {"check_in": check_in, "check_out": check_out, "availability": availability}
+    dependencies: []
+    verification_rule: "availability_non_negative"
+    inputs: ["room_inventory:Dict[str,int]", "reservations:List[Dict[str,Any]]", "check_in:str", "check_out:str"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "guest_checkin"
+    domain: "hospitality"
+    description: "Procesa el check-in de un huésped asignando habitación, verificando reserva y generando llave"
+    code_block: |
+      import uuid
+      from datetime import datetime, timezone
+      from typing import Dict, Any, Optional
+
+      def guest_checkin(reservation_id: str, guest_data: Dict[str, Any], reservation_db: Dict[str, Dict[str, Any]], assigned_room: Optional[str] = None) -> Dict[str, Any]:
+          """Process guest check-in: verify reservation, assign room, and generate key code."""
+          reservation = reservation_db.get(reservation_id)
+          if not reservation:
+              return {"success": False, "reason": "reservation_not_found"}
+          if reservation.get("status") != "confirmed":
+              return {"success": False, "reason": f"invalid_status:{reservation.get('status')}"}
+          room = assigned_room or reservation.get("room_number", f"RM-{uuid.uuid4().hex[:4]}")
+          key_code = uuid.uuid4().hex[:8].upper()
+          checkin = {"success": True, "reservation_id": reservation_id, "guest_name": guest_data.get("name", ""), "room": room, "key_code": key_code, "checked_in_at": datetime.now(timezone.utc).isoformat(), "status": "checked_in"}
+          return checkin
+    dependencies: []
+    verification_rule: "invalid_reservation_rejected"
+    inputs: ["reservation_id:str", "guest_data:Dict[str,Any]", "reservation_db:Dict[str,Dict[str,Any]]", "assigned_room:Optional[str]"]
+    outputs: ["checkin:Dict[str,Any]"]
+
+  # ===========================================================================
+  # 18. MEDIA (3 modules)
+  # ===========================================================================
+  - id: "content_publish"
+    domain: "media"
+    description: "Publica contenido verificando estado de revisión, programación y metadatos requeridos"
+    code_block: |
+      import uuid
+      from datetime import datetime, timezone
+      from typing import Dict, Any, Optional
+
+      def content_publish(content: Dict[str, Any], review_status: str = "approved", scheduled_time: Optional[str] = None, required_metadata: Optional[list] = None) -> Dict[str, Any]:
+          """Publish content after verifying review status, scheduling, and required metadata."""
+          if review_status != "approved":
+              return {"success": False, "reason": f"not_approved:{review_status}"}
+          if required_metadata:
+              missing = [m for m in required_metadata if m not in content.get("metadata", {})]
+              if missing:
+                  return {"success": False, "reason": f"missing_metadata:{missing}"}
+          publish_time = scheduled_time or datetime.now(timezone.utc).isoformat()
+          content_id = content.get("id", f"PUB-{uuid.uuid4().hex[:8].upper()}")
+          return {"success": True, "content_id": content_id, "status": "published", "published_at": publish_time, "is_scheduled": scheduled_time is not None}
+    dependencies: []
+    verification_rule: "unapproved_rejected"
+    inputs: ["content:Dict[str,Any]", "review_status:str", "scheduled_time:Optional[str]", "required_metadata:Optional[list]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "comment_moderate"
+    domain: "media"
+    description: "Modera comentarios aplicando reglas de contenido prohibido, spam y filtros de longitud"
+    code_block: |
+      from typing import Dict, Any, List
+
+      def comment_moderate(comment: Dict[str, Any], blocked_words: List[str] = None, max_length: int = 1000, min_length: int = 1, spam_patterns: List[str] = None) -> Dict[str, Any]:
+          """Moderate a comment against blocked words, length rules, and spam patterns."""
+          if blocked_words is None:
+              blocked_words = []
+          if spam_patterns is None:
+              spam_patterns = []
+          text = comment.get("text", "")
+          reasons = []
+          if len(text) < min_length:
+              reasons.append("too_short")
+          if len(text) > max_length:
+              reasons.append("too_long")
+          text_lower = text.lower()
+          found_blocked = [w for w in blocked_words if w.lower() in text_lower]
+          if found_blocked:
+              reasons.append(f"blocked_word:{found_blocked}")
+          found_spam = [p for p in spam_patterns if p.lower() in text_lower]
+          if found_spam:
+              reasons.append(f"spam_pattern:{found_spam}")
+          status = "rejected" if reasons else "approved"
+          return {"comment_id": comment.get("id"), "status": status, "reasons": reasons}
+    dependencies: []
+    verification_rule: "blocked_word_rejected"
+    inputs: ["comment:Dict[str,Any]", "blocked_words:List[str]", "max_length:int", "min_length:int", "spam_patterns:List[str]"]
+    outputs: ["moderation:Dict[str,Any]"]
+
+  - id: "subscription_manage"
+    domain: "media"
+    description: "Gestiona suscripciones de contenido: crear, actualizar plan, cancelar y verificar acceso"
+    code_block: |
+      from datetime import datetime, timedelta, timezone
+      from typing import Dict, Any, Optional
+
+      def subscription_manage(action: str, user_id: str, plan: str, subscription_store: Dict[str, Dict[str, Any]], billing_cycle_days: int = 30, new_plan: Optional[str] = None) -> Dict[str, Any]:
+          """Manage media subscriptions: create, upgrade/downgrade, cancel, and verify access."""
+          sub = subscription_store.get(user_id)
+          if action == "create":
+              sub = {"user_id": user_id, "plan": plan, "status": "active", "started_at": datetime.now(timezone.utc).isoformat(), "expires_at": (datetime.now(timezone.utc) + timedelta(days=billing_cycle_days)).isoformat()}
+              subscription_store[user_id] = sub
+              return {"action": "created", "subscription": sub}
+          elif action == "update_plan":
+              if not sub or sub.get("status") != "active":
+                  return {"action": "update_plan", "success": False, "reason": "no_active_subscription"}
+              old_plan = sub["plan"]
+              sub["plan"] = new_plan or plan
+              return {"action": "updated", "old_plan": old_plan, "new_plan": sub["plan"]}
+          elif action == "cancel":
+              if sub:
+                  sub["status"] = "cancelled"
+                  sub["cancelled_at"] = datetime.now(timezone.utc).isoformat()
+              return {"action": "cancelled", "user_id": user_id}
+          return {"action": action, "success": False, "reason": "unknown_action"}
+    dependencies: []
+    verification_rule: "cancelled_has_no_access"
+    inputs: ["action:str", "user_id:str", "plan:str", "subscription_store:Dict[str,Dict[str,Any]]", "billing_cycle_days:int", "new_plan:Optional[str]"]
+    outputs: ["result:Dict[str,Any]"]
+
+  # ===========================================================================
+  # 19. REAL ESTATE (3 modules)
+  # ===========================================================================
+  - id: "property_list"
+    domain: "realestate"
+    description: "Lista propiedades inmobiliarias con filtros por precio, ubicación, tipo y características"
+    code_block: |
+      from typing import Dict, Any, List, Optional
+
+      def property_list(properties: List[Dict[str, Any]], filters: Optional[Dict[str, Any]] = None, sort_by: str = "price", sort_order: str = "asc", limit: int = 20) -> Dict[str, Any]:
+          """List properties with filtering by price, location, type, and features."""
+          if filters is None:
+              filters = {}
+          results = properties[:]
+          if "min_price" in filters:
+              results = [p for p in results if p.get("price", 0) >= filters["min_price"]]
+          if "max_price" in filters:
+              results = [p for p in results if p.get("price", 0) <= filters["max_price"]]
+          if "property_type" in filters:
+              results = [p for p in results if p.get("type") == filters["property_type"]]
+          if "location" in filters:
+              results = [p for p in results if filters["location"].lower() in p.get("location", "").lower()]
+          if "min_bedrooms" in filters:
+              results = [p for p in results if p.get("bedrooms", 0) >= filters["min_bedrooms"]]
+          reverse = sort_order == "desc"
+          results.sort(key=lambda p: p.get(sort_by, 0), reverse=reverse)
+          return {"total": len(results), "returned": len(results[:limit]), "properties": results[:limit]}
+    dependencies: []
+    verification_rule: "filters_applied"
+    inputs: ["properties:List[Dict[str,Any]]", "filters:Optional[Dict[str,Any]]", "sort_by:str", "sort_order:str", "limit:int"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "mortgage_calculate"
+    domain: "realestate"
+    description: "Calcula la cuota mensual de una hipoteca con tasa fija, impuestos y seguro incluidos"
+    code_block: |
+      from typing import Dict, Any
+
+      def mortgage_calculate(principal: float, annual_rate: float, term_years: int, annual_tax: float = 0.0, annual_insurance: float = 0.0) -> Dict[str, Any]:
+          """Calculate monthly mortgage payment including principal, interest, tax, and insurance."""
+          monthly_rate = annual_rate / 12
+          n_payments = term_years * 12
+          if monthly_rate == 0:
+              pi_payment = principal / n_payments
+          else:
+              pi_payment = principal * (monthly_rate * (1 + monthly_rate) ** n_payments) / ((1 + monthly_rate) ** n_payments - 1)
+          monthly_tax = annual_tax / 12
+          monthly_insurance = annual_insurance / 12
+          total_payment = pi_payment + monthly_tax + monthly_insurance
+          return {"principal_interest": round(pi_payment, 2), "monthly_tax": round(monthly_tax, 2), "monthly_insurance": round(monthly_insurance, 2), "total_monthly": round(total_payment, 2), "total_paid_over_term": round(total_payment * n_payments, 2), "total_interest": round(pi_payment * n_payments - principal, 2)}
+    dependencies: []
+    verification_rule: "total_gt_principal_interest"
+    inputs: ["principal:float", "annual_rate:float", "term_years:int", "annual_tax:float", "annual_insurance:float"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "inspection_schedule"
+    domain: "realestate"
+    description: "Programa una inspección inmobiliaria verificando disponibilidad del inspector y la propiedad"
+    code_block: |
+      import uuid
+      from datetime import datetime, timezone
+      from typing import Dict, Any, List
+
+      def inspection_schedule(property_id: str, inspector_id: str, requested_time: str, inspector_availability: Dict[str, List[str]], property_availability: Dict[str, List[str]], duration_minutes: int = 60) -> Dict[str, Any]:
+          """Schedule a property inspection checking inspector and property availability."""
+          date_str = requested_time[:10]
+          inspector_busy = inspector_availability.get(inspector_id, [])
+          if requested_time in inspector_busy:
+              return {"success": False, "reason": "inspector_unavailable"}
+          property_busy = property_availability.get(property_id, [])
+          if requested_time in property_busy:
+              return {"success": False, "reason": "property_unavailable"}
+          inspection_id = f"INS-{uuid.uuid4().hex[:8].upper()}"
+          return {"success": True, "inspection_id": inspection_id, "property_id": property_id, "inspector_id": inspector_id, "scheduled_time": requested_time, "duration_minutes": duration_minutes, "status": "scheduled", "created_at": datetime.now(timezone.utc).isoformat()}
+    dependencies: []
+    verification_rule: "conflict_rejected"
+    inputs: ["property_id:str", "inspector_id:str", "requested_time:str", "inspector_availability:Dict[str,List[str]]", "property_availability:Dict[str,List[str]]", "duration_minutes:int"]
+    outputs: ["result:Dict[str,Any]"]
+
+  # ===========================================================================
+  # 20. NONPROFIT (3 modules)
+  # ===========================================================================
+  - id: "donation_process"
+    domain: "nonprofit"
+    description: "Procesa una donación registrándola, generando recibo y actualizando métricas de campaña"
+    code_block: |
+      import uuid
+      from datetime import datetime, timezone
+      from typing import Dict, Any, Optional
+
+      def donation_process(donor_id: str, amount: float, campaign_id: str, payment_method: str, campaign_store: Dict[str, Dict[str, Any]], is_recurring: bool = False) -> Dict[str, Any]:
+          """Process a donation: register it, generate receipt, and update campaign metrics."""
+          donation_id = f"DON-{uuid.uuid4().hex[:8].upper()}"
+          receipt_number = f"RCPT-{uuid.uuid4().hex[:10].upper()}"
+          campaign = campaign_store.get(campaign_id, {})
+          current_total = campaign.get("raised", 0.0)
+          goal = campaign.get("goal", 0.0)
+          campaign_store[campaign_id] = {**campaign, "raised": current_total + amount}
+          new_total = current_total + amount
+          return {"success": True, "donation_id": donation_id, "donor_id": donor_id, "amount": amount, "campaign_id": campaign_id, "payment_method": payment_method, "is_recurring": is_recurring, "receipt_number": receipt_number, "campaign_progress": round(new_total / goal * 100, 1) if goal > 0 else 0, "donated_at": datetime.now(timezone.utc).isoformat()}
+    dependencies: []
+    verification_rule: "campaign_total_updated"
+    inputs: ["donor_id:str", "amount:float", "campaign_id:str", "payment_method:str", "campaign_store:Dict[str,Dict[str,Any]]", "is_recurring:bool"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "volunteer_assign"
+    domain: "nonprofit"
+    description: "Asigna voluntarios a tareas basándose en habilidades, disponibilidad y necesidad de la tarea"
+    code_block: |
+      from typing import Dict, Any, List
+
+      def volunteer_assign(volunteers: List[Dict[str, Any]], tasks: List[Dict[str, Any]], max_tasks_per_volunteer: int = 3) -> Dict[str, Any]:
+          """Assign volunteers to tasks based on skills matching, availability, and capacity."""
+          assignments = []
+          volunteer_load = {v["id"]: 0 for v in volunteers}
+          for task in sorted(tasks, key=lambda t: t.get("priority", 5)):
+              required_skills = set(task.get("required_skills", []))
+              best_volunteer = None
+              best_match = 0
+              for vol in volunteers:
+                  if volunteer_load[vol["id"]] >= max_tasks_per_volunteer:
+                      continue
+                  if task.get("time_slot") and task["time_slot"] not in vol.get("availability", []):
+                      continue
+                  vol_skills = set(vol.get("skills", []))
+                  match_count = len(required_skills & vol_skills)
+                  if match_count > best_match:
+                      best_match = match_count
+                      best_volunteer = vol
+              if best_volunteer:
+                  assignments.append({"task_id": task["id"], "task_name": task.get("name", ""), "volunteer_id": best_volunteer["id"], "volunteer_name": best_volunteer.get("name", ""), "skill_match": best_match})
+                  volunteer_load[best_volunteer["id"]] += 1
+          unassigned = [t["id"] for t in tasks if t["id"] not in [a["task_id"] for a in assignments]]
+          return {"assigned_count": len(assignments), "unassigned_count": len(unassigned), "assignments": assignments, "unassigned_tasks": unassigned}
+    dependencies: []
+    verification_rule: "skills_matched"
+    inputs: ["volunteers:List[Dict[str,Any]]", "tasks:List[Dict[str,Any]]", "max_tasks_per_volunteer:int"]
+    outputs: ["result:Dict[str,Any]"]
+
+  - id: "grant_track"
+    domain: "nonprofit"
+    description: "Rastrea subvenciones y becas monitoreando plazos, requisitos de informe y estado de desembolso"
+    code_block: |
+      from datetime import datetime, timezone
+      from typing import Dict, Any, List
+
+      def grant_track(grants: List[Dict[str, Any]], reference_date: datetime = None) -> Dict[str, Any]:
+          """Track grants monitoring deadlines, reporting requirements, and disbursement status."""
+          if reference_date is None:
+              reference_date = datetime.now(timezone.utc)
+          tracked = []
+          total_awarded = 0.0
+          total_disbursed = 0.0
+          for grant in grants:
+              awarded = grant.get("amount_awarded", 0)
+              disbursed = grant.get("amount_disbursed", 0)
+              total_awarded += awarded
+              total_disbursed += disbursed
+              deadline = grant.get("report_deadline")
+              deadline_status = "on_track"
+              if deadline:
+                  dl = deadline if isinstance(deadline, datetime) else datetime.fromisoformat(deadline)
+                  days_left = (dl - reference_date).days
+                  deadline_status = "overdue" if days_left < 0 else "due_soon" if days_left <= 14 else "on_track"
+              tracked.append({"grant_id": grant["id"], "funder": grant.get("funder", ""), "awarded": awarded, "disbursed": disbursed, "remaining": awarded - disbursed, "report_deadline_status": deadline_status, "status": grant.get("status", "active")})
+          return {"total_grants": len(grants), "total_awarded": total_awarded, "total_disbursed": total_disbursed, "disbursement_rate": round(total_disbursed / total_awarded * 100, 1) if total_awarded > 0 else 0, "grants": tracked}
+    dependencies: []
+    verification_rule: "overdue_deadline_flagged"
+    inputs: ["grants:List[Dict[str,Any]]", "reference_date:datetime"]
+    outputs: ["result:Dict[str,Any]"]

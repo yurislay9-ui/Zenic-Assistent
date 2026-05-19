@@ -1,0 +1,358 @@
+// ─── Playbooks: Industry Playbooks with ROI (Phase 4) ──────────────
+
+model Playbook {
+  id                    String    @id @default(cuid())
+  playbookId            String    @unique               // From YAML metadata.id, e.g. "healthtech-clinic"
+  name                  String                          // Human-readable name
+  nameEn                String?                         // English name
+  industry              String                          // e.g. "healthtech", "fintech", "edtech"
+  subIndustry           String?                         // e.g. "clinic", "microfinance", "k12"
+  apiVersion            String    @default("playbook.zenic.dev/v1")
+  version               String    @default("1.0.0")    // Semantic version
+  description           String
+  icon                  String?                         // Emoji
+  color                 String?                         // Hex color
+  labels                String    @default("{}")        // JSON
+  compliance            String    @default("[]")        // JSON array of standard names
+  capabilities          String                          // JSON array of PlaybookCapability
+  policies              String    @default("[]")        // JSON array of PolicyReference with policyId links to DeclPolicy
+  roiConfig             String    @default("{}")        // JSON: PlaybookRoiConfig
+  pricing               String    @default("{}")        // JSON: PlaybookPricing
+  onboarding            String    @default("{}")        // JSON: PlaybookOnboardingConfig
+  certificationStatus   String    @default("unsigned")  // unsigned | pending | certified | revoked
+  certificationSignedBy String?
+  certificationSignedAt DateTime?
+  certificationSignature String?
+  certificationHash     String?
+  sourceYaml            String?                         // Original YAML source
+  contentHash           String                          // SHA-256
+  isActive              Boolean   @default(true)
+  author                String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  versions              PlaybookVersion[]
+  activations           PlaybookActivation[]
+  metricsSnapshots      PlaybookMetricsSnapshot[]
+  onboardingSessions    PlaybookOnboardingSession[]
+
+  @@index([playbookId])
+  @@index([industry])
+  @@index([isActive])
+  @@index([certificationStatus])
+  @@index([contentHash])
+  @@map("playbooks")
+}
+
+model PlaybookVersion {
+  id                String   @id @default(cuid())
+  playbookDbId      String                         // FK to Playbook.id
+  version           String                         // Semantic version string
+  contentHash       String                         // SHA-256 of document JSON at this version
+  document          String                         // JSON: full PlaybookDocument snapshot
+  status            String   @default("active")    // draft | active | superseded | archived
+  createdBy         String   @default("system")     // Who created this version
+  changeDescription String   @default("")           // Commit message
+  parentVersionId   String?                         // Previous version ID (for history chain)
+  createdAt         DateTime @default(now())
+
+  playbook          Playbook  @relation(fields: [playbookDbId], references: [id], onDelete: Cascade)
+
+  @@unique([playbookDbId, version])
+  @@index([playbookDbId])
+  @@index([status])
+  @@index([contentHash])
+  @@map("playbook_versions")
+}
+
+model PlaybookActivation {
+  id               String    @id @default(cuid())
+  playbookDbId     String                          // FK to Playbook.id
+  tenantId         String
+  selectedTier     String                          // starter | business | enterprise | on_premise_enterprise
+  customConfig     String    @default("{}")        // JSON
+  activatedPolicies String   @default("[]")        // JSON: array of policyId strings
+  configuredTools  String    @default("[]")        // JSON
+  roiProjection    String    @default("{}")        // JSON: RoiCalculation snapshot
+  status           String    @default("active")    // active | suspended | deactivated
+  activatedBy      String?
+  activatedAt      DateTime  @default(now())
+  deactivatedAt    DateTime?
+
+  playbook         Playbook  @relation(fields: [playbookDbId], references: [id], onDelete: Cascade)
+
+  @@index([playbookDbId])
+  @@index([tenantId])
+  @@index([status])
+  @@map("playbook_activations")
+}
+
+model PlaybookMetricsSnapshot {
+  id            String   @id @default(cuid())
+  playbookDbId  String                         // FK to Playbook.id
+  tenantId      String?
+  operational   String   @default("{}")        // JSON: PlaybookOperationalMetrics
+  roi           String   @default("{}")        // JSON: RoiCalculation
+  uptimePct     Float    @default(99.9)
+  capturedAt    DateTime @default(now())
+
+  playbook      Playbook  @relation(fields: [playbookDbId], references: [id], onDelete: Cascade)
+
+  @@index([playbookDbId])
+  @@index([capturedAt])
+  @@map("playbook_metrics_snapshots")
+}
+
+model PlaybookOnboardingSession {
+  id             String    @id @default(cuid())
+  playbookDbId   String                          // FK to Playbook.id
+  tenantId       String?
+  sessionId      String    @unique
+  status         String    @default("in_progress") // in_progress | completed | abandoned
+  currentStep    Int       @default(0)
+  answers        String    @default("{}")          // JSON: field → answer
+  configSnapshot String    @default("{}")          // JSON: resolved config
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  completedAt    DateTime?
+
+  playbook       Playbook  @relation(fields: [playbookDbId], references: [id], onDelete: Cascade)
+
+  @@index([playbookDbId])
+  @@index([sessionId])
+  @@index([status])
+  @@map("playbook_onboarding_sessions")
+}
+
+// ─── Phase 4: Advanced Policy Engine ────────────────────────────────────
+
+// Policy Sets — Composition of multiple policies
+model PolicySet {
+  id                  String   @id @default(cuid())
+  setId               String   @unique               // From metadata.id
+  name                String                          // Human-readable name
+  description         String
+  apiVersion          String   @default("policyset.zenic.dev/v1")
+  version             String   @default("1.0.0")
+  namespace           String?                         // Namespace this set belongs to
+  labels              String   @default("{}")        // JSON
+  policies            String                          // JSON: array of PolicySetEntry
+  defaultMergeStrategy String  @default("priority_merge") // union | intersection | override | extend | priority_merge
+  denyStopsEvaluation Boolean  @default(true)
+  isActive            Boolean  @default(true)
+  contentHash         String                          // SHA-256
+  author              String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([setId])
+  @@index([namespace])
+  @@index([isActive])
+  @@map("policy_sets")
+}
+
+// Policy Conflicts — Detected cross-policy conflicts
+model PolicyConflictRecord {
+  id              String   @id @default(cuid())
+  conflictId      String   @unique               // Generated conflict ID
+  type            String                          // effect_contradiction | priority_collision | condition_overlap | redundant_rule | shadow_rule | scope_conflict
+  severity        String                          // critical | high | medium | low | info
+  policyIdA       String                          // First policy's policyId
+  versionA        String?                         // First policy version
+  statementIdA    String                          // First statement ID
+  effectA         String                          // First statement effect
+  resourceA       String                          // First statement resource
+  actionA         String                          // First statement action
+  policyIdB       String                          // Second policy's policyId
+  versionB        String?
+  statementIdB    String
+  effectB         String
+  resourceB       String
+  actionB         String
+  description     String                          // Human-readable description
+  suggestedResolution String                       // deny_wins | priority_wins | merge_conditions | first_match | manual
+  resolved        Boolean  @default(false)
+  resolutionStrategy String?                       // Strategy used to resolve
+  resolvedBy      String?
+  resolutionNote  String?
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([severity])
+  @@index([resolved])
+  @@index([policyIdA])
+  @@index([policyIdB])
+  @@index([createdAt])
+  @@map("policy_conflict_records")
+}
+
+// Policy Approval Requests — Draft → Review → Approve → Deploy
+model PolicyApproval {
+  id                  String   @id @default(cuid())
+  approvalId          String   @unique               // Generated approval ID
+  title               String                          // Request title
+  description         String                          // Description of proposed change
+  status              String   @default("draft")     // draft | pending_review | approved | rejected | cancelled | expired | deployed | rolled_back
+  priority            String   @default("medium")    // low | medium | high | critical | emergency
+  targetPolicyId      String?                         // Target policy (for modifications)
+  previousVersion     String?                         // Previous version for rollback
+  proposedDocument    String                          // JSON: PolicyDocument
+  simulationId        String?                         // Linked simulation result
+  requestedBy         String                          // Who requested
+  requiredApprovals   Int      @default(1)
+  currentApprovals    Int      @default(0)
+  approvals           String   @default("[]")        // JSON: array of ApprovalDecision
+  requiredReviewerRoles String @default("[]")        // JSON: array of role names
+  autoApproveRules    String   @default("[]")        // JSON: array of AutoApproveRule
+  autoApproved        Boolean  @default(false)
+  expiresAt           DateTime?
+  deployedAt          DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([approvalId])
+  @@index([status])
+  @@index([targetPolicyId])
+  @@index([requestedBy])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("policy_approvals")
+}
+
+// Policy Templates — Parameterized policy templates
+model PolicyTemplate {
+  id                String   @id @default(cuid())
+  templateId        String   @unique               // Unique template identifier
+  name              String                          // Template name
+  version           String   @default("1.0.0")
+  description       String
+  category          String                          // compliance | security | industry
+  industry          String?                         // Target industry
+  tags              String   @default("[]")         // JSON array
+  parameters        String                          // JSON: array of TemplateParameter
+  documentTemplate  String                          // JSON: PolicyDocumentTemplate
+  defaults          String   @default("{}")         // JSON: default parameter values
+  constraints       String   @default("[]")         // JSON: array of TemplateConstraint
+  generatedCount    Int      @default(0)            // Number of policies generated
+  isActive          Boolean  @default(true)
+  author            String?
+  sourceYaml        String?                         // Original YAML source
+  contentHash       String                          // SHA-256
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([templateId])
+  @@index([category])
+  @@index([industry])
+  @@index([isActive])
+  @@map("policy_templates")
+}
+
+// Policy Namespaces — Multi-tenant policy scoping
+model PolicyNamespace {
+  id                  String   @id @default(cuid())
+  namespaceId         String   @unique               // Unique namespace identifier
+  name                String                          // Human-readable name
+  description         String
+  tenantId            String                          // Tenant this namespace belongs to
+  parentNamespaceId   String?                         // Parent namespace ID (for hierarchy)
+  path                String                          // e.g., "root/tenant-abc/department-finance"
+  labels              String   @default("{}")        // JSON
+  inheritFromParent   Boolean  @default(true)
+  maxInheritanceDepth Int      @default(5)
+  parentChildResolution String @default("deny_wins") // deny_wins | priority_wins | merge_conditions
+  childCanOverrideParentDeny Boolean @default(false)
+  childCanAddAllow    Boolean  @default(true)
+  resolutionStrategy  String   @default("local_first") // local_first | priority_based | deny_wins | most_restrictive
+  isolationLevel      String   @default("inherited")   // strict | selective | inherited | shared
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([namespaceId])
+  @@index([tenantId])
+  @@index([parentNamespaceId])
+  @@index([path])
+  @@index([isActive])
+  @@map("policy_namespaces")
+}
+
+// Policy Simulations — What-if analysis results
+model PolicySimulation {
+  id                String   @id @default(cuid())
+  simulationId      String   @unique               // Generated simulation ID
+  name              String                          // Simulation name
+  description       String
+  proposedChanges   String                          // JSON: array of SimulationChange
+  testRequests      String                          // JSON: array of PolicyEvaluationRequest
+  verdictChanges    String   @default("[]")         // JSON: array of VerdictChange
+  newConflicts      String   @default("[]")         // JSON: array of PolicyConflict
+  resolvedConflicts String   @default("[]")         // JSON
+  impactScore       Int      @default(0)            // 0-100
+  riskLevel         String   @default("low")        // low | medium | high | critical
+  riskFactors       String   @default("[]")         // JSON
+  complianceImpact  String   @default("{}")         // JSON
+  totalRequests     Int      @default(0)
+  unchangedCount    Int      @default(0)
+  newDenialsCount   Int      @default(0)
+  newAllowancesCount Int     @default(0)
+  requestedBy       String
+  includeTrace      Boolean  @default(false)
+  trace             String   @default("[]")         // JSON: array of SimulationTrace
+  summary           String                          // Human-readable summary
+  createdAt         DateTime @default(now())
+
+  @@index([simulationId])
+  @@index([requestedBy])
+  @@index([riskLevel])
+  @@index([createdAt])
+  @@map("policy_simulations")
+}
+
+// Policy Impact Analysis — Dependency and blast radius tracking
+model PolicyImpactAnalysis {
+  id                    String   @id @default(cuid())
+  analysisId            String   @unique             // Generated analysis ID
+  policyId              String                        // Target policy
+  proposedVersion       String?                       // Proposed new version
+  analysisDepth         String   @default("standard") // quick | standard | deep
+  directDependencies    String   @default("[]")       // JSON: array of DependencyRef
+  indirectDependencies  String   @default("[]")       // JSON
+  affectedSets          String   @default("[]")       // JSON
+  affectedPlaybooks     String   @default("[]")       // JSON
+  affectedTools         String   @default("[]")       // JSON
+  blastRadius           String   @default("{}")       // JSON: BlastRadius
+  downstreamChanges     String   @default("[]")       // JSON
+  requestedBy           String
+  summary               String
+  createdAt             DateTime @default(now())
+
+  @@index([analysisId])
+  @@index([policyId])
+  @@index([createdAt])
+  @@map("policy_impact_analyses")
+}
+
+// Policy Verification Results — Constraint solver outputs
+model PolicyVerification {
+  id                String   @id @default(cuid())
+  verificationId    String   @unique               // Generated verification ID
+  policyIds         String                          // JSON: array of policy IDs verified
+  consistent        Boolean                         // No contradictions
+  complete          Boolean                         // All requests have matching rules
+  hasUnreachableRules Boolean  @default(false)
+  status            String                          // pass | fail | warning | error | timeout
+  contradictions    String   @default("[]")        // JSON: array of Contradiction
+  unreachableRules  String   @default("[]")        // JSON: array of UnreachableRule
+  coverage          String   @default("{}")        // JSON: CoverageReport
+  solverType        String   @default("ac3_csp")   // z3_sat | ac3_csp | brute_force | hybrid
+  duration          Int      @default(0)           // ms
+  summary           String
+  createdAt         DateTime @default(now())
+
+  @@index([verificationId])
+  @@index([status])
+  @@index([consistent])
+  @@index([createdAt])
+  @@map("policy_verifications")
+}

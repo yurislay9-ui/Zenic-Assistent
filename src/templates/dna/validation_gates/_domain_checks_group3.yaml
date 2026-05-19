@@ -1,0 +1,178 @@
+# validation_gates — Domain-Specific Checks (Group 3: transportation..automotive)
+# 6 domains with 3-5 checks each
+
+domain_specific_checks:
+
+  # ── 15. TRANSPORTATION ────────────────────────────────────────────────────
+  - domain: "transportation"
+    checks:
+      - id: "vehicle_safety_inspection"
+        rule: "Los vehículos deben tener inspección de seguridad vigente antes de ser asignados a rutas"
+        action: "Verificar que la asignación de vehículo valide inspección vigente; bloquear si vencida"
+        severity: "critical"
+        applies_to: ["fleet_management", "vehicle_tracking", "maintenance_systems"]
+
+      - id: "passenger_manifest_accuracy"
+        rule: "El manifiesto de pasajeros debe ser exacto y estar disponible antes de la partida"
+        action: "Verificar que el sistema genere manifiesto final con check-in cerrado antes de departure"
+        severity: "critical"
+        applies_to: ["booking_systems", "passenger_services", "safety_systems"]
+
+      - id: "driver_hours_of_service"
+        rule: "Cumplimiento de horas de servicio: los conductores no deben exceder límites de conducción continua"
+        action: "Verificar que el sistema de despacho valide HOS antes de asignar viajes y alerte violaciones"
+        severity: "critical"
+        applies_to: ["driver_management", "dispatch_systems", "compliance_tracking"]
+
+      - id: "accessibility_ada_compliance"
+        rule: "Los servicios de transporte deben cumplir ADA con opciones de accesibilidad disponibles"
+        action: "Verificar que el sistema ofrezca y rastree opciones de accesibilidad en reservas y vehículos"
+        severity: "warning"
+        applies_to: ["booking_systems", "vehicle_tracking", "customer_services"]
+
+  # ── 16. HOSPITALITY ───────────────────────────────────────────────────────
+  - domain: "hospitality"
+    checks:
+      - id: "pci_booking_compliance"
+        rule: "Los datos de tarjeta de reserva deben manejarse conforme PCI-DSS; prohibir almacenamiento de CVV"
+        action: "Verificar que el sistema de reservas no almacene CVV y use tokenización para datos de tarjeta"
+        severity: "critical"
+        applies_to: ["reservation_systems", "payment_processing", "guest_services"]
+
+      - id: "guest_data_minimization"
+        rule: "Solo recopilar datos de huéspedes necesarios para la operación; eliminar después del período de retención"
+        action: "Verificar que los formularios y APIs de registro solo pidan campos necesarios y exista política de purga"
+        severity: "warning"
+        applies_to: ["guest_services", "crm_systems", "marketing_automation"]
+
+      - id: "overbooking_prevention"
+        rule: "El sistema debe prevenir overbooking mediante control de inventario en tiempo real"
+        action: "Verificar que las reservas usen locks u optimistic concurrency en el inventario de habitaciones"
+        severity: "critical"
+        applies_to: ["reservation_systems", "inventory_management", "revenue_management"]
+
+      - id: "health_safety_compliance"
+        rule: "Cumplimiento de normativas de salud y seguridad local (HACCP para alimentos, sanitización)"
+        action: "Verificar que existan registros de cumplimiento de sanitización y manejo de alimentos"
+        severity: "warning"
+        applies_to: ["food_beverage", "housekeeping_systems", "compliance_tracking"]
+
+  # ── 17. RETAIL ────────────────────────────────────────────────────────────
+  - domain: "retail"
+    checks:
+      - id: "pos_transaction_integrity"
+        rule: "Las transacciones POS deben ser atómicas; no permitir ventas parciales o inconsistencias"
+        action: "Verificar que las transacciones POS usen transacciones de BD y rollback en caso de error"
+        severity: "critical"
+        applies_to: ["pos_systems", "transaction_services", "payment_processing"]
+
+      - id: "return_refund_audit_trail"
+        rule: "Toda devolución/reembolso debe tener traza de auditoría con motivo, autorización y monto"
+        action: "Verificar que el flujo de devoluciones genere registro de auditoría completo"
+        severity: "critical"
+        applies_to: ["return_services", "refund_processing", "compliance_tracking"]
+
+      - id: "loyalty_points_atomicity"
+        rule: "La acumulación y redención de puntos de lealtad debe ser atómica y consistente"
+        action: "Verificar que las operaciones de puntos usen transacciones y balances idempotentes"
+        severity: "critical"
+        applies_to: ["loyalty_systems", "customer_services", "promotion_engine"]
+
+      - id: "pricing_consistency_omnichannel"
+        rule: "Los precios deben ser consistentes entre todos los canales (tienda, web, app) en tiempo real"
+        action: "Verificar que los servicios de precio usen fuente única de verdad con caché invalidado"
+        severity: "warning"
+        applies_to: ["pricing_engine", "product_services", "catalog_systems"]
+
+  # ── 18. CONSTRUCTION ──────────────────────────────────────────────────────
+  - domain: "construction"
+    checks:
+      - id: "permit_verification"
+        rule: "Los permisos de construcción deben estar verificados y vigentes antes de iniciar cualquier obra"
+        action: "Verificar que el sistema valide permisos vigentes antes de permitir inicio de fase de construcción"
+        severity: "critical"
+        applies_to: ["project_management", "permit_services", "compliance_tracking"]
+
+      - id: "safety_incident_reporting"
+        rule: "Todo incidente de seguridad debe reportarse dentro de 24 horas con detalles completos"
+        action: "Verificar que el sistema de incidentes tenga timestamps y campos obligatorios no vacíos"
+        severity: "critical"
+        applies_to: ["safety_systems", "incident_reporting", "hr_services"]
+
+      - id: "change_order_approval"
+        rule: "Los cambios de alcance (change orders) requieren aprobación formal antes de ejecución"
+        action: "Verificar que las modificaciones al scope pasen por flujo de aprobación con firma digital"
+        severity: "critical"
+        applies_to: ["project_management", "contract_services", "cost_management"]
+
+      - id: "structural_calculation_versioning"
+        rule: "Los cálculos estructurales deben tener control de versiones y solo la versión aprobada dirige la obra"
+        action: "Verificar que los documentos de ingeniería usen versionado con marca de versión aprobada"
+        severity: "critical"
+        applies_to: ["engineering_services", "document_management", "quality_control"]
+
+  # ── 19. PHARMACEUTICAL ────────────────────────────────────────────────────
+  - domain: "pharmaceutical"
+    checks:
+      - id: "fda_21_cfr_part_11"
+        rule: "Cumplimiento 21 CFR Part 11: firmas electrónicas, audit trails y validación de sistemas"
+        action: "Verificar que los sistemas con firmas electrónicas cumplan controles de 21 CFR Part 11"
+        severity: "critical"
+        applies_to: ["clinical_systems", "manufacturing_execution", "quality_systems"]
+
+      - id: "batch_release_authorization"
+        rule: "Ningún lote farmacéutico puede liberarse sin autorización del responsable de calidad (QP)"
+        action: "Verificar que el flujo de liberación de lote requiera firma digital de QP autorizado"
+        severity: "critical"
+        applies_to: ["manufacturing_execution", "quality_systems", "batch_management"]
+
+      - id: "clinical_trial_data_integrity"
+        rule: "Los datos de ensayos clínicos deben ser inmutables, auditables y con control de acceso por rol"
+        action: "Verificar que los sistemas de datos clínicos usen audit trail, control de acceso e inmutabilidad"
+        severity: "critical"
+        applies_to: ["clinical_systems", "data_management", "regulatory_submissions"]
+
+      - id: "drug_serialization_tracking"
+        rule: "Rastreo de serialización DSCSA: cada unidad de producto debe ser rastreable en toda la cadena"
+        action: "Verificar que el sistema de serialización registre cada movimiento de producto serializado"
+        severity: "critical"
+        applies_to: ["serialization_systems", "supply_chain", "track_and_trace"]
+
+      - id: "gxp_compliance"
+        rule: "Los sistemas GxP deben tener validación documentada, procedimientos operativos y control de cambios"
+        action: "Verificar que exista documentación de validación, SOPs vinculados y proceso de change control"
+        severity: "critical"
+        applies_to: ["quality_systems", "manufacturing_execution", "laboratory_systems"]
+
+  # ── 20. AUTOMOTIVE ────────────────────────────────────────────────────────
+  - domain: "automotive"
+    checks:
+      - id: "iso_26262_functional_safety"
+        rule: "Los sistemas de seguridad funcional deben cumplir ISO 26262 con ASIL apropiado"
+        action: "Verificar que los componentes de seguridad tengan documentación ASIL y tests conforme al nivel"
+        severity: "critical"
+        applies_to: ["safety_systems", "adas_systems", "vehicle_control_units"]
+
+      - id: "recall_tracking_notification"
+        rule: "Los vehículos con defectos de seguridad deben ser rastreables y los dueños notificados dentro del plazo regulado"
+        action: "Verificar que el sistema de recall pueda identificar vehículos afectados y generar notificaciones"
+        severity: "critical"
+        applies_to: ["recall_systems", "customer_services", "regulatory_compliance"]
+
+      - id: "ota_update_integrity"
+        rule: "Las actualizaciones OTA deben verificar integridad (checksum/signature) antes de instalación"
+        action: "Verificar que el pipeline de OTA incluya verificación de firma digital antes de aplicar update"
+        severity: "critical"
+        applies_to: ["ota_systems", "vehicle_connectivity", "software_management"]
+
+      - id: "emissions_compliance"
+        rule: "Los datos de emisiones deben reportarse conforme regulaciones EPA/Euro y ser inalterables"
+        action: "Verificar que los reportes de emisiones usen datos de sensores firmados y no modificables"
+        severity: "critical"
+        applies_to: ["emissions_systems", "regulatory_compliance", "testing_systems"]
+
+      - id: "supply_chain_quality_tracking"
+        rule: "Cada componente de proveedor debe rastrearse con certificado de calidad conforme IATF 16949"
+        action: "Verificar que los componentes recibidos tengan certificado de calidad vinculado y trazabilidad"
+        severity: "warning"
+        applies_to: ["supply_chain", "quality_management", "procurement_systems"]

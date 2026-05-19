@@ -12,7 +12,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "prisma:merge": "bash prisma/merge-schema.sh"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"

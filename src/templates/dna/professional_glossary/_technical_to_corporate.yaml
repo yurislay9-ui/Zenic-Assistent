@@ -1,0 +1,236 @@
+# ============================================================================
+# professional_glossary — Technical to Corporate Transformations
+# ============================================================================
+# Transforma jerga técnica en lenguaje corporativo de élite.
+# El agente WRITER utiliza estas reglas para que el cliente sienta que
+# trata con una empresa Fortune 500, no con un robot.
+# ============================================================================
+transformation_rules:
+  technical_to_corporate:
+    - from: "bot"
+      to: "Asistente de Gestión Automatizada"
+      context: "Cuando se refiere al agente o sistema automatizado de interacción con el usuario"
+
+    - from: "database"
+      to: "Repositorio Central de Información"
+      context: "Al mencionar almacenamiento estructurado de datos empresariales"
+
+    - from: "api_error"
+      to: "Incidencia en el Protocolo de Comunicación Externo"
+      context: "Cuando un servicio externo o integración presenta fallos de comunicación"
+
+    - from: "script"
+      to: "Módulo de Automatización Inteligente"
+      context: "Al describir código ejecutable que realiza tareas automatizadas"
+
+    - from: "cache"
+      to: "Sistema de Acceso Rápido a Información"
+      context: "Cuando se habla de almacenamiento temporal para optimizar velocidad de respuesta"
+
+    - from: "backup"
+      to: "Respaldo Redundante de Continuidad Operativa"
+      context: "Al referirse a copias de seguridad y planes de recuperación"
+
+    - from: "cron_job"
+      to: "Programador de Tareas Periódicas"
+      context: "Cuando se describen procesos programados que se ejecutan automáticamente"
+
+    - from: "webhook"
+      to: "Punto de Integración en Tiempo Real"
+      context: "Al mencionar notificaciones automatizadas entre sistemas"
+
+    - from: "bug"
+      to: "Oportunidad de Mejora Detectada"
+      context: "Cuando se informa de errores o defectos en el sistema ante el cliente"
+
+    - from: "refactor"
+      to: "Optimización Estructural del Sistema"
+      context: "Al describir mejoras internas del código que no cambian funcionalidad visible"
+
+    - from: "server"
+      to: "Infraestructura de Procesamiento Centralizada"
+      context: "Cuando se hace referencia al hardware o servicio que aloja la solución"
+
+    - from: "deployment"
+      to: "Puesta en Producción de la Solución"
+      context: "Al describir el proceso de liberar una nueva versión del sistema"
+
+    - from: "log"
+      to: "Registro de Actividad Operativa"
+      context: "Cuando se menciona el seguimiento de eventos del sistema"
+
+    - from: "firewall"
+      to: "Barrera de Seguridad Perimetral"
+      context: "Al referirse a protecciones de red y filtrado de tráfico"
+
+    - from: "load_balancer"
+      to: "Distribuidor Inteligente de Carga de Trabajo"
+      context: "Cuando se describe el sistema que distribuye tráfico entre múltiples servidores"
+
+    - from: "endpoint"
+      to: "Punto de Acceso de Servicio"
+      context: "Al mencionar URLs o interfaces de comunicación entre sistemas"
+
+    - from: "token"
+      to: "Credencial de Autenticación Digital"
+      context: "Cuando se habla de tokens de sesión o autorización"
+
+    - from: "queue"
+      to: "Sistema de Gestión Ordenada de Solicitudes"
+      context: "Al describir colas de mensajes o procesamiento secuencial"
+
+    - from: "latency"
+      to: "Tiempo de Respuesta Operativo"
+      context: "Cuando se menciona el retardo en la comunicación entre sistemas"
+
+    - from: "downtime"
+      to: "Periodo de Mantenimiento Programado"
+      context: "Al informar sobre interrupciones del servicio, ya sean planificadas o no"
+
+    - from: "uptime"
+      to: "Disponibilidad Continua del Servicio"
+      context: "Cuando se reporta el tiempo que el sistema está operativo"
+
+    - from: "debug"
+      to: "Proceso de Diagnóstico y Resolución Técnica"
+      context: "Al describir la investigación y corrección de incidencias"
+
+    - from: "patch"
+      to: "Actualización Correctiva de Seguridad"
+      context: "Cuando se aplican correcciones específicas al sistema"
+
+    - from: "rollback"
+      to: "Reversión Controlada a Versión Estable Anterior"
+      context: "Al describir la vuelta a una versión previa tras una incidencia"
+
+    - from: "scalability"
+      to: "Capacidad de Expansión Adaptativa"
+      context: "Cuando se habla del crecimiento del sistema según la demanda"
+
+    - from: "payload"
+      to: "Contenido Estructurado de la Transacción"
+      context: "Al referirse a los datos transportados en una petición o respuesta"
+
+    - from: "middleware"
+      to: "Capa Intermedia de Procesamiento de Negocio"
+      context: "Cuando se describe software que conecta diferentes componentes del sistema"
+
+    - from: "timeout"
+      to: "Límite de Tiempo de Espera Operativa Excedido"
+      context: "Al informar que una operación ha superado el tiempo máximo permitido"
+
+    - from: "rate_limit"
+      to: "Política de Uso Responsable del Servicio"
+      context: "Cuando se describen límites de uso para proteger el rendimiento"
+
+    - from: "SSH"
+      to: "Canal de Acceso Seguro Administrativo"
+      context: "Al mencionar acceso remoto seguro a servidores"
+
+    - from: "SSL/TLS"
+      to: "Certificación de Comunicaciones Cifradas"
+      context: "Cuando se habla de cifrado de comunicaciones"
+
+    - from: "docker"
+      to: "Entorno de Ejecución Aislado y Reproducible"
+      context: "Al describir contenedores y virtualización a nivel de aplicación"
+
+    - from: "kubernetes"
+      to: "Orquestador de Infraestructura Automatizada"
+      context: "Cuando se menciona la gestión de contenedores a escala"
+
+    - from: "CI/CD"
+      to: "Flujo de Integración y Entrega Continua"
+      context: "Al describir pipelines de despliegue automatizado"
+
+    - from: "microservice"
+      to: "Componente de Servicio Independiente y Especializado"
+      context: "Cuando se habla de arquitectura distribuida en servicios"
+
+    - from: "repository"
+      to: "Archivo Centralizado de Control de Versiones"
+      context: "Al referirse al repositorio de código fuente"
+
+    - from: "merge_conflict"
+      to: "Divergencia en la Integración de Cambios Concurrentes"
+      context: "Cuando se describen conflictos al unir código de diferentes fuentes"
+
+    - from: "iteration"
+      to: "Ciclo de Desarrollo Iterativo"
+      context: "Al hablar de sprints o ciclos de trabajo"
+
+    - from: "schema"
+      to: "Estructura Formal de Datos"
+      context: "Cuando se menciona la definición de estructura de base de datos o API"
+
+    - from: "index"
+      to: "Mecanismo de Búsqueda Optimizada"
+      context: "Al describir índices de base de datos para acelerar consultas"
+
+    - from: "migration"
+      to: "Transición Estructurada de Datos entre Versiones"
+      context: "Cuando se realizan cambios en la estructura de datos"
+
+    - from: "webhook_retry"
+      to: "Reintento Automático de Integración en Tiempo Real"
+      context: "Al describir el mecanismo de reintento ante fallos en webhooks"
+
+    - from: "sdk"
+      to: "Kit de Desarrollo de Integración Empresarial"
+      context: "Cuando se menciona el kit de herramientas para desarrolladores"
+
+    - from: "error_stack"
+      to: "Trazabilidad Detallada de la Incidencia"
+      context: "Al referirse al stack trace ante errores"
+
+    - from: "thread"
+      to: "Flujo de Procesamiento Concurrente"
+      context: "Cuando se describen hilos de ejecución paralela"
+
+    - from: "memory_leak"
+      to: "Degradación Progresiva de Recursos del Sistema"
+      context: "Al informar sobre fugas de memoria que afectan el rendimiento"
+
+    - from: "deadlock"
+      to: "Bloqueo Mutuo de Procesos Concurrentes"
+      context: "Cuando dos o más procesos se bloquean mutuamente"
+
+    - from: "benchmark"
+      to: "Evaluación Comparativa de Rendimiento"
+      context: "Al describir pruebas de rendimiento del sistema"
+
+    - from: "dependency"
+      to: "Componente Integrado de Terceros"
+      context: "Cuando se menciona una librería o paquete externo"
+
+    - from: "ping"
+      to: "Verificación de Disponibilidad de Servicio"
+      context: "Al comprobar si un sistema responde correctamente"
+
+    - from: "DNS"
+      to: "Sistema de Resolución de Nombres de Dominio"
+      context: "Cuando se habla de traducción de dominios a direcciones IP"
+
+    - from: "VPN"
+      to: "Red Privada Virtual de Acceso Seguro"
+      context: "Al describir conexiones cifradas de red privada"
+
+    - from: "OAuth"
+      to: "Protocolo de Autorización Delegada Segura"
+      context: "Cuando se menciona autenticación mediante terceros"
+
+    - from: "CRUD"
+      to: "Operaciones de Gestión Integral de Registros"
+      context: "Al describir operaciones básicas de creación, lectura, actualización y eliminación"
+
+    - from: "websocket"
+      to: "Canal de Comunicación Bidireccional Persistente"
+      context: "Cuando se habla de comunicación en tiempo real entre cliente y servidor"
+
+    - from: "hash"
+      to: "Huella Digital Criptográfica de Verificación"
+      context: "Al describir funciones de hash para integridad de datos"
+
+    - from: "encryption"
+      to: "Cifrado de Protección de Información Sensible"
+      context: "Cuando se menciona la codificación de datos para protección"

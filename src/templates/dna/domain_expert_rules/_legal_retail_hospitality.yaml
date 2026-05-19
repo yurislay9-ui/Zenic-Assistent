@@ -1,0 +1,247 @@
+# domain_expert_rules — Legal, Retail & Hospitality Industries
+# Industries: retail_ecommerce, legal_practice, real_estate, hospitality_hotel, hospitality_restaurant
+
+industries:
+
+  # ===========================================================================
+  # 1. RETAIL & E-COMMERCE
+  # ===========================================================================
+  - name: "retail_ecommerce"
+    display_name: "Retail y Comercio Electronico"
+    description: "Reglas obligatorias para tiendas online y comercio minorista, incluyendo gestion de inventario, devoluciones, y proteccion al consumidor."
+    mandatory_logic:
+      - "return_policy_within_30_days": "Politica de devolucion obligatoria dentro de 30 dias habiles para productos no perecederos"
+      - "inventory_reorder_threshold_alert": "Alerta automatica de reorden cuando el inventario cae por debajo del umbral definido por SKU"
+      - "tax_calculation_by_jurisdiction": "Calculo automatico de impuestos basado en la jurisdiccion del comprador (IVA, ISR, etc.)"
+      - "abandoned_cart_recovery_sequence": "Secuencia automatica de recuperacion de carrito abandonado con 3 toques en 72 horas"
+      - "fraud_detection_on_high_value_orders": "Verificacion antifraude obligatoria para pedidos que excedan 3x el ticket promedio del cliente"
+      - "shipping_cost_transparency_before_checkout": "Mostrar costo de envio estimado antes de llegar a la pantalla de pago"
+      - "product_availability_validation_at_checkout": "Validacion de disponibilidad de inventario en tiempo real antes de confirmar la orden"
+    ux_patterns:
+      - "quick_buy_single_click_for_returning_customers"
+      - "progress_indicator_multi_step_checkout"
+      - "social_proof_reviews_near_add_to_cart"
+      - "urgency_timer_flash_sale_countdown"
+      - "wishlist_persistent_across_sessions"
+    compliance_requirements:
+      - "GDPR_data_protection_for_eu_customers"
+      - "Ley_Federal_de_Proteccion_al_Consumidor"
+      - "PCI_DSS_payment_card_compliance"
+    business_invariants:
+      - "El precio mostrado en la ficha del producto debe ser identico al precio en checkout"
+      - "No se puede procesar un pago sin confirmacion de inventario disponible"
+      - "Toda orden debe generar un numero de seguimiento rastreable"
+      - "El carrito no puede contener productos discontinuados ni agotados"
+    edge_cases:
+      - "Producto agotado mientras el cliente esta en proceso de checkout — bloquear y notificar"
+      - "Descuento por cupon excede el precio del producto — limitar descuento al 100% del valor"
+      - "Cliente con direccion de envio en zona no cubierta por transportistas activos"
+    suggested_entities:
+      - "Producto"
+      - "Orden"
+      - "Cliente"
+      - "Inventario"
+      - "CuponDescuento"
+      - "CarritoAbandonado"
+    notification_triggers:
+      - "orden_creada:Confirmacion de orden enviada al cliente y al equipo de logistica"
+      - "inventario_bajo:Alerta de reposicion cuando el stock baja del umbral minimo"
+      - "pago_fallido:Notificacion al cliente para reintentar metodo de pago"
+      - "devolucion_solicitada:Aviso al equipo de atencion y warehouse para procesar"
+      - "carrito_abandonado_24h:Primer toque de recuperacion via email"
+
+  # ===========================================================================
+  # 13. LEGAL PRACTICE
+  # ===========================================================================
+  - name: "legal_practice"
+    display_name: "Practica Legal y Abogacia"
+    description: "Reglas obligatorias para bufetes y practicas legales, incluyendo conflicto de intereses, privilegio abogado-cliente y gestion de plazos procesales."
+    mandatory_logic:
+      - "conflict_of_interest_check_before_engagement": "Verificacion de conflicto de intereses obligatoria antes de aceptar cualquier caso nuevo"
+      - "attorney_client_privilege_data_segregation": "Segregacion de datos bajo privilegio abogado-cliente con cifrado y acceso restringido"
+      - "statute_of_limitations_deadline_tracking": "Seguimiento de plazos de prescripcion con alertas automaticas a 90, 30 y 7 dias"
+      - "trust_account_iolta_compliance": "Cumplimiento IOLTA para cuentas de fideicomiso de clientes con reconciliacion mensual"
+      - "billable_hours_accuracy_no_rounding_up": "Precision en horas facturables — redondeo prohibido hacia arriba, solo intervalos de 6 min"
+      - "document_version_control_with_audit_trail": "Control de versiones de documentos legales con traza de auditoria completa"
+      - "court_filing_deadline_auto_calculation": "Calculo automatico de plazos judiciales considerando dias habiles y feriados"
+    ux_patterns:
+      - "dashboard_casos_con_estados_y_plazos"
+      - "calendario_procesal_con_feridados_automaticos"
+      - "timer_facturable_con_inicio_desde_caso"
+      - "gestor_documental_con_versiones_y_comparacion"
+      - "portal_cliente_con_acceso_limitado_caso"
+    compliance_requirements:
+      - "Model_Rules_of_Professional_Conduct_ABA"
+      - "Codigo_de_Etica_y_Responsabilidades_Profesionales_del_Abogado"
+      - "IOLTA_trust_account_regulations"
+      - "GDPR_attorney_client_data_protection"
+    business_invariants:
+      - "No se acepta un caso sin verificacion de conflicto de intereses aprobada"
+      - "Las cuentas de fideicomiso de clientes nunca se mezclan con fondos operativos"
+      - "Los documentos bajo privilegio nunca se comparten sin autorizacion del cliente"
+      - "Los plazos procesales de prescripcion no pueden ser modificados manualmente"
+    edge_cases:
+      - "Conflicto de intereses detectado con cliente existente — declinar representacion y documentar"
+      - "Corte exige documento privilegiado — presentar motion to quash antes de entregar"
+      - "Plazo procesal en fin de semana — calcular vencimiento al siguiente dia habil"
+      - "Fallecimiento del cliente — notificar al albacea y preservar documentos privilegiados"
+    suggested_entities:
+      - "CasoLegal"
+      - "ClienteLegal"
+      - "DocumentoLegal"
+      - "PlazoProcesal"
+      - "CuentaFideicomiso"
+      - "HoraFacturable"
+    notification_triggers:
+      - "conflicto_de_intereses_detectado:Alerta bloqueante al intentar abrir caso en conflicto"
+      - "plazo_prescripcion_90_dias:Primera alerta de plazo de prescripcion proximo"
+      - "plazo_prescripcion_7_dias:Alerta critica de plazo inminente"
+      - "reconciliacion_iolta_mensual:Recordatorio de reconciliacion de cuenta de fideicomiso"
+      - "documento_modificado_por_tercero:Alerta de seguridad si documento privilegiado fue accedido"
+
+  # ===========================================================================
+  # 14. REAL ESTATE
+  # ===========================================================================
+  - name: "real_estate"
+    display_name: "Bienes Raices e Inmobiliaria"
+    description: "Reglas obligatorias para la industria inmobiliaria, incluyendo gestion de contratos, depositos en garantia y cumplimiento de regulaciones de vivienda."
+    mandatory_logic:
+      - "earnest_money_escrow_segregation": "Los depositos de earnest money deben mantenerse en cuenta de escrow separada — nunca en cuenta operativa"
+      - "fair_housing_non_discrimination_compliance": "Cumplimiento de leyes de vivienda justa — no discriminacion en ninguna transaccion"
+      - "disclosure_material_defect_mandatory": "Divulgacion obligatoria de defectos materiales conocidos del inmueble antes de la venta"
+      - "title_search_before_closing": "Busqueda de titulo obligatoria antes del cierre para verificar gravamenes y lienzos"
+      - "commission_structure_transparency": "Transparencia de estructura de comisiones — el cliente debe conocer montos antes de firmar"
+      - "property_appraisal_independent_valuation": "Avaluo independiente del inmueble requerido antes de aprobar financiamiento"
+      - "closing_document_checklist_completion": "Lista de verificacion de documentos de cierre debe estar 100% completa antes del signing"
+    ux_patterns:
+      - "listado_propiedades_con_mapa_interactivo"
+      - "timeline_transaccion_con_milestones"
+      - "calculadora_hipoteca_con_amortizacion"
+      - "portal_comprador_con_documentos_y_estatus"
+      - "tour_virtual_360_con_hotspots"
+    compliance_requirements:
+      - "Fair_Housing_Act_non_discrimination"
+      - "RESPA_Real_Estate_Settlement_Procedures_Act"
+      - "Ley_de_Vivienda_regulacion_desarrollo_urbano"
+      - "TRID_TILA_RESPA_Integrated_Disclosure"
+    business_invariants:
+      - "Los depositos de earnest money nunca se mezclan con fondos operativos de la agencia"
+      - "No se puede cerrar sin busqueda de titulo limpia o seguro de titulo"
+      - "Toda discriminacion en vivienda es causa de terminacion inmediata de relacion"
+      - "Los defectos materiales conocidos deben divulgarse antes de cualquier oferta"
+    edge_cases:
+      - "Defecto material descubierto despues de oferta aceptada — notificar inmediatamente y renegociar"
+      - "Gravamen encontrado en busqueda de titulo — no cerrar hasta resolucion o seguro de titulo"
+      - "Comprador que se retracta despues de earnest money — determinar si aplica forfeiture o devolucion"
+      - "Propiedad con-code violations activas — requiere resolucion antes del cierre"
+    suggested_entities:
+      - "Propiedad"
+      - "TransaccionInmobiliaria"
+      - "Comprador"
+      - "Vendedor"
+      - "ContratoEscrow"
+      - "Avaluo"
+    notification_triggers:
+      - "oferta_recibida:Notificacion al vendedor con detalles de la oferta"
+      - "earnest_money_depositado:Confirmacion a ambas partes con comprobante de escrow"
+      - "defecto_material_descubierto:Alerta a todas las partes involucradas en la transaccion"
+      - "closing_proximo_48h:Recordatorio de cierre con checklist de documentos pendientes"
+      - "avaluo_completado:Notificacion con resultado y siguiente paso"
+
+  # ===========================================================================
+  # 15. HOSPITALITY HOTEL
+  # ===========================================================================
+  - name: "hospitality_hotel"
+    display_name: "Hoteleria"
+    description: "Reglas obligatorias para hoteles y hospedaje, incluyendo gestion de reservaciones, politicas de cancelacion y seguridad de huespedes."
+    mandatory_logic:
+      - "cancellation_policy_48h_before_checkin": "Politica de cancelacion: cancelacion gratuita hasta 48 horas antes del check-in"
+      - "guest_id_verification_at_checkin": "Verificacion de identidad del huesped obligatoria al check-in con documento oficial"
+      - "room_status_update_real_time_housekeeping": "Actualizacion de estado de habitacion en tiempo real por housekeeping al limpiar"
+      - "overbooking_prevention_with_inventory_lock": "Prevencion de overbooking con bloqueo de inventario al confirmar reservacion"
+      - "no_show_charge_one_night_policy": "Cargo automatico de una noche por no-show despues de las 18:00 sin aviso"
+      - "guest_emergency_evacuation_plan_posted": "Plan de evacuacion de emergencia visible en cada habitacion y areas comunes"
+      - "late_checkout_fee_enforcement": "Cargo por late checkout aplicado automaticamente si excede las 12:00 sin autorizacion"
+    ux_patterns:
+      - "reservacion_online_con_mapa_habitaciones"
+      - "mobile_check_in_digital_key"
+      - "concierge_chat_en_la_app"
+      - "dashboard_ocupacion_y_revenue_por_tipo"
+      - "solicitud_servicio_habitacion_desde_app"
+    compliance_requirements:
+      - "ADA_Americans_with_Disabilities_Act_accessibility"
+      - "Norma_Oficial_Mexicana_NOM_005_STPS_seguridad_hoteleria"
+      - "PCI_DSS_payment_card_processing_hotel"
+      - "Fire_safety_code_compliance_local"
+    business_invariants:
+      - "Ningun huesped se registra sin verificacion de identidad con documento oficial"
+      - "El inventario de habitaciones nunca puede exceder la capacidad fisica del hotel"
+      - "Las reservaciones confirmadas no pueden ser canceladas unilateralmente por el hotel sin compensacion"
+      - "Toda habitacion debe ser inspeccionada antes de asignar a un nuevo huesped"
+    edge_cases:
+      - "Overbooking involuntario — reubicar en hotel comparable y cubrir primera noche"
+      - "Huesped con comportamiento violento — protocolo de seguridad con expulsion y reporte policial"
+      - "Habitacion con danos al check-out — cobro de deposito de seguridad con evidencia fotografica"
+      - "Emergencia medica del huesped en habitacion — activar protocolo medico y contacto de emergencia"
+    suggested_entities:
+      - "Habitacion"
+      - "Reservacion"
+      - "Huesped"
+      - "CheckIn"
+      - "Housekeeping"
+      - "ServicioConcierge"
+    notification_triggers:
+      - "reservacion_confirmada:Email de confirmacion con detalles y politica de cancelacion"
+      - "check_in_proximo_24h:Recordatorio con instrucciones y hora de llegada"
+      - "no_show_detected:Notificacion a recepcion para procesar cargo"
+      - "habitacion_lista_para_checkin:Avizo a recepcion tras limpieza verificada"
+      - "evacuacion_emergencia:Notificacion critica a todos los huespedes y personal"
+
+  # ===========================================================================
+  # 16. HOSPITALITY RESTAURANT
+  # ===========================================================================
+  - name: "hospitality_restaurant"
+    display_name: "Restaurante y Gastronomia"
+    description: "Reglas obligatorias para restaurantes, incluyendo seguridad alimentaria, gestion de alergenos y control de calidad en cocina."
+    mandatory_logic:
+      - "allergen_disclosure_on_menu": "Divulgacion obligatoria de alergenos en todo el menu con etiquetado visible"
+      - "food_safety_haccp_compliance": "Cumplimiento HACCP para puntos criticos de control en toda la cadena alimentaria del restaurante"
+      - "table_reservation_holding_time_15min": "Tiempo de espera maximo de 15 minutos para reservacion antes de liberar la mesa"
+      - "kitchen_order_fifo_priority": "Prioridad FIFO en cocina — las ordenes se preparan en orden de recepcion sin excepciones"
+      - "temperature_log_mandatory_refrigeration": "Registro obligatorio de temperatura de refrigeracion 2x al dia con alerta de desviacion"
+      - "server_tip_distribution_compliance": "Cumplimiento de distribucion de propinas segun regulacion laboral local"
+      - "waste_tracking_daily_for_inventory_accuracy": "Rastreo diario de desperdicio alimentario para ajuste de inventario y costos"
+    ux_patterns:
+      - "menu_digital_con_alergenos_y_fotos"
+      - "reservacion_online_con_mapa_mesas"
+      - "orden_en_mesa_con_qr_code"
+      - "dashboard_cocina_con_ordenes_en_tiempo_real"
+      - "cuenta_dividir_automatica_por_persona"
+    compliance_requirements:
+      - "FDA_Food_Code_restaurant_safety"
+      - "Norma_Oficial_Mexicana_NOM_251_SSA1_higiene_alimentos"
+      - "HACCP_Hazard_Analysis_Critical_Control_Points"
+      - "Regulacion_propinas_y_compensacion_laboral"
+    business_invariants:
+      - "No se sirve un platillo sin verificacion de alergenos del comensal"
+      - "Las temperaturas de refrigeracion fuera de rango disparan alerta inmediata"
+      - "Las ordenes de cocina se procesan en orden FIFO estricto"
+      - "Los alimentos vencidos se descartan inmediatamente — nunca se sirven"
+    edge_cases:
+      - "Cliente con alergia severa que no esta en la lista de alergenos del platillo — consultar con chef antes de servir"
+      - "Corte de energia en horas pico — protocolo de seguridad alimentaria con descarte de productos perecederos"
+      - "Orden con modificacion extrema que altera tiempo de preparacion — informar al comensal del nuevo tiempo estimado"
+      - "Inspeccion sanitaria sin previo aviso — acceso inmediato a registros HACCP y temperaturas"
+    suggested_entities:
+      - "Orden"
+      - "Mesa"
+      - "Platillo"
+      - "Reservacion"
+      - "RegistroTemperatura"
+      - "InventarioCocina"
+    notification_triggers:
+      - "alergeno_solicitado_no_documentado:Alerta al mesero para consultar con cocina antes de ordenar"
+      - "temperatura_refrigeracion_fuera_rango:Alerta critica al encargado de cocina"
+      - "mesa_reservada_no_presenta_15min:Liberar mesa y notificar al siguiente en lista de espera"
+      - "orden_tardando_mas_de_25_min:Alerta al chef para priorizar"
+      - "producto_por_vencer_hoy:Notificacion para usar en especial del dia o descartar"

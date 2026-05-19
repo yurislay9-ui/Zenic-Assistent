@@ -1,0 +1,200 @@
+# domain_expert_rules — Logistics, Manufacturing & Other Industries
+# Industries: logistics_shipping, manufacturing, nonprofit, professional_services
+
+industries:
+
+  # ===========================================================================
+  # 17. LOGISTICS SHIPPING
+  # ===========================================================================
+  - name: "logistics_shipping"
+    display_name: "Logistica y Envios"
+    description: "Reglas obligatorias para empresas de logistica y envios, incluyendo rastreo, cadena de custodia y cumplimiento aduanero."
+    mandatory_logic:
+      - "tracking_number_generated_at_shipment_creation": "Numero de rastreo generado automaticamente al crear el envio — nunca retroactivamente"
+      - "proof_of_delivery_capture_mandatory": "Evidencia de entrega obligatoria — firma electronica o foto como comprobante"
+      - "chain_of_custody_documentation": "Documentacion de cadena de custodia en cada punto de transferencia del paquete"
+      - "customs_declaration_accuracy_for_international": "Declaracion aduanera precisa y completa para todo envio internacional sin excepciones"
+      - "weight_dimension_verification_at_intake": "Verificacion de peso y dimensiones al ingreso del paquete con tolerancia del 2%"
+      - "hazardous_material_labeling_compliance": "Etiquetado de materiales peligrosos conforme a IATA DGR o DOT segun modo de transporte"
+      - "delivery_exception_escalation_protocol": "Protocolo de escalamiento automatico para excepciones de entrega (direccion incorrecta, rechazo, etc.)"
+    ux_patterns:
+      - "rastreo_envio_mapa_en_tiempo_real"
+      - "dashboard_logistica_con_kpis_entrega"
+      - "escaneo_codigo_barras_en_cada_punto"
+      - "portal_cliente_con_historial_envios"
+      - "ruta_optimizada_visual_en_mapa"
+    compliance_requirements:
+      - "IATA_Dangerous_Goods_Regulations_air"
+      - "DOT_hazardous_materials_regulations_ground"
+      - "Customs_and_Border_Protection_trade_compliance"
+      - "NOM_027_SCT2_transportacion_materiales_peligrosos_Mexico"
+    business_invariants:
+      - "Todo envio tiene numero de rastreo desde el momento de creacion"
+      - "No se entrega sin captura de comprobante (firma o foto)"
+      - "La cadena de custodia se documenta en cada punto de transferencia"
+      - "Los materiales peligrosos no se transportan sin etiquetado y documentacion correcta"
+    edge_cases:
+      - "Envio internacional retenido en aduana — escalar a broker aduanal con documentacion completa"
+      - "Paquete danado en transito — iniciar proceso de reclamacion con evidencia fotografica"
+      - "Direccion de entrega no encontrada — contactar destinatario y retener por 48 horas maximo"
+      - "Material peligroso con fuga reportada — activar protocolo de emergencia HazMat"
+    suggested_entities:
+      - "Envio"
+      - "Paquete"
+      - "Ruta"
+      - "Conductor"
+      - "PuntoTransferencia"
+      - "DeclaracionAduanera"
+    notification_triggers:
+      - "envio_creado:Confirmacion con numero de rastreo y estimacion de entrega"
+      - "paquete_en_transito_punto:Actualizacion de ubicacion en cada punto de transferencia"
+      - "excepcion_entrega:Alerta de problema con escalamiento automatico"
+      - "entrega_exitosa:Confirmacion con comprobante al remitente y destinatario"
+      - "retencion_aduanal:Notificacion al broker y cliente con pasos requeridos"
+
+  # ===========================================================================
+  # 18. MANUFACTURING
+  # ===========================================================================
+  - name: "manufacturing"
+    display_name: "Manufactura y Produccion"
+    description: "Reglas obligatorias para plantas de manufactura, incluyendo control de calidad, seguridad industrial y gestion de produccion."
+    mandatory_logic:
+      - "quality_control_inspection_per_batch": "Inspeccion de control de calidad obligatoria por lote de produccion antes de liberacion"
+      - "safety_incident_reporting_zero_tolerance": "Reporte de incidentes de seguridad con politica de tolerancia cero y escalamiento inmediato"
+      - "iso_9001_documented_procedures_compliance": "Cumplimiento de procedimientos documentados ISO 9001 para cada proceso de produccion"
+      - "material_traceability_lot_number": "Trazabilidad de materiales por numero de lote desde proveedor hasta producto terminado"
+      - "preventive_maintenance_schedule_enforcement": "Programa de mantenimiento preventivo obligatorio con bloqueo de equipo si se omitio"
+      - "scrap_rate_threshold_alert_5_percent": "Alerta automatica si la tasa de scrap excede el 5% en cualquier linea de produccion"
+      - "ppe_compliance_verification_before_shift": "Verificacion de equipo de proteccion personal antes de cada turno obligatoria"
+    ux_patterns:
+      - "dashboard_produccion_con_oee_en_tiempo_real"
+      - "kanban_materiales_con_reorder_point"
+      - "checklist_calidad_interactivo_por_lote"
+      - "planta_visual_con_estaciones_y_estatus"
+      - "reporte_incidente_seguridad_wizard"
+    compliance_requirements:
+      - "ISO_9001_quality_management_system"
+      - "OSHA_workplace_safety_standards"
+      - "NOM_004_STPS_sistema_administracion_seguridad_trabajo"
+      - "ISO_14001_environmental_management_if_applicable"
+    business_invariants:
+      - "Ningun lote se libera sin inspeccion de calidad aprobada"
+      - "Los equipos con mantenimiento preventivo vencido no pueden operar"
+      - "Todo incidente de seguridad se reporta inmediatamente — no hay excepciones"
+      - "La trazabilidad de materiales es completa de origen a producto terminado"
+    edge_cases:
+      - "Lote rechazado por calidad — cuarentena, investigacion de causa raiz y disposicion documentada"
+      - "Equipo critico falla en produccion — activar plan de contingencia con linea alternativa"
+      - "Materia prima de proveedor nuevo sin certificacion — cuarentena hasta validacion de calidad"
+      - "Inspeccion de seguridad OSHA sin aviso — acceso inmediato a registros y permisos"
+    suggested_entities:
+      - "LoteProduccion"
+      - "OrdenProduccion"
+      - "EstacionTrabajo"
+      - "Material"
+      - "InspeccionCalidad"
+      - "IncidenteSeguridad"
+    notification_triggers:
+      - "lote_calidad_rechazado:Alerta al gerente de produccion y calidad para investigacion"
+      - "scrap_rate_excedido:Notificacion con detalles de la linea y accion correctiva"
+      - "mantenimiento_preventivo_vencido:Alerta bloqueante en el equipo correspondiente"
+      - "incidente_seguridad:Notificacion inmediata a supervision y seguridad industrial"
+      - "reorden_materiales:Alerta de punto de reorden para material critico"
+
+  # ===========================================================================
+  # 19. NONPROFIT
+  # ===========================================================================
+  - name: "nonprofit"
+    display_name: "Organizacion Sin Fines de Lucro"
+    description: "Reglas obligatorias para ONGs y organizaciones sin fines de lucro, incluyendo transparencia de donativos, cumplimiento fiscal y rendicion de cuentas."
+    mandatory_logic:
+      - "donor_receipt_tax_deductible_within_30_days": "Recibo deducible de impuestos emitido al donante en un maximo de 30 dias posteriores a la donacion"
+      - "fund_designation_restriction_enforcement": "Cumplimiento estricto de restricciones de designacion de fondos — los donativos restringidos se usan solo como se especifica"
+      - "board_meeting_quorum_requirement": "Quorum obligatorio de junta directiva para cualquier decision financiera o estrategica"
+      - "annual_report_public_transparency": "Reporte anual publico obligatorio con estados financieros auditados e impacto social"
+      - "conflict_of_interest_disclosure_board": "Declaracion de conflicto de intereses obligatoria para miembros de la junta anualmente"
+      - "grant_funding_spending_compliance": "Cumplimiento del uso de fondos segun los terminos especificos de cada grant o subvencion"
+      - "volunteer_background_check_for_vulnerable": "Verificacion de antecedentes para voluntarios que trabajan con poblacion vulnerable"
+    ux_patterns:
+      - "portal_donativo_con_impacto_visual"
+      - "dashboard_transparencia_con_gastos_e_ingresos"
+      - "perfil_voluntario_con_horas_y_proyectos"
+      - "reporte_impacto_social_interactivo"
+      - "campana_crowdfunding_con_progreso"
+    compliance_requirements:
+      - "IRS_501_c_3_tax_exempt_requirements"
+      - "Ley_Fomento_Actividades_Bienestar_Social_ONC_Mexico"
+      - "International_Standards_Charted_Accountants_nonprofit"
+      - "Donor_bill_of_rights_AFP"
+    business_invariants:
+      - "Los donativos restringidos nunca se redirigen a otro proposito sin autorizacion del donante"
+      - "La junta directiva no toma decisiones sin quorum alcanzado"
+      - "Los reportes financieros anuales son publicos y auditados por tercero independiente"
+      - "Los voluntarios con poblacion vulnerable tienen verificacion de antecedentes vigente"
+    edge_cases:
+      - "Donativo restringido donde el proyecto fue cancelado — contactar donante para redirigir o devolver"
+      - "Miembro de junta con conflicto de intereses en votacion — debe abstenerse y documentarse"
+      - "Voluntario con antecedente penal detectado — reasignar lejos de poblacion vulnerable o declinar"
+      - "Grant con fondos no gastados al final del periodo — solicitar extension o devolver segun terminos"
+    suggested_entities:
+      - "Donativo"
+      - "Donante"
+      - "Voluntario"
+      - "Proyecto"
+      - "Grant"
+      - "ReporteImpacto"
+    notification_triggers:
+      - "donativo_recibido:Agradecimiento automatico y recibo preliminar al donante"
+      - "recibo_fiscal_por_vencer:Recordatorio 15 dias antes del plazo de 30 dias para emitir recibo"
+      - "quorum_no_alcanzado:Alerta de que la sesion de junta no puede proceder"
+      - "grant_periodo_por_terminar:Notificacion 60 dias antes del vencimiento del grant"
+      - "voluntario_antecedente_vencido:Recordatorio de renovacion de verificacion de antecedentes"
+
+  # ===========================================================================
+  # 20. PROFESSIONAL SERVICES
+  # ===========================================================================
+  - name: "professional_services"
+    display_name: "Servicios Profesionales y Consultoria"
+    description: "Reglas obligatorias para firmas de servicios profesionales, incluyendo gestion de proyectos, facturacion por tiempo y NDA compliance."
+    mandatory_logic:
+      - "nda_compliance_before_client_data_access": "Cumplimiento de NDA obligatorio antes de cualquier acceso a datos del cliente"
+      - "engagement_letter_before_work_starts": "Carta de compromiso (engagement letter) firmada antes de iniciar cualquier trabajo"
+      - "time_tracking_mandatory_for_billable_work": "Registro de tiempo obligatorio para todo trabajo facturable con precision de 15 minutos"
+      - "scope_change_approval_before_extra_work": "Aprobacion de cambio de alcance antes de realizar trabajo adicional no cotizado"
+      - "client_conflict_check_before_engagement": "Verificacion de conflicto con clientes existentes antes de aceptar compromiso nuevo"
+      - "deliverable_review_peer_approval": "Revision por pares obligatoria antes de entregar cualquier entregable al cliente"
+      - "retainer_depletion_alert_at_80_percent": "Alerta de agotamiento de retainer al 80% del monto contratado"
+    ux_patterns:
+      - "dashboard_proyectos_con_gantt_y_estatus"
+      - "timer_automatico_por_proyecto_y_tarea"
+      - "portal_cliente_con_entregables_y_aprobaciones"
+      - "cotizador_interactivo_con_scope_items"
+      - "reporte_utilizacion_consultores_por_proyecto"
+    compliance_requirements:
+      - "IFRS_15_revenue_recognition_services"
+      - "GDPR_client_data_processing_agreements"
+      - "SOC_2_Type_II_security_controls_if_applicable"
+      - "Codigo_Etico_profesional_por_colegio_o_asociacion"
+    business_invariants:
+      - "No se trabaja sin carta de compromiso firmada por el cliente"
+      - "Todo trabajo facturable tiene registro de tiempo asociado"
+      - "Los cambios de alcance requieren aprobacion del cliente antes de proceder"
+      - "Los entregables se revisan por pares antes de enviar al cliente"
+    edge_cases:
+      - "Cliente solicita trabajo fuera de alcance urgente — obtener aprobacion verbal y confirmar por escrito en 24h"
+      - "Consultor con acceso a datos de dos clientes competidores — aplicar fire wall de informacion"
+      - "Retener agotado antes de fin de periodo — notificar y obtener autorizacion para trabajo adicional"
+      - "Entregable rechazado por el cliente — proceso de revision con ajustes sin costo adicional si es defecto nuestro"
+    suggested_entities:
+      - "Proyecto"
+      - "ClienteProfesional"
+      - "Consultor"
+      - "Entregable"
+      - "RegistroTiempo"
+      - "CartaCompromiso"
+    notification_triggers:
+      - "engagement_letter_pendiente:Recordatorio si no se firma en 5 dias habiles"
+      - "retener_al_80_por_ciento:Alerta de uso de retener con proyeccion de agotamiento"
+      - "scope_change_solicitado:Notificacion al cliente para aprobacion de cambio de alcance"
+      - "entregable_listo_para_revision:Aviso al peer reviewer para aprobacion"
+      - "tiempo_no_registrado_24h:Recordatorio al consultor de horas sin registrar"

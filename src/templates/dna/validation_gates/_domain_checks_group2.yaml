@@ -1,0 +1,205 @@
+# validation_gates — Domain-Specific Checks (Group 2: manufacturing..media)
+# 7 domains with 3-5 checks each
+
+domain_specific_checks:
+
+  # ── 8. MANUFACTURING ──────────────────────────────────────────────────────
+  - domain: "manufacturing"
+    checks:
+      - id: "iso_9001_traceability"
+        rule: "Trazabilidad ISO 9001: cada producto debe rastrearse desde materia prima hasta entrega final"
+        action: "Verificar que los registros de producción vinculen lotes de entrada con lotes de salida"
+        severity: "critical"
+        applies_to: ["production_tracking", "quality_control", "supply_chain"]
+
+      - id: "safety_compliance_osha"
+        rule: "Cumplimiento OSHA: los procedimientos de seguridad deben estar documentados y accesibles en cada estación"
+        action: "Verificar que cada estación de trabajo tenga documentos de seguridad asociados y actualizados"
+        severity: "critical"
+        applies_to: ["safety_systems", "workstation_management", "incident_reporting"]
+
+      - id: "bom_version_control"
+        rule: "Las listas de materiales (BOM) deben tener control de versiones; cambios requieren aprobación de ingeniería"
+        action: "Verificar que las BOMs usen versionado y que cambios pasen por flujo de aprobación de ingeniería"
+        severity: "critical"
+        applies_to: ["bom_management", "engineering_change", "production_planning"]
+
+      - id: "quality_inspection_required"
+        rule: "Cada lote de producción debe pasar por inspección de calidad antes de liberación"
+        action: "Verificar que el flujo de producción incluya gate de inspección obligatorio antes del paso de liberación"
+        severity: "critical"
+        applies_to: ["quality_control", "production_tracking", "warehouse_systems"]
+
+      - id: "calibration_tracking"
+        rule: "Los instrumentos de medición deben tener certificados de calibración vigentes"
+        action: "Verificar que cada instrumento en uso tenga calibración no vencida; bloquear uso si está vencida"
+        severity: "warning"
+        applies_to: ["equipment_management", "quality_control", "maintenance_systems"]
+
+  # ── 9. LOGISTICS ──────────────────────────────────────────────────────────
+  - domain: "logistics"
+    checks:
+      - id: "shipment_tracking_real_time"
+        rule: "Cada envío debe tener tracking en tiempo real con actualizaciones de estado en cada checkpoint"
+        action: "Verificar que el sistema de envíos registre eventos en cada punto de la cadena logística"
+        severity: "critical"
+        applies_to: ["shipment_services", "fleet_management", "warehouse_systems"]
+
+      - id: "hazardous_material_handling"
+        rule: "Los materiales peligrosos deben seguir protocolos DOT/IATA con documentación y etiquetado completo"
+        action: "Verificar que los envíos con materiales peligrosos tengan los documentos y etiquetas requeridos"
+        severity: "critical"
+        applies_to: ["shipment_services", "compliance_tracking", "label_services"]
+
+      - id: "delivery_proof_required"
+        rule: "Toda entrega debe tener prueba de entrega (POD) digital con firma o foto antes de cerrar el envío"
+        action: "Verificar que el cierre de envío requiera evidencia de POD almacenada"
+        severity: "critical"
+        applies_to: ["delivery_services", "last_mile", "shipment_services"]
+
+      - id: "route_optimization_fuel_compliance"
+        rule: "Las rutas deben cumplir regulaciones de horas de servicio (HOS) del conductor"
+        action: "Verificar que el motor de rutas respete límites de conducción y descanso obligatorio"
+        severity: "warning"
+        applies_to: ["route_optimization", "fleet_management", "driver_management"]
+
+  # ── 10. ENERGY ─────────────────────────────────────────────────────────────
+  - domain: "energy"
+    checks:
+      - id: "nerc_cip_compliance"
+        rule: "Cumplimiento NERC CIP: los sistemas cibernéticos críticos deben tener controles de acceso y monitoreo"
+        action: "Verificar que los sistemas SCADA y de control tengan controles CIP implementados y auditados"
+        severity: "critical"
+        applies_to: ["scada_systems", "grid_operations", "plant_management"]
+
+      - id: "meter_data_integrity"
+        rule: "Los datos de medición deben ser inmutables una vez registrados; correcciones crean registros aparte"
+        action: "Verificar que las lecturas de medidores sean append-only y las correcciones sean registros separados"
+        severity: "critical"
+        applies_to: ["metering_systems", "billing_services", "data_acquisition"]
+
+      - id: "safety_interlock_verification"
+        rule: "Los sistemas de seguridad (interlocks) deben verificarse periódicamente y registrar resultado"
+        action: "Verificar que existan jobs de verificación de interlocks con logging de resultados"
+        severity: "critical"
+        applies_to: ["safety_systems", "plant_management", "maintenance_systems"]
+
+      - id: "carbon_emission_reporting"
+        rule: "Las emisiones de carbono deben calcularse y reportarse según estándares GHG Protocol"
+        action: "Verificar que los cálculos de emisiones usen factores del GHG Protocol y generen reportes auditables"
+        severity: "warning"
+        applies_to: ["sustainability_reporting", "emissions_tracking", "compliance_tracking"]
+
+  # ── 11. AGRICULTURE ────────────────────────────────────────────────────────
+  - domain: "agriculture"
+    checks:
+      - id: "pesticide_application_records"
+        rule: "Cada aplicación de agroquímicos debe registrarse con tipo, dosis, fecha, applicator y zona"
+        action: "Verificar que el sistema exija registro completo antes de permitir registro de aplicación"
+        severity: "critical"
+        applies_to: ["crop_management", "chemical_tracking", "compliance_services"]
+
+      - id: "organic_certification_tracking"
+        rule: "Los productos orgánicos deben mantener trazabilidad de prácticas orgánicas sin brechas"
+        action: "Verificar cadena continua de certificaciones y prácticas orgánicas desde siembra hasta empaque"
+        severity: "critical"
+        applies_to: ["certification_services", "crop_management", "supply_chain"]
+
+      - id: "food_safety_traceability"
+        rule: "Trazabilidad FSMA: capaz de rastrear producto un paso adelante y un paso atrás en 24 horas"
+        action: "Verificar que las APIs de trazabilidad respondan consultas de upstream/downstream en tiempo aceptable"
+        severity: "critical"
+        applies_to: ["traceability_systems", "food_safety", "supply_chain"]
+
+      - id: "water_usage_monitoring"
+        rule: "El uso de agua debe monitorearse y cumplir con derechos de agua asignados"
+        action: "Verificar que el sistema de riego registre consumo y alerte al acercarse al límite de asignación"
+        severity: "warning"
+        applies_to: ["irrigation_systems", "resource_management", "compliance_services"]
+
+  # ── 12. INSURANCE ─────────────────────────────────────────────────────────
+  - domain: "insurance"
+    checks:
+      - id: "claim_fraud_detection"
+        rule: "Los claims deben pasar por modelo de detección de fraude antes de aprobación"
+        action: "Verificar que el pipeline de claims incluya paso de scoring de fraude obligatorio"
+        severity: "critical"
+        applies_to: ["claims_processing", "underwriting_services", "fraud_detection"]
+
+      - id: "policy_document_immutability"
+        rule: "Los documentos de póliza emitidos son inmutables; cambios generan endoso (endorsement) con versión"
+        action: "Verificar que las pólizas usen versionado y las modificaciones creen endosos vinculados"
+        severity: "critical"
+        applies_to: ["policy_management", "document_services", "endorsement_services"]
+
+      - id: "actuarial_data_accuracy"
+        rule: "Los datos actuariales usados en cálculos de prima deben validarse contra fuente autorizada"
+        action: "Verificar que los inputs de modelos actuariales tengan validación de fuente y checksum"
+        severity: "critical"
+        applies_to: ["pricing_engine", "underwriting_services", "actuarial_systems"]
+
+      - id: "regulatory_filing_completeness"
+        rule: "Los filings regulatorios deben incluir todos los campos requeridos por la jurisdicción antes de envío"
+        action: "Verificar que el sistema valide completitud contra el schema regulatorio antes de permitir filing"
+        severity: "warning"
+        applies_to: ["compliance_tracking", "regulatory_filing", "reporting_services"]
+
+  # ── 13. TELECOM ───────────────────────────────────────────────────────────
+  - domain: "telecom"
+    checks:
+      - id: "lawful_intercept_capability"
+        rule: "Los sistemas deben soportar interceptación legal (CALEA) con interfaz autorizada y auditada"
+        action: "Verificar existencia de interfaz LI con control de acceso restrictivo y logging de uso"
+        severity: "critical"
+        applies_to: ["core_network", "subscriber_management", "lawful_intercept"]
+
+      - id: "e911_location_accuracy"
+        rule: "Las llamadas de emergencia deben proporcionar ubicación precisa según estándares FCC E911"
+        action: "Verificar que el sistema de emergencias incluya mecanismo de ubicación con precisión requerida"
+        severity: "critical"
+        applies_to: ["emergency_services", "location_services", "voip_systems"]
+
+      - id: "number_portability_compliance"
+        rule: "El proceso de portabilidad numérica debe cumplir con regulaciones locales y completarse en plazo"
+        action: "Verificar que el flujo de portabilidad cumpla timelines regulados y genere notificaciones requeridas"
+        severity: "critical"
+        applies_to: ["number_portability", "subscriber_management", "billing_services"]
+
+      - id: "network_sla_monitoring"
+        rule: "Los SLAs de red deben monitorearse continuamente con alertas automáticas ante violaciones"
+        action: "Verificar que existan métricas de SLA con thresholds y alertas configuradas"
+        severity: "warning"
+        applies_to: ["network_operations", "monitoring_systems", "customer_services"]
+
+      - id: "call_detail_record_retention"
+        rule: "Los CDRs deben conservarse según período regulado y ser inmutables una vez generados"
+        action: "Verificar inmutabilidad y retención configurada de registros de detalle de llamadas"
+        severity: "critical"
+        applies_to: ["billing_services", "cdr_systems", "compliance_tracking"]
+
+  # ── 14. MEDIA ─────────────────────────────────────────────────────────────
+  - domain: "media"
+    checks:
+      - id: "dmca_takedown_process"
+        rule: "Debe existir proceso automatizado para recibir y procesar notificaciones DMCA de retiro de contenido"
+        action: "Verificar que exista endpoint de notificación DMCA y flujo de procesamiento con timestamps"
+        severity: "critical"
+        applies_to: ["content_management", "user_generated_content", "legal_compliance"]
+
+      - id: "content_rights_verification"
+        rule: "Todo contenido publicado debe tener verificación de derechos de uso antes de distribución"
+        action: "Verificar que el pipeline de publicación incluya gate de verificación de licencia/derechos"
+        severity: "critical"
+        applies_to: ["content_management", "distribution_services", "licensing_systems"]
+
+      - id: "age_gating_for_restricted_content"
+        rule: "El contenido restringido por edad debe requerir verificación de edad antes de acceso"
+        action: "Verificar que las rutas de contenido restringido exijan age verification gate"
+        severity: "critical"
+        applies_to: ["content_delivery", "streaming_services", "user_management"]
+
+      - id: "coppa_children_data"
+        rule: "Los datos de niños menores de 13 requieren consentimiento parental verificable (COPPA)"
+        action: "Verificar que el registro de menores incluya flujo de consentimiento parental"
+        severity: "critical"
+        applies_to: ["user_management", "content_delivery", "analytics_systems"]

@@ -1,0 +1,346 @@
+# ============================================================================
+# professional_glossary — Communication Templates
+# ============================================================================
+# Plantillas de comunicación para interacciones profesionales con el cliente.
+# Incluye emails, reportes, propuestas y presentaciones.
+# ============================================================================
+transformation_rules:
+  communication_templates:
+    # --- EMAILS ---
+    - type: "email"
+      occasion: "Bienvenida a un nuevo cliente tras la contratación del servicio"
+      template: |
+        Estimado/a {nombre_cliente},
+
+        Es un placer darle la bienvenida a {nombre_servicio}. A partir de este momento, su cuenta se encuentra activa y lista para operar.
+
+        A continuación, le compartimos los datos de acceso a su plataforma:
+        • Portal de acceso: {url_portal}
+        • Usuario asignado: {usuario}
+        • Guía de inicio: {url_guia}
+
+        Su ejecutivo de cuenta, {nombre_ejecutivo}, estará a su disposición para acompañarle en cada paso de la implementación. Puede contactarle directamente en {email_ejecutivo}.
+
+        Nuestro equipo de soporte técnico está disponible de lunes a viernes, de 9:00 a 18:00 horas, a través de {email_soporte} o {telefono_soporte}.
+
+        Quedamos a su entera disposición para cualquier consulta.
+
+        Atentamente,
+        El equipo de {nombre_empresa}
+      tone: "formal"
+
+    - type: "email"
+      occasion: "Notificación de entrega de proyecto o hito completado"
+      template: |
+        Estimado/a {nombre_cliente},
+
+        Nos complace informarle que el hito "{nombre_hito}" del proyecto "{nombre_proyecto}" ha sido completado exitosamente según las especificaciones acordadas.
+
+        Detalles de la entrega:
+        • Fecha de entrega: {fecha_entrega}
+        • Componentes entregados: {componentes}
+        • Documentación asociada: {url_documentacion}
+        • Entorno de revisión: {url_entorno}
+
+        Invitamos a su equipo a revisar los entregables y compartirnos cualquier observación o solicitud de ajuste antes del {fecha_feedback}.
+
+        Para cualquier consulta técnica sobre la entrega, su interlocutor designado es {nombre_contacto_tecnico} ({email_contacto_tecnico}).
+
+        Quedamos a su disposición.
+
+        Saludos cordiales,
+        {nombre_remitente}
+        {cargo_remitente} — {nombre_empresa}
+      tone: "formal"
+
+    - type: "email"
+      occasion: "Notificación de incidencia técnica que afecta al cliente"
+      template: |
+        Estimado/a {nombre_cliente},
+
+        Le informamos que hemos detectado una incidencia técnica que podría afectar el servicio {servicio_afectado}. Nuestro equipo de operaciones ha sido alertado inmediatamente y trabaja activamente en su resolución.
+
+        Detalles de la incidencia:
+        • Componente afectado: {componente_afectado}
+        • Hora de detección: {hora_deteccion}
+        • Impacto estimado: {impacto_estimado}
+        • Estado actual: En proceso de resolución
+
+        Nos comprometemos a mantenerle informado sobre el avance de la situación. Le enviaremos una actualización en un plazo máximo de {plazo_actualizacion}.
+
+        Si tiene alguna pregunta o necesita asistencia adicional, no dude en contactarnos a {email_soporte} o al {telefono_soporte}.
+
+        Lamentamos los inconvenientes que esto pueda ocasionar y agradecemos su comprensión.
+
+        Atentamente,
+        Equipo de Operaciones — {nombre_empresa}
+      tone: "professional"
+
+    - type: "email"
+      occasion: "Resolución de incidencia y restablecimiento del servicio"
+      template: |
+        Estimado/a {nombre_cliente},
+
+        Nos complace confirmarle que la incidencia reportada previamente en el servicio {servicio_afectado} ha sido resuelta exitosamente. Todas las funcionalidades se encuentran operativas dentro de los parámetros habituales.
+
+        Resumen de la resolución:
+        • Hora de restablecimiento: {hora_resolucion}
+        • Duración total de la incidencia: {duracion_incidencia}
+        • Medidas adoptadas: {medidas_adoptadas}
+        • Acciones preventivas implementadas: {acciones_preventivas}
+
+        Nuestro equipo ha implementado las medidas necesarias para prevenir situaciones similares en el futuro. Si observa cualquier comportamiento inusual, le rogamos nos lo comunique de inmediato.
+
+        Agradecemos su paciencia y comprensión durante este episodio.
+
+        Saludos cordiales,
+        Equipo de Operaciones — {nombre_empresa}
+      tone: "professional"
+
+    - type: "email"
+      occasion: "Notificación de mantenimiento programado"
+      template: |
+        Estimado/a {nombre_cliente},
+
+        Le informamos sobre un mantenimiento preventivo programado que afectará al servicio {servicio_afectado}, necesario para garantizar la continuidad y calidad operativa.
+
+        Detalles del mantenimiento:
+        • Fecha programada: {fecha_mantenimiento}
+        • Ventana de mantenimiento: {hora_inicio} a {hora_fin}
+        • Duración estimada: {duracion_estimada}
+        • Servicios involucrados: {servicios_involucrados}
+        • Impacto esperado: {impacto_esperado}
+
+        Recomendamos planificar sus operaciones considerando esta ventana de mantenimiento. Nuestro equipo trabajará para minimizar el tiempo de indisponibilidad.
+
+        En caso de requerir asistencia antes o durante el mantenimiento, puede contactarnos en {email_soporte}.
+
+        Agradecemos su comprensión y colaboración.
+
+        Atentamente,
+        Equipo de Infraestructura — {nombre_empresa}
+      tone: "formal"
+
+    # --- REPORTES ---
+    - type: "report"
+      occasion: "Reporte periódico de estado del proyecto"
+      template: |
+        REPORTE DE ESTADO — {nombre_proyecto}
+        Período: {periodo_reporte}
+        Fecha de emisión: {fecha_emision}
+
+        ─────────────────────────────────────────
+        1. RESUMEN EJECUTIVO
+        ─────────────────────────────────────────
+        El proyecto se encuentra en fase {fase_actual}, con un avance global del {porcentaje_avance}%. Las actividades del período se han desarrollado conforme al cronograma establecido.
+
+        2. AVANCES DEL PERÍODO
+        ─────────────────────────────────────────
+        {lista_avances}
+
+        3. MÉTRICAS CLAVE
+        ─────────────────────────────────────────
+        • Hitos completados: {hitos_completados} de {hitos_totales}
+        • Disponibilidad del servicio: {disponibilidad}%
+        • Tiempo de respuesta promedio: {tiempo_respuesta}ms
+        • Incidencias abiertas: {incidencias_abiertas}
+        • Incidencias resueltas: {incidencias_resueltas}
+
+        4. PRÓXIMOS PASOS
+        ─────────────────────────────────────────
+        {lista_proximos_pasos}
+
+        5. RIESGOS Y MITIGACIONES
+        ─────────────────────────────────────────
+        {lista_riesgos}
+
+        Elaborado por: {nombre_elaborador}
+        {cargo_elaborador} — {nombre_empresa}
+      tone: "professional"
+
+    - type: "report"
+      occasion: "Reporte de incidencia post-mortem tras resolución"
+      template: |
+        REPORTE DE INCIDENCIA — ANÁLISIS POST-MORTEM
+        Referencia: {id_incidencia}
+        Fecha de emisión: {fecha_emision}
+
+        ─────────────────────────────────────────
+        1. DESCRIPCIÓN DE LA INCIDENCIA
+        ─────────────────────────────────────────
+        El día {fecha_deteccion} a las {hora_deteccion}, se detectó una incidencia en el componente {componente_afectado} que impactó el servicio {servicio_afectado}.
+
+        2. IMPACTO EN EL SERVICIO
+        ─────────────────────────────────────────
+        • Usuarios afectados: {usuarios_afectados}
+        • Duración de la incidencia: {duracion_incidencia}
+        • Degradación del servicio: {degradacion_servicio}
+        • Datos afectados: {datos_afectados}
+
+        3. CAUSA RAÍZ
+        ─────────────────────────────────────────
+        {causa_raiz}
+
+        4. ACCIONES DE RESOLUCIÓN
+        ─────────────────────────────────────────
+        {acciones_resolucion}
+
+        5. MEDIDAS PREVENTIVAS
+        ─────────────────────────────────────────
+        {medidas_preventivas}
+
+        6. LECCIONES APRENDIDAS
+        ─────────────────────────────────────────
+        {lecciones_aprendidas}
+
+        Elaborado por: {nombre_elaborador}
+        Equipo de Operaciones — {nombre_empresa}
+      tone: "professional"
+
+    # --- PROPUESTAS ---
+    - type: "proposal"
+      occasion: "Propuesta de nuevo proyecto o ampliación de servicios"
+      template: |
+        PROPUESTA COMERCIAL — {nombre_propuesta}
+        Cliente: {nombre_cliente}
+        Fecha: {fecha_propuesta}
+        Validez: {validez_propuesta}
+
+        ─────────────────────────────────────────
+        1. CONTEXTO Y NECESIDADES
+        ─────────────────────────────────────────
+        Tras analizar los requerimientos de {nombre_cliente}, presentamos la siguiente propuesta orientada a {objetivo_propuesta}.
+
+        2. ALCANCE DE LA SOLUCIÓN
+        ─────────────────────────────────────────
+        {alcance_solucion}
+
+        3. ENTREGABLES
+        ─────────────────────────────────────────
+        {lista_entregables}
+
+        4. CRONOGRAMA ESTIMADO
+        ─────────────────────────────────────────
+        {cronograma}
+
+        5. INVERSIÓN
+        ─────────────────────────────────────────
+        • Inversión total: {inversion_total}
+        • Forma de pago: {forma_pago}
+        • Condiciones: {condiciones}
+
+        6. BENEFICIOS ESPERADOS
+        ─────────────────────────────────────────
+        {beneficios_esperados}
+
+        7. EQUIPO ASIGNADO
+        ─────────────────────────────────────────
+        {equipo_asignado}
+
+        Quedamos a su disposición para revisar esta propuesta en detalle y ajustar cualquier aspecto según sus necesidades.
+
+        Atentamente,
+        {nombre_remitente}
+        {cargo_remitente} — {nombre_empresa}
+      tone: "formal"
+
+    # --- PRESENTACIONES ---
+    - type: "presentation"
+      occasion: "Presentación de resultados a junta directiva o comité"
+      template: |
+        PRESENTACIÓN EJECUTIVA — {nombre_proyecto}
+        Audiencia: {audiencia}
+        Fecha: {fecha_presentacion}
+        Duración estimada: {duracion_estimada}
+
+        ─────────────────────────────────────────
+        DIAPOSITIVA 1 — PORTADA
+        ─────────────────────────────────────────
+        Título: {titulo_presentacion}
+        Subtítulo: {subtitulo}
+        Presentado por: {nombre_presentador}
+
+        DIAPOSITIVA 2 — CONTEXTO
+        ─────────────────────────────────────────
+        Situación actual: {situacion_actual}
+        Objetivos estratégicos: {objetivos_estrategicos}
+
+        DIAPOSITIVA 3 — RESULTADOS CLAVE
+        ─────────────────────────────────────────
+        {resultados_clave}
+
+        DIAPOSITIVA 4 — MÉTRICAS DE DESEMPEÑO
+        ─────────────────────────────────────────
+        {metricas_desempeno}
+
+        DIAPOSITIVA 5 — PRÓXIMOS PASOS
+        ─────────────────────────────────────────
+        {proximos_pasos}
+
+        DIAPOSITIVA 6 — PREGUNTAS Y RESPUESTAS
+        ─────────────────────────────────────────
+        Espacio abierto para consultas y discusión.
+
+        Nota del presentador: {nota_presentador}
+      tone: "professional"
+
+    - type: "presentation"
+      occasion: "Demostración de producto o funcionalidad nueva al cliente"
+      template: |
+        SESIÓN DE DEMOSTRACIÓN — {nombre_producto}
+        Cliente: {nombre_cliente}
+        Fecha: {fecha_demo}
+        Duración: {duracion_demo}
+
+        ─────────────────────────────────────────
+        1. AGENDA DE LA SESIÓN
+        ─────────────────────────────────────────
+        • Introducción y contexto ({tiempo_intro} min)
+        • Demostración en vivo ({tiempo_demo} min)
+        • Casos de uso específicos ({tiempo_casos} min)
+        • Preguntas y respuestas ({tiempo_qa} min)
+
+        2. FUNCIONALIDADES A DEMOSTRAR
+        ─────────────────────────────────────────
+        {funcionalidades_demo}
+
+        3. BENEFICIOS DESTACADOS
+        ─────────────────────────────────────────
+        {beneficios_destacados}
+
+        4. SIGUIENTES PASOS
+        ─────────────────────────────────────────
+        {siguientes_pasos}
+
+        Presentado por: {nombre_presentador}
+        {cargo_presentador} — {nombre_empresa}
+      tone: "friendly"
+
+    - type: "email"
+      occasion: "Seguimiento post-reunión con resumen de acuerdos"
+      template: |
+        Estimado/a {nombre_cliente},
+
+        Agradecemos el tiempo dedicado en nuestra reunión del {fecha_reunion}. A continuación, compartimos el resumen de los acuerdos alcanzados:
+
+        ACUERDOS:
+        {lista_acuerdos}
+
+        COMPROMISOS DE NUESTRA PARTE:
+        {compromisos_empresa}
+
+        COMPROMISOS DE SU PARTE:
+        {compromisos_cliente}
+
+        PRÓXIMA REUNIÓN:
+        • Fecha: {fecha_proxima_reunion}
+        • Objetivo: {objetivo_proxima_reunion}
+
+        Si desea modificar o añadir algún punto a este resumen, no dude en hacérnoslo saber.
+
+        Quedamos a su disposición.
+
+        Saludos cordiales,
+        {nombre_remitente}
+        {cargo_remitente} — {nombre_empresa}
+      tone: "professional"

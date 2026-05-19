@@ -1,0 +1,310 @@
+# validation_gates — Global Checks
+# 33 checks organized in categories:
+#   security (8), quality (8), performance (5), documentation (4),
+#   architecture (5), compliance (3)
+
+global_checks:
+
+  # ── SECURITY (8 checks) ──────────────────────────────────────────────────
+  - id: "no_hardcoded_secrets"
+    category: "security"
+    rule: "Prohibir secretos, claves API, tokens o contraseñas codificados directamente en el fuente"
+    action: "Escanear el código fuente con detección de patrones de secretos y comparar contra el vault de credenciales"
+    severity: "critical"
+    auto_fix: true
+    fix_strategy: "Extraer el secreto a una variable de entorno y reemplazar la ocurrencia con os.environ.get('KEY') o el mecanismo de vault configurado"
+    pattern: "(?i)(password|api_key|secret|token|private_key)\\s*[:=]\\s*['\"][^'\"]{8,}['\"]"
+
+  - id: "no_sql_injection"
+    category: "security"
+    rule: "Prohibir concatenación de cadenas en consultas SQL; usar siempre parámetros preparados"
+    action: "Analizar AST para detectar concatenaciones o interpolaciones dentro de llamadas a execute/query SQL"
+    severity: "critical"
+    auto_fix: true
+    fix_strategy: "Reemplazar la concatenación con parámetros preparados (?) y pasar los valores como tupla al execute"
+    pattern: "(execute|query)\\s*\\(\\s*f['\"]|\\+\\s*['\"]\\s*SELECT|\\+\\s*['\"]\\s*INSERT|\\+\\s*['\"]\\s*UPDATE|\\+\\s*['\"]\\s*DELETE"
+
+  - id: "no_eval_usage"
+    category: "security"
+    rule: "Prohibir el uso de eval(), exec() o constructores dinámicos que ejecuten código arbitrario"
+    action: "Buscar referencias directas a eval, exec, Function() y similares en el AST"
+    severity: "critical"
+    auto_fix: false
+    fix_strategy: "Requiere refactor manual: reemplazar con ast.literal_eval, mapeos de funciones permitidas o parsers seguros"
+    pattern: "\\b(eval|exec)\\s*\\(|new\\s+Function\\s*\\("
+
+  - id: "https_enforcement"
+    category: "security"
+    rule: "Exigir HTTPS para todas las comunicaciones externas; prohibir HTTP plano para datos sensibles"
+    action: "Verificar que todas las URLs de conexión y configuraciones de cliente usen https://"
+    severity: "critical"
+    auto_fix: true
+    fix_strategy: "Reemplazar http:// por https:// en URLs de configuración y añadir validación de esquema en runtime"
+    pattern: "http://(?!localhost|127\\.0\\.0\\.1|0\\.0\\.0\\.0)"
+
+  - id: "input_sanitization"
+    category: "security"
+    rule: "Toda entrada de usuario debe ser sanitizada y validada antes de su uso"
+    action: "Verificar que cada punto de entrada (endpoint, función pública) aplique validación antes de procesar datos"
+    severity: "critical"
+    auto_fix: false
+    fix_strategy: "Agregar esquema de validación (Pydantic/Joi/Zod) en el punto de entrada y rechazar datos no conformes"
+    pattern: ""
+
+  - id: "csrf_protection"
+    category: "security"
+    rule: "Protección CSRF obligatoria en todos los formularios y endpoints de mutación stateful"
+    action: "Verificar presencia de tokens CSRF en POST/PUT/DELETE/PATCH de sesiones autenticadas"
+    severity: "warning"
+    auto_fix: true
+    fix_strategy: "Inyectar middleware CSRF que genere y valide tokens automáticamente en formularios y headers"
+    pattern: ""
+
+  - id: "rate_limiting"
+    category: "security"
+    rule: "Todos los endpoints públicos deben tener límite de tasa para prevenir abuso"
+    action: "Verificar configuración de rate limiting en cada ruta/middleware expuesto públicamente"
+    severity: "warning"
+    auto_fix: true
+    fix_strategy: "Agregar decorador o middleware de rate limiting con configuración por defecto (100 req/min por IP)"
+    pattern: ""
+
+  - id: "secure_headers"
+    category: "security"
+    rule: "Configurar headers de seguridad HTTP: X-Content-Type-Options, X-Frame-Options, CSP, Strict-Transport-Security"
+    action: "Inspeccionar la configuración del servidor/middleware para verificar los headers de seguridad"
+    severity: "warning"
+    auto_fix: true
+    fix_strategy: "Agregar middleware de headers seguros con valores recomendados: nosniff, DENY, default-src 'self', max-age=31536000"
+    pattern: ""
+
+  # ── QUALITY (8 checks) ───────────────────────────────────────────────────
+  - id: "all_async_in_try_except"
+    category: "quality"
+    rule: "Toda llamada async debe estar envuelta en try/except para manejar errores de manera explícita"
+    action: "Recorrer el AST buscando awaits que no estén dentro de un bloque try/except"
+    severity: "critical"
+    auto_fix: true
+    fix_strategy: "Envolver la llamada await en un bloque try/except con logging del error y manejo apropiado"
+    pattern: ""
+
+  - id: "no_bare_except"
+    category: "quality"
+    rule: "Prohibir except sin tipo específico; siempre capturar excepciones concretas"
+    action: "Buscar cláusulas except vacías o except: sin clase de excepción en el AST"
+    severity: "critical"
+    auto_fix: true
+    fix_strategy: "Reemplazar except: con except Exception as e: como mínimo, o mejor aún, con la excepción específica esperada"
+    pattern: "except\\s*:"
+
+  - id: "type_hints_required"
+    category: "quality"
+    rule: "Todas las funciones públicas deben tener type hints en parámetros y retorno"
+    action: "Verificar en el AST que cada función/método público tenga anotaciones de tipo completas"
+    severity: "warning"
+    auto_fix: true
+    fix_strategy: "Inferir tipos a partir de usages y agregar stubs de tipo; si no se puede inferir, usar Any como placeholder"
+    pattern: ""
+
+  - id: "no_magic_numbers"
+    category: "quality"
+    rule: "Prohibir números literales sin nombre en la lógica de negocio; deben ser constantes nombradas"
+    action: "Buscar literales numéricos sueltos en expresiones condicionales y de cálculo"
+    severity: "warning"
+    auto_fix: true
+    fix_strategy: "Extraer el número a una constante con nombre descriptivo en la parte superior del módulo o clase"
+    pattern: ""
+
+  - id: "function_complexity_max_10"
+    category: "quality"
+    rule: "La complejidad ciclomática de cualquier función no debe exceder 10"
+    action: "Calcular la complejidad ciclomática de cada función mediante análisis AST"
+    severity: "critical"
+    auto_fix: false
+    fix_strategy: "Requiere refactor manual: descomponer la función en sub-funciones más pequeñas con responsabilidad única"
+    pattern: ""
+
+  - id: "no_global_state"
+    category: "quality"
+    rule: "Prohibir variables globales mutables; el estado debe ser encapsulado en clases o inyectado"
+    action: "Buscar asignaciones a variables a nivel de módulo fuera de bloques if __name__ o constantes"
+    severity: "warning"
+    auto_fix: false
+    fix_strategy: "Encapsular el estado en una clase singleton o contenedor de inyección de dependencias"
+    pattern: ""
+
+  - id: "immutable_config"
+    category: "quality"
+    rule: "Los objetos de configuración deben ser inmutables una vez cargados"
+    action: "Verificar que las clases/objetos de config no expongan setters o atributos modificables después de la inicialización"
+    severity: "warning"
+    auto_fix: true
+    fix_strategy: "Usar dataclass(frozen=True) o NamedTuple para la configuración; eliminar setters"
+    pattern: ""
+
+  - id: "error_messages_user_friendly"
+    category: "quality"
+    rule: "Los mensajes de error dirigidos al usuario deben ser comprensibles, sin exponer detalles internos ni stack traces"
+    action: "Revisar que los mensajes en respuestas de error al cliente no contengan nombres de clases de excepción, rutas de archivo o trazas"
+    severity: "warning"
+    auto_fix: true
+    fix_strategy: "Mapear excepciones internas a mensajes amigables mediante un error handler centralizado que traduzca códigos a mensajes"
+    pattern: ""
+
+  # ── PERFORMANCE (5 checks) ───────────────────────────────────────────────
+  - id: "no_n_plus_1_queries"
+    category: "performance"
+    rule: "Prohibir consultas N+1; usar eager loading o batch fetching para relaciones"
+    action: "Detectar bucles que contengan llamadas a base de datos dentro de iteraciones sobre resultados previos"
+    severity: "critical"
+    auto_fix: true
+    fix_strategy: "Reemplazar con select_related/prefetch_related (ORM) o JOIN en la consulta original"
+    pattern: ""
+
+  - id: "pagination_required_for_lists"
+    category: "performance"
+    rule: "Todo endpoint que retorne listas debe implementar paginación obligatoria"
+    action: "Verificar que los endpoints GET de colecciones acepten y apliquen parámetros de paginación (limit/offset o cursor)"
+    severity: "critical"
+    auto_fix: true
+    fix_strategy: "Agregar parámetros de paginación por defecto (limit=50, offset=0) y aplicar en la consulta de base de datos"
+    pattern: ""
+
+  - id: "caching_for_frequent_reads"
+    category: "performance"
+    rule: "Las operaciones de lectura frecuentes deben implementar caching con TTL apropiado"
+    action: "Identificar endpoints de lectura con alto tráfico y verificar presencia de capa de caché"
+    severity: "warning"
+    auto_fix: true
+    fix_strategy: "Agregar decorador de caché con TTL configurable (Redis/Memcached) alrededor de la función de lectura"
+    pattern: ""
+
+  - id: "connection_pooling"
+    category: "performance"
+    rule: "Todas las conexiones a bases de datos y servicios externos deben usar pooling"
+    action: "Verificar que la configuración de conexión incluya pool_size, max_overflow y parámetros de reciclaje"
+    severity: "critical"
+    auto_fix: true
+    fix_strategy: "Configurar SQLAlchemy pool_size=10, max_overflow=20 o equivalente; nunca crear conexiones ad-hoc"
+    pattern: ""
+
+  - id: "async_for_io_operations"
+    category: "performance"
+    rule: "Operaciones de I/O (red, disco, DB) deben ser async para no bloquear el event loop"
+    action: "Detectar llamadas sincrónicas de I/O dentro de handlers async (requests, urllib, file.read síncrono)"
+    severity: "warning"
+    auto_fix: true
+    fix_strategy: "Reemplazar la librería síncrona con su equivalente async (httpx, aiofiles, async DB driver)"
+    pattern: ""
+
+  # ── DOCUMENTATION (4 checks) ─────────────────────────────────────────────
+  - id: "every_function_docstring"
+    category: "documentation"
+    rule: "Cada función/método público debe tener docstring con descripción, parámetros y retorno"
+    action: "Verificar presencia y completitud de docstrings en todas las funciones públicas del AST"
+    severity: "warning"
+    auto_fix: true
+    fix_strategy: "Generar stub de docstring con formato estándar (Google/NumPy) incluyendo placeholders para descripción, args y returns"
+    pattern: ""
+
+  - id: "api_endpoint_documented"
+    category: "documentation"
+    rule: "Cada endpoint de API debe tener documentación OpenAPI/Swagger con esquemas de request y response"
+    action: "Verificar que cada ruta tenga docstring o decorador con summary, description, response schemas"
+    severity: "critical"
+    auto_fix: true
+    fix_strategy: "Agregar decorador o docstring con esquemas Pydantic de request/response para auto-generar documentación OpenAPI"
+    pattern: ""
+
+  - id: "readme_exists"
+    category: "documentation"
+    rule: "Cada módulo/servicio debe tener un README.md con descripción, instalación, uso y contribución"
+    action: "Verificar existencia de README.md en la raíz de cada módulo con secciones mínimas"
+    severity: "warning"
+    auto_fix: false
+    fix_strategy: "Requiere creación manual: generar template de README con secciones estándar para que el desarrollador complete"
+    pattern: ""
+
+  - id: "config_documented"
+    category: "documentation"
+    rule: "Todas las variables de configuración deben estar documentadas con tipo, valor por defecto y descripción"
+    action: "Verificar que cada variable en .env.example o config schema tenga descripción y tipo"
+    severity: "warning"
+    auto_fix: true
+    fix_strategy: "Agregar comentarios descriptivos al .env.example y type hints al schema de configuración"
+    pattern: ""
+
+  # ── ARCHITECTURE (5 checks) ──────────────────────────────────────────────
+  - id: "dependency_injection"
+    category: "architecture"
+    rule: "Las dependencias deben ser inyectadas, no instanciadas dentro de la clase consumidora"
+    action: "Verificar que las clases no instancien directamente servicios externos sino los reciban por constructor o parámetro"
+    severity: "warning"
+    auto_fix: false
+    fix_strategy: "Refactor para recibir dependencias por constructor; usar un contenedor DI si está disponible"
+    pattern: ""
+
+  - id: "single_responsibility"
+    category: "architecture"
+    rule: "Cada módulo/clase debe tener una sola razón para cambiar; máximo 5 métodos públicos por clase"
+    action: "Contar métodos públicos por clase y analizar la cohesión funcional del módulo"
+    severity: "warning"
+    auto_fix: false
+    fix_strategy: "Dividir la clase en clases más pequeñas agrupando métodos por responsabilidad afin"
+    pattern: ""
+
+  - id: "no_circular_imports"
+    category: "architecture"
+    rule: "Prohibir importaciones circulares entre módulos; usar interfaces o eventos para desacoplar"
+    action: "Construir grafo de dependencias y detectar ciclos en imports estáticos"
+    severity: "critical"
+    auto_fix: true
+    fix_strategy: "Extraer la lógica compartida a un tercer módulo o usar importaciones lazy dentro de funciones"
+    pattern: ""
+
+  - id: "env_config_not_hardcoded"
+    category: "architecture"
+    rule: "La configuración específica del entorno (URLs, puertos, flags) debe venir de variables de entorno, no del código"
+    action: "Buscar literales de configuración (URLs, puertos, timeouts) incrustados en el código fuente"
+    severity: "critical"
+    auto_fix: true
+    fix_strategy: "Mover el valor a una variable de entorno con default razonable y referencia en config"
+    pattern: ""
+
+  - id: "proper_error_hierarchy"
+    category: "architecture"
+    rule: "Las excepciones deben seguir una jerarquía base del dominio; prohibir lanzar Exception genérica"
+    action: "Verificar que todas las raise statements usen subclases de la excepción base del proyecto"
+    severity: "warning"
+    auto_fix: true
+    fix_strategy: "Reemplazar raise Exception(msg) con raise <DomainError>(msg) de la jerarquía apropiada"
+    pattern: "raise\\s+Exception\\("
+
+
+  # ── COMPLIANCE (3 checks) ────────────────────────────────────────────────
+  - id: "pii_encryption_at_rest"
+    category: "compliance"
+    rule: "Los datos de identificación personal (PII) deben estar cifrados en reposo en la base de datos"
+    action: "Verificar que los campos PII (nombre, email, teléfono, SSN) usen columnas cifradas o encryption en ORM"
+    severity: "critical"
+    auto_fix: false
+    fix_strategy: "Habilitar cifrado a nivel de columna usando la librería de cifrado del proyecto y migrar datos existentes"
+    pattern: ""
+
+  - id: "audit_log_for_mutations"
+    category: "compliance"
+    rule: "Toda operación de creación, actualización o eliminación debe generar un registro de auditoría inmutable"
+    action: "Verificar que los endpoints de mutación y servicios de escritura emitan eventos de auditoría"
+    severity: "critical"
+    auto_fix: true
+    fix_strategy: "Agregar decorador o middleware de auditoría que registre actor, acción, entidad, timestamp y diff"
+    pattern: ""
+
+  - id: "data_retention_policy"
+    category: "compliance"
+    rule: "Cada tipo de dato debe tener una política de retención definida con fecha de expiración automática"
+    action: "Verificar que las tablas/colecciones con datos sensibles tengan configuración de TTL o job de purga"
+    severity: "warning"
+    auto_fix: false
+    fix_strategy: "Definir políticas de retención en el manifiesto de datos y configurar TTL index o cron job de purga"
+    pattern: ""

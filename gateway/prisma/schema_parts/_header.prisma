@@ -1,0 +1,12 @@
+// Zenic-Agents v3 — MCP Gateway with RBAC & Audit
+// DO NOT EDIT schema.prisma directly — it is auto-generated from schema_parts/
+// Run: npm run prisma:merge
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
