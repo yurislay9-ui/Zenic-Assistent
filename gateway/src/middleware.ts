@@ -1,4 +1,4 @@
-// Zenic-Agents v3.0 — Middleware de Protección de Rutas (FASE 3: Integración)
+// Zenic-Agents v3.0 — Middleware de Protección de Rutas (FASE 3 + FASE 4 + FASE 6)
 //
 // INVARIANT 4: La regla DENY es absoluta.
 // Este middleware protege rutas de API sensibles y requiere
@@ -11,9 +11,20 @@
 // - Security headers: CSP, HSTS, X-Frame-Options, etc. (G1/G2)
 // - HTTPS enforcement en producción (G1)
 // - Audit logging para operaciones críticas (F3/#32)
+//
+// FASE 4 - Security hardening:
+// - NextAuth JWT token validation (#41)
+// - API key authentication support (#41)
+// - HITL approval routes protection
+// - Identity verification routes protection
+//
+// FASE 6 - Performance:
+// - ResourceGovernor context headers (#58)
+// - Governor-aware route protection
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 // ─── Configuración CORS Restrictiva (#24) ─────────────────────────────
 
@@ -289,6 +300,8 @@ const RUTAS_ADMIN_REQUIEREN_AUTH = [
   "/api/v1/hitl/",                 // HITL operations
   "/api/v1/subscription/",         // Subscription management
   "/api/users",                    // User management
+  "/api/approvals",                // FASE 4: HITL approval system
+  "/api/identity",                 // FASE 4: Identity verification
 ];
 
 const RUTAS_LECTURA_PERMITIDAS_DEV = [
@@ -306,11 +319,62 @@ const RUTAS_PUBLICAS = [
   "/logo.svg",
   "/robots.txt",
   "/api/route",                    // Health check
+  "/api/auth/",                    // FASE 4: NextAuth endpoints (public, rate limited)
+  "/api/health",                   // FASE 6: Health endpoint with governor metrics
 ];
+
+// ─── FASE 4: NextAuth JWT + API Key Authentication (#41) ────────────
+
+async function authenticateRequest(request: NextRequest): Promise<Headers | null> {
+  const { pathname } = request.nextUrl;
+
+  // Only authenticate protected routes
+  const requiresAuth =
+    pathname.startsWith("/api/mcp/") ||
+    pathname.startsWith("/api/approvals") ||
+    pathname.startsWith("/api/identity");
+
+  if (!requiresAuth) return null;
+
+  // Try NextAuth JWT first
+  try {
+    const token = await getToken({
+      req: request,
+      secret: process.env.NEXTAUTH_SECRET,
+    });
+
+    if (token) {
+      const headers = new Headers(request.headers);
+      headers.set("x-user-id", (token as any).userId || token.sub || "");
+      headers.set("x-user-role", (token as any).role || "user");
+      headers.set("x-user-email", token.email || "");
+      headers.set("x-governor-check", "required"); // FASE 6: Governor context
+      return headers;
+    }
+  } catch {
+    // JWT validation failed — continue to API key check
+  }
+
+  // Check for API key authentication
+  const authHeader = request.headers.get("authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const apiKey = authHeader.substring(7);
+    const validApiKey = process.env.API_SECRET_KEY;
+
+    if (validApiKey && apiKey === validApiKey) {
+      const headers = new Headers(request.headers);
+      headers.set("x-governor-check", "required"); // FASE 6: Governor context
+      return headers;
+    }
+  }
+
+  // No valid authentication found — return error
+  return null; // Caller will return 401
+}
 
 // ─── Middleware Principal ────────────────────────────────────────────
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const method = request.method;
 
@@ -318,7 +382,7 @@ export function middleware(request: NextRequest) {
   const httpsRedirect = enforceHttps(request);
   if (httpsRedirect) return httpsRedirect;
 
-  // 2. Permitir archivos estáticos
+  // 2. Permitir archivos estáticos y rutas públicas
   if (RUTAS_PUBLICAS.some((ruta) => pathname.startsWith(ruta))) {
     return applySecurityHeaders(NextResponse.next(), request);
   }
@@ -357,7 +421,35 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // 7. Producción: todas las rutas de API requieren X-User-Id
+  // 7. FASE 4: NextAuth JWT + API Key authentication for protected routes
+  if (
+    pathname.startsWith("/api/mcp/") ||
+    pathname.startsWith("/api/approvals") ||
+    pathname.startsWith("/api/identity")
+  ) {
+    const authHeaders = await authenticateRequest(request);
+    if (authHeaders) {
+      return applySecurityHeaders(
+        NextResponse.next({ request: { headers: authHeaders } }),
+        request,
+      );
+    }
+
+    // No valid auth found for protected route
+    return applySecurityHeaders(
+      NextResponse.json(
+        {
+          error: "Authentication required",
+          code: "AUTH_REQUIRED",
+          message: "Sign in to access this API. Use NextAuth session, API key, or signed request.",
+        },
+        { status: 401 },
+      ),
+      request,
+    );
+  }
+
+  // 7b. Producción: todas las rutas de API requieren X-User-Id
   if (process.env.NODE_ENV === "production") {
     if (pathname.startsWith("/api/")) {
       const userId = request.headers.get("x-user-id");

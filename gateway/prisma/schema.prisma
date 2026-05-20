@@ -19,14 +19,22 @@ model User {
   email     String   @unique
   name      String
   avatar    String?
+  password  String?   // FASE 4: Hashed password for credentials provider
+  role      String    @default("user") // FASE 4: "admin" | "operator" | "user"
+  isActive  Boolean   @default(true) // FASE 4: Account activation status
   status    String   @default("active") // active | suspended | deactivated
   lastLogin DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  roles     UserRole[]
-  auditLogs AuditLog[]
-  toolExecs ToolExecution[]
+  roles              UserRole[]
+  auditLogs          AuditLog[]
+  toolExecs          ToolExecution[]
+  accounts           Account[]           // FASE 4: NextAuth
+  sessions           Session[]           // FASE 4: NextAuth
+  approvalRequests   ApprovalRequest[]   @relation("ApprovalRequester") // FASE 4
+  approvalReviews    ApprovalRequest[]   @relation("ApprovalReviewer") // FASE 4
+  approvalActions    ApprovalAction[]    // FASE 4
 
   @@map("users")
 }
@@ -1418,4 +1426,143 @@ model NicheTemplateFile {
   @@index([nichoId])
   @@index([estado])
   @@map("niche_template_files")
+}
+
+// ─── FASE 4: NextAuth v4 Models (#41) ──────────────────────────────
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("nextauth_accounts")
+}
+
+model Session {
+  id           String  @id @default(cuid())
+  sessionToken String  @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("nextauth_sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("nextauth_verification_tokens")
+}
+
+// ─── FASE 4: Feature Gate & HITL Approval (#41, #42, #43) ──────────
+
+model FeatureGate {
+  id          String   @id @default(cuid())
+  key         String   @unique  // e.g., "mcp:start-all", "mcp:call-tool"
+  name        String
+  description String?
+  enabled     Boolean  @default(false)
+  minRole     String   @default("admin")  // "admin" | "operator" | "user"
+  requireApproval Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("feature_gates")
+}
+
+model ApprovalRequest {
+  id          String   @id @default(cuid())
+  action      String   // e.g., "start-all", "call-tool", "stop-server"
+  target      String   // e.g., server id or "all"
+  arguments   String   // JSON stringified args
+  riskLevel   String   @default("low") // "low" | "high" | "critical"
+  reason      String?
+  status      String   @default("pending") // "pending" | "approved" | "rejected" | "expired"
+  requestedBy String   // User ID who requested
+  reviewedBy  String?  // User ID who reviewed
+  reviewNote  String?
+  identityVerified Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  expiresAt   DateTime?
+  resolvedAt  DateTime?
+
+  requester User           @relation("ApprovalRequester", fields: [requestedBy], references: [id])
+  reviewer  User?          @relation("ApprovalReviewer", fields: [reviewedBy], references: [id])
+  actions   ApprovalAction[]
+
+  @@index([status])
+  @@index([requestedBy])
+  @@index([riskLevel])
+  @@map("approval_requests")
+}
+
+model ApprovalAction {
+  id          String   @id @default(cuid())
+  requestId   String
+  userId      String
+  action      String   // "approve" | "reject" | "identity_verify"
+  metadata    String?  // JSON: IP, user-agent, timestamp
+  createdAt   DateTime @default(now())
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id])
+
+  @@index([requestId])
+  @@map("approval_actions")
+}
+
+// ─── FASE 6: MCP Server State (#57 — horizontal scalability) ──────
+
+model MCPServerState {
+  id          String   @id @default(cuid())
+  serverId    String   @unique
+  name        String
+  status      String   @default("stopped") // "stopped" | "starting" | "running" | "error"
+  startedAt   DateTime?
+  error       String?
+  tools       String   @default("[]")  // JSON array of tool definitions
+  resources   String   @default("[]") // JSON array of resource definitions
+  pid         Int?
+  configJson  String   @default("{}") // JSON: full MCPServerConfig snapshot
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@index([status])
+  @@map("mcp_server_states")
+}
+
+// ─── FASE 6: Scan Cache (#59 — incremental file scanning) ─────────
+
+model ScanCache {
+  id          String   @id @default(cuid())
+  filePath    String   @unique  // Relative path from project root
+  fileHash    String?  // Content hash for change detection
+  mtimeMs     Float    // File modification time in ms since epoch
+  issues      String   // JSON: Issue[]
+  category    String   @default("all")
+  fileSize    Int      @default(0)
+  lineCount   Int      @default(0)
+  scanDurationMs Float @default(0)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@index([category])
+  @@map("scan_cache")
 }
