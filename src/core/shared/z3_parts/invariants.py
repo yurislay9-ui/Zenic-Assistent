@@ -19,6 +19,8 @@ except ImportError:
     _HAS_Z3 = False
 
 from ..constraint_solver import ConstraintSolver
+# Phase 5 — Deterministic RNG instead of bare random.choice
+from ..deterministic import DeterministicRNG
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +235,8 @@ class Z3InvariantMixin:
 
         # Sample-based bounded verification:
         # Generate random test points and add violation constraints
-        import random as _rng
+        # Phase 5: Use DeterministicRNG instead of bare random.choice
+        _z3_rng = DeterministicRNG("z3_invariant_sampling")
 
         violations_found = []
         samples = min(_BOUNDED_SAMPLE_COUNT, self.timeout_ms // _BOUNDED_TIMEOUT_DIVISOR)  # Scale with timeout
@@ -243,7 +246,7 @@ class Z3InvariantMixin:
             assignment = {}
             for var_name in variables:
                 if var_name in domains and domains[var_name]:
-                    assignment[var_name] = _rng.choice(domains[var_name])
+                    assignment[var_name] = _z3_rng.choice(domains[var_name])
             checked += 1
             try:
                 if not invariant_func(**assignment):

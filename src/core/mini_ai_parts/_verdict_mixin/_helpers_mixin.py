@@ -14,12 +14,18 @@ from ._constants import (
     _RESILIENCE_AVAILABLE,
 )
 
+from src.core.shared.deterministic import ControllableJitter
+
 if _RESILIENCE_AVAILABLE:
     from ._constants import (  # noqa: F401 — conditional import
         VerdictAuditEntry,
     )
 
 logger = logging.getLogger(__name__)
+
+
+# Deterministic jitter for fallback retry (Phase 5 fix)
+_fallback_jitter = ControllableJitter("mini_ai_verdict_helpers")
 
 
 class VerdictHelpersMixin:
@@ -30,10 +36,9 @@ class VerdictHelpersMixin:
         if self._verdict_resilience:
             return self._verdict_resilience.retry_config.compute_delay(attempt)
         # Fallback delay calculation
-        import random
         delay = VERDICT_BASE_DELAY * (2 ** (attempt - 1))
         delay = min(delay, VERDICT_MAX_DELAY)
-        delay += random.uniform(0, 0.3 * delay)
+        delay = _fallback_jitter.apply(delay, 0.3)
         return delay
 
     def _record_verdict_success(self, latency_s: float, was_yes: bool) -> None:

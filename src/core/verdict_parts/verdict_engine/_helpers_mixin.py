@@ -5,6 +5,8 @@ import logging
 import time
 from typing import Any, Dict, List, Optional
 
+from src.core.shared.deterministic import ControllableJitter
+
 try:
     from ..resilience import VerdictAuditEntry
     _AUDIT_AVAILABLE = True
@@ -14,6 +16,10 @@ except ImportError:
 from ..types import Verdict, Evidence, VerdictInput, VerdictOutput, ConsensusResult
 
 logger = logging.getLogger("zenic_agents.verdict_parts.verdict_engine")
+
+
+# Deterministic jitter for fallback retry (Phase 5 fix)
+_fallback_jitter = ControllableJitter("verdict_engine_helpers")
 
 
 class VerdictHelpersMixin:
@@ -28,10 +34,9 @@ class VerdictHelpersMixin:
         """Compute delay for retry with exponential backoff + jitter."""
         if self._resilience:
             return self._resilience.retry_config.compute_delay(attempt)
-        import random
         delay = 1.0 * (2 ** (attempt - 1))
         delay = min(delay, 10.0)
-        delay += random.uniform(0, 0.3 * delay)
+        delay = _fallback_jitter.apply(delay, 0.3)
         return delay
 
     def _record_success(self, latency_s: float, was_ambiguous: bool = False) -> None:

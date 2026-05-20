@@ -129,8 +129,18 @@ class ParallelBlock(LogicBlock):
 
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 futures = {executor.submit(run_block, b): b.name for b in blocks}
+                # Phase 5: Sort results by block name for deterministic ordering.
+                # as_completed() returns futures in completion order (non-deterministic
+                # due to thread scheduling), so we collect all results first, then
+                # process them in alphabetical order by block name.
+                pending_results = {}
                 for future in as_completed(futures):
                     name, result = future.result()
+                    pending_results[name] = result
+
+                # Process in deterministic order (sorted by name)
+                for name in sorted(pending_results.keys()):
+                    result = pending_results[name]
                     if result.get("success", True):
                         results[name] = result
                     else:

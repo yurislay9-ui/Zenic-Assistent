@@ -8,6 +8,7 @@ broader action set. Also added retry for solver transient failures.
 import uuid
 import time
 
+from src.core.shared.deterministic import DeterministicUUID
 from ._imports import (
     logger, HAS_Z3,
     ExecutionPlan, RoutePath, MCTSPlanner,
@@ -46,6 +47,9 @@ class APAPlanner(
         self._last_mcts_simulations = 0
         self._last_mcts_depth = 0
 
+        # Deterministic UUID generator (Phase 5 fix)
+        self._uuid_gen = DeterministicUUID("apa_planner")
+
         solver_name = "Z3" if HAS_Z3 else "AC-3"
         logger.info("APA Planner: Solver=%s, MCTS depth=%d, Solver timeout=%dms",
                      solver_name, self.MCTS_MAX_DEPTH, self.solver_timeout_ms)
@@ -77,7 +81,7 @@ class APAPlanner(
             )
             steps = self._build_steps(intent, routing, best_action=None)
             return ExecutionPlan(
-                plan_id=str(uuid.uuid4()),
+                plan_id=self._uuid_gen.next(),
                 steps=steps,
                 solver_status="SKIPPED_" + crit_path.upper(),
                 solver_proof=None,
@@ -116,7 +120,7 @@ class APAPlanner(
         solver_status = self._determine_solver_status(solver_result, routing)
 
         return ExecutionPlan(
-            plan_id=str(uuid.uuid4()),
+            plan_id=self._uuid_gen.next(),
             steps=steps,
             solver_status=solver_status,
             solver_proof=solver_result,

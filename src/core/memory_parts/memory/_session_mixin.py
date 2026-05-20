@@ -12,6 +12,11 @@ from typing import Any, Dict, List
 
 from ..types import DB_PATH, MemoryEntry, IMPORTANCE_THRESHOLD
 
+# Phase 5 — Deterministic UUID for session IDs
+from src.core.shared.deterministic import DeterministicUUID
+
+_session_uuid_gen = DeterministicUUID("smart_memory_session_mixin")
+
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +27,8 @@ class SessionMixin:
         """Limpia la memoria de trabajo para una nueva sesión."""
         with self._working_lock:
             self._working_memory.clear()
-        self._session_id = hashlib.md5(str(time.time()).encode()).hexdigest()[:8]
+        # Phase 5: Deterministic session ID
+        self._session_id = _session_uuid_gen.next()[:8]
 
     def start_session(self) -> str:
         """Inicia una nueva sesión de conversación (tenant-aware)."""
@@ -34,7 +40,8 @@ class SessionMixin:
                 self._working_memory.clear()
         if self._working_memory:
             self.end_session()
-        self._session_id = hashlib.md5(str(time.time()).encode()).hexdigest()[:8]
+        # Phase 5: Deterministic session ID instead of time.time()
+        self._session_id = _session_uuid_gen.next()[:8]
         with self._working_lock:
             self._working_memory.clear()
         

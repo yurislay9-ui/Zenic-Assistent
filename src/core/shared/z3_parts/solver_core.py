@@ -27,6 +27,8 @@ except ImportError:
 
 from ..constraint_solver import ConstraintSolver
 from ..retry import with_retry
+# Phase 5 — Deterministic ID generation for sort names
+from ..deterministic import FencingTokenGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +37,9 @@ _MAX_SORT_COUNTER = 100_000
 _TIMESTAMP_MODULO = 1_000_000
 _Z3_SOLVE_MAX_ATTEMPTS = 2
 _Z3_RETRY_BASE_DELAY = 0.3
+
+# Phase 5 — Deterministic fencing token for sort name uniqueness
+_sort_name_fencing = FencingTokenGenerator("z3_sort_name")
 
 
 class Z3SolverCoreMixin:
@@ -75,8 +80,9 @@ class Z3SolverCoreMixin:
             logger.debug("Z3Solver: Sort counter reset (was %d) — triggering gc.collect()", self._sort_counter)
             self._sort_counter = 1
             gc.collect()
-        # Include timestamp + counter for global uniqueness across solver instances
-        return f"{base}_{self._sort_counter}_{int(time.time() * 1000) % _TIMESTAMP_MODULO}"
+        # Phase 5: Use FencingTokenGenerator instead of time.time()*1000
+        # for deterministic sort names that are unique across calls
+        return f"{base}_{self._sort_counter}_{_sort_name_fencing.next() % _TIMESTAMP_MODULO}"
 
     def _z3_solve(self, domains, constraints):
         """

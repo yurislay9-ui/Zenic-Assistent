@@ -34,6 +34,25 @@ from src.core.shared.resource_governor import (
     limit_open_files, init_governor,
 )
 
+# Phase 5 — Deterministic mode: Install global patches for production determinism.
+# Controlled via ZENIC_DETERMINISTIC env var (default "1" = enabled).
+# When enabled, uuid.uuid4(), random.*, and (optionally) time.time() are
+# replaced with deterministic implementations seeded from SeedManager.
+_ZENIC_DETERMINISTIC = os.environ.get("ZENIC_DETERMINISTIC", "1") == "1"
+if _ZENIC_DETERMINISTIC:
+    from src.core.shared.deterministic import (
+        set_global_seed, install_uuid4_patch, install_random_patch,
+        get_global_seed,
+    )
+    _seed = get_global_seed()  # Resolves from ZENIC_DETERMINISTIC_SEED or default 0xC0FFEE
+    set_global_seed(_seed)
+    install_uuid4_patch()
+    install_random_patch()
+    # time.time() patch is optional — only enable for full replay mode
+    if os.environ.get("ZENIC_DETERMINISTIC_TIME", "0") == "1":
+        from src.core.shared.deterministic import install_time_patch
+        install_time_patch(increment=0.001)
+
 tune_gc_for_arm()
 set_process_priority_low()
 limit_open_files()

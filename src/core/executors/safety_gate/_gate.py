@@ -24,7 +24,9 @@ from ._types import SafetyVerdict, ActionCategory, SafetyRule, SafetyCheckResult
 
 logger = logging.getLogger(__name__)
 
-# Monotonic counter for generating unique action IDs (mirrors Rust ACTION_ID_COUNTER)
+# Phase 5 — Monotonic counter for generating unique action IDs
+# Using itertools.count ensures deterministic, monotonically increasing IDs
+# within a process. The counter resets to 1 on module reload.
 _action_id_counter = itertools.count(1)
 
 
@@ -49,7 +51,9 @@ class ActionRateLimiter:
     def check(self, action_type: str, category: ActionCategory) -> Optional[str]:
         """Check if action is rate-limited. Returns reason or None."""
         with self._lock:
-            now = time.time()
+            # Phase 5: Use time.monotonic() for rate-limiting decisions
+            # (deterministic within a process, not wall-clock dependent)
+            now = time.monotonic()
 
             # Per-action rate limit
             key = action_type
@@ -113,14 +117,12 @@ class SafetyGate:
     def _generate_action_id() -> str:
         """Generate a unique action ID for each safety validation.
 
-        Format: "act_{timestamp_ms}_{counter}" — deterministic within a
-        process but unique across calls. This is the ONLY key used in
-        _denied_actions, _confirmations, and _approvals to prevent the
-        key-mismatch bypass.
+        Phase 5: Uses monotonic counter for deterministic action IDs
+        instead of time.time()*1000. Format: "act_{counter}" — guaranteed
+        unique within a process and fully deterministic.
         """
-        ts_ms = int(time.time() * 1000)
         counter = next(_action_id_counter)
-        return f"act_{ts_ms}_{counter}"
+        return f"act_{counter}"
 
     def check(
         self,
@@ -183,7 +185,7 @@ class SafetyGate:
             )
             return False
 
-        self._confirmations[action_id] = time.time()
+        self._confirmations[action_id] = time.monotonic()
         logger.info("SafetyGate: Action %s confirmed by user", action_id)
         return True
 

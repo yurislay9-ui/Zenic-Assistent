@@ -10,10 +10,11 @@ Fallback when Z3 is not available.
 """
 
 import time
-import random
 import logging
 from collections import deque
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
+
+from .deterministic import DeterministicRNG
 
 logger = logging.getLogger(__name__)
 
@@ -44,10 +45,12 @@ class ConstraintSolver:
     Fallback cuando Z3 no esta disponible.
     """
 
-    def __init__(self, timeout_ms: int = 5000):
+    def __init__(self, timeout_ms: int = 5000, seed: Optional[int] = None):
         self.timeout_ms = timeout_ms
         self._start_time = 0
         self._timed_out = False
+        # Deterministic RNG (Phase 5 fix)
+        self._rng = DeterministicRNG("constraint_solver", seed_override=seed)
 
     def solve(self, domains: Dict[str, List[Any]], constraints: List[Constraint]) -> Dict[str, Any]:
         """Resuelve un CSP (Constraint Satisfaction Problem)."""
@@ -154,7 +157,7 @@ class ConstraintSolver:
             assignment = {}
             for var in variables:
                 if var in domains and domains[var]:
-                    assignment[var] = random.choice(domains[var])
+                    assignment[var] = self._rng.choice(domains[var])
 
             try:
                 if not condition_func(**assignment):

@@ -195,9 +195,10 @@ class AutomationNamer(BaseAgent[NameResult]):
         return slug
 
     def fallback(self, input_data: Any) -> NameResult:
-        """Fallback: Return generic automation name."""
-        import time
-        ts = int(time.time()) % 100000
+        """Fallback: Return generic automation name with deterministic ID."""
+        from src.core.shared.deterministic import FencingTokenGenerator
+        _namer_fencing = FencingTokenGenerator("automation_namer")
+        ts = _namer_fencing.next() % 100000
         return NameResult(
             name=f"automation_{ts}",
             slug=f"automation-{ts}",

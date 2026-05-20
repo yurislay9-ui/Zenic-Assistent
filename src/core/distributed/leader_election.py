@@ -28,6 +28,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional
 
 from .backend import CoordinationBackend
+from src.core.shared.deterministic import FencingTokenGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,8 @@ class LeaderElection:
         self._state: LeadershipState = LeadershipState.FOLLOWER
         self._fencing_token: int = 0
         self._lock = threading.Lock()
+        # Deterministic fencing token generator (Phase 5 fix)
+        self._fencing_gen = FencingTokenGenerator(f"leader:{election_name}")
 
         # Background renewal
         self._renewal_thread: Optional[threading.Thread] = None
@@ -183,7 +186,7 @@ class LeaderElection:
             with self._lock:
                 was_not_leader = self._state != LeadershipState.LEADER
                 self._state = LeadershipState.LEADER
-                self._fencing_token = int(time.time() * 1000)
+                self._fencing_token = self._fencing_gen.next()
 
             logger.info(
                 "LeaderElection: '%s' — %s is now LEADER "

@@ -10,6 +10,8 @@ from typing import Callable, Optional, Tuple, Type
 
 import logging
 
+from src.core.shared.deterministic import ControllableJitter
+
 logger = logging.getLogger(__name__)
 
 
@@ -58,6 +60,10 @@ class RetryConfig:
             )
 
 
+# Shared deterministic jitter instance for retry configs
+_jitter_gen = ControllableJitter("retry_config")
+
+
 def _compute_delay(config: RetryConfig, attempt: int) -> float:
     """
     Compute the delay for the given attempt number (1-based).
@@ -75,7 +81,6 @@ def _compute_delay(config: RetryConfig, attempt: int) -> float:
     delay = min(delay, config.max_delay)
 
     if config.jitter and delay > 0:
-        jitter_amount = random.uniform(0, config.jitter_max * delay)
-        delay += jitter_amount
+        delay = _jitter_gen.apply(delay, config.jitter_max)
 
     return delay

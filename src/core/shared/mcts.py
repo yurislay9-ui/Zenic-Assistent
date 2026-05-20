@@ -12,10 +12,11 @@ CAMBIO TECNOLÓGICO v16 - ARM-Optimized Defaults:
 """
 
 import math
-import random
 import time
 import os
 import logging
+
+from .deterministic import DeterministicRNG
 
 logger = logging.getLogger(__name__)
 
@@ -108,12 +109,14 @@ class MCTSPlanner:
     Implementa las 4 fases: Seleccion, Expansion, Simulacion, Backpropagation.
     """
 
-    def __init__(self, max_depth=None, max_simulations=None, timeout_ms=DEFAULT_TIMEOUT_MS):
+    def __init__(self, max_depth=None, max_simulations=None, timeout_ms=DEFAULT_TIMEOUT_MS, seed=None):
         self.max_depth = max_depth if max_depth is not None else DEFAULT_MAX_DEPTH
         self.max_simulations = max_simulations if max_simulations is not None else DEFAULT_MAX_SIMULATIONS
         self.timeout_ms = timeout_ms
         self.simulations_run = 0
         self.depth_reached = 0
+        # Deterministic RNG (Phase 5 fix)
+        self._rng = DeterministicRNG("mcts", seed_override=seed)
         if _IS_ARM:
             logger.info(
                 f"MCTSPlanner: ARM-optimized mode (depth={self.max_depth}, "
@@ -184,7 +187,7 @@ class MCTSPlanner:
             return node
 
         if node.untried_actions:
-            action = random.choice(node.untried_actions)
+            action = self._rng.choice(node.untried_actions)
             new_state = self._apply_action(node.state, action)
             child = node.expand(action, new_state)
             child.untried_actions = action_generator(new_state, depth + 1)
@@ -201,7 +204,7 @@ class MCTSPlanner:
             actions = action_generator(state, depth)
             if not actions:
                 break
-            action = random.choice(actions)
+            action = self._rng.choice(actions)
             state = self._apply_action(state, action)
             depth += 1
 

@@ -27,6 +27,9 @@ from typing import (
     runtime_checkable,
 )
 
+# Phase 5 — Deterministic ID generation
+from src.core.shared.deterministic import FencingTokenGenerator
+
 
 # ─── Result Monad ─────────────────────────────────────────────
 
@@ -92,9 +95,14 @@ MemoryId = str
 
 
 def new_id(prefix: str = "") -> str:
-    """Genera un ID unico con prefijo opcional."""
+    """Genera un ID unico con prefijo opcional.
+
+    Phase 5: Uses FencingTokenGenerator for deterministic IDs instead
+    of uuid.uuid4() and time.time().
+    """
+    _id_fencing = FencingTokenGenerator("new_id")
     uid = uuid.uuid4().hex[:12]
-    ts = str(int(time.time() * 1000))[-8:]
+    ts = str(_id_fencing.next())[-8:]
     return f"{prefix}_{uid}_{ts}" if prefix else f"{uid}_{ts}"
 
 

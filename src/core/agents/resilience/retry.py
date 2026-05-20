@@ -8,13 +8,17 @@ capped at max_delay, with optional jitter (0-30%).
 from __future__ import annotations
 
 import functools
-import random
 import time
 import threading
 from dataclasses import dataclass
 from typing import Any, Callable, Optional, TypeVar
 
+from src.core.shared.deterministic import ControllableJitter
+
 T = TypeVar("T")
+
+# Shared deterministic jitter instance for agent retry
+_jitter_gen = ControllableJitter("agent_retry")
 
 
 @dataclass
@@ -33,7 +37,7 @@ class AgentRetryConfig:
         delay = self.base_delay * (self.exponential_base ** (attempt - 1))
         delay = min(delay, self.max_delay)
         if self.jitter:
-            delay += random.uniform(0, self.jitter_max * delay)
+            delay = _jitter_gen.apply(delay, self.jitter_max)
         return delay
 
 

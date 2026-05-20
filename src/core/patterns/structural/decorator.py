@@ -11,10 +11,11 @@ Designed for resource-constrained environments (Android/Termux, 500MB RAM).
 import enum
 import functools
 import logging
-import random
 import threading
 import time
 from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+
+from src.core.shared.deterministic import DeterministicRNG
 
 logger = logging.getLogger(__name__)
 
@@ -162,6 +163,10 @@ def _get_rl(key: str, config: dict) -> _RateLimiter:
         return _rl_registry[key]
 
 
+# Deterministic RNG for decorator jitter (Phase 5 fix)
+_decorator_rng = DeterministicRNG("agent_decorator")
+
+
 def _get_metrics(key: str) -> _MetricsTracker:
     with _registry_lock:
         if key not in _metrics_registry:
@@ -261,7 +266,7 @@ def agent_decorator(
                     if attempt < max_attempts:
                         current_delay = delay * (backoff ** (attempt - 1))
                         # Add jitter
-                        current_delay *= (0.5 + random.random())
+                        current_delay *= (0.5 + _decorator_rng.random())
                         log.warning(
                             "↻ %s attempt %d/%d failed: %s – retrying in %.1fs",
                             key, attempt, max_attempts, exc, current_delay,

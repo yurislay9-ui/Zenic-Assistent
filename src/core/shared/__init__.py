@@ -19,6 +19,14 @@ from .fast_connection_pool import (
     FastPool, fast_pool, get_pooled_connection,
     batch_commit, close_all_pools,
 )
+from .deterministic import (
+    SeedManager, DeterministicRNG, DeterministicUUID, DeterministicClock,
+    FencingTokenGenerator, ControllableJitter,
+    set_global_seed, get_global_seed, reset_all_deterministic_state,
+    install_uuid4_patch, uninstall_uuid4_patch, is_uuid4_patched,
+    install_random_patch, uninstall_random_patch,
+    install_time_patch, uninstall_time_patch, is_time_patched,
+)
 
 __all__ = [
     # From contracts
@@ -38,4 +46,11 @@ __all__ = [
     # From fast_connection_pool
     "FastPool", "fast_pool", "get_pooled_connection",
     "batch_commit", "close_all_pools",
+    # From deterministic (Phase 5 fix)
+    "SeedManager", "DeterministicRNG", "DeterministicUUID", "DeterministicClock",
+    "FencingTokenGenerator", "ControllableJitter",
+    "set_global_seed", "get_global_seed", "reset_all_deterministic_state",
+    "install_uuid4_patch", "uninstall_uuid4_patch", "is_uuid4_patched",
+    "install_random_patch", "uninstall_random_patch",
+    "install_time_patch", "uninstall_time_patch", "is_time_patched",
 ]

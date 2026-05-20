@@ -72,7 +72,7 @@ logger = logging.getLogger("zenic_agents.verdict_parts.verdict_engine")
 # === Configuración del VerdictEngine ===
 VERDICT_TIMEOUT_S = 5.0           # Timeout estricto para la IA (5 segundos)
 VERDICT_MAX_TOKENS = 10           # Solo necesita 1 token, damos margen
-VERDICT_TEMPERATURE = 0.0         # 0.0 = determinismo absoluto
+VERDICT_TEMPERATURE = 0.0         # 0.0 = determinismo absoluto (Phase 5: ALWAYS 0.0)
 VERDICT_MAX_RETRIES = 3           # Reintentos con exponential backoff (antes 1)
 try:
     _attempts = int(os.environ.get("ZENIC_VERDICT_CONSENSUS", "1"))

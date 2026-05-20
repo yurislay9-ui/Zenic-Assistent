@@ -3,11 +3,11 @@
 import logging
 import threading
 import time
-import random
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from ._types import VerdictCircuitState
+from src.core.shared.deterministic import ControllableJitter
 
 logger = logging.getLogger("zenic_agents.verdict_parts.resilience")
 
@@ -208,13 +208,18 @@ class VerdictRetryConfig:
     jitter: bool = True
     jitter_max: float = 0.3
     timeout_per_attempt: float = 5.0
+    _jitter_gen: ControllableJitter = None
+
+    def __post_init__(self):
+        if self._jitter_gen is None:
+            object.__setattr__(self, '_jitter_gen', ControllableJitter("verdict_retry"))
 
     def compute_delay(self, attempt: int) -> float:
         """Compute delay for the given attempt (1-based)."""
         delay = self.base_delay * (self.exponential_base ** (attempt - 1))
         delay = min(delay, self.max_delay)
         if self.jitter and delay > 0:
-            delay += random.uniform(0, self.jitter_max * delay)
+            delay = self._jitter_gen.apply(delay, self.jitter_max)
         return delay
 
 

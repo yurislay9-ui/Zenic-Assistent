@@ -12,6 +12,9 @@ import time
 import uuid
 from typing import Any
 
+# Phase 5 — Deterministic ID generation
+from src.core.shared.deterministic import FencingTokenGenerator
+
 
 def truncate_text(text: str, max_length: int = 500, suffix: str = "...") -> str:
     """Trunca texto a una longitud maxima con sufijo."""
@@ -51,10 +54,18 @@ def safe_json(obj: Any, default: str = "{}") -> str:
         return default
 
 
+# Module-level fencing token generator for deterministic IDs
+_id_fencing = FencingTokenGenerator("generate_id")
+
+
 def generate_id(prefix: str = "") -> str:
-    """Genera un ID unico con prefijo opcional."""
+    """Genera un ID unico con prefijo opcional.
+
+    Phase 5: Uses FencingTokenGenerator for deterministic timestamps
+    instead of time.time()*1000.
+    """
     uid = str(uuid.uuid4())[:8]
-    timestamp = str(int(time.time() * 1000))[-6:]
+    timestamp = str(_id_fencing.next())[-6:]
     if prefix:
         return f"{prefix}_{uid}_{timestamp}"
     return f"{uid}_{timestamp}"
