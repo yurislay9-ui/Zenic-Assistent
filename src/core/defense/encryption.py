@@ -18,6 +18,7 @@ import base64
 import hashlib
 import logging
 import os
+import secrets
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
@@ -112,8 +113,9 @@ class EncryptionManager:
         from cryptography.hazmat.primitives import hashes
         from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-        # Derive Fernet key from passphrase
-        salt = b"zenic-agents-fernet-salt-v1"
+        # FIX SEC-6: Replaced static salt with instance-unique salt.
+        # Salt is generated randomly and persisted to data_dir for cross-restart consistency.
+        salt = self._get_or_create_salt()
         if self._enable_hw_binding:
             salt = self._hardware_bound_salt(salt)
 
@@ -140,6 +142,45 @@ class EncryptionManager:
             return hashlib.sha256(combined).digest()
         except Exception:
             return base_salt
+
+    def _get_or_create_salt(self) -> bytes:
+        """Generate or load a unique salt for this instance.
+
+        The salt is persisted in the data directory so that Fernet keys
+        remain consistent across restarts. If no salt file exists, a new
+        random 32-byte salt is generated and saved with restricted permissions.
+        This replaces the previous hardcoded static salt.
+        """
+        try:
+            from src.core.shared.db_initializer import get_data_dir
+            data_dir = get_data_dir()
+        except Exception:
+            data_dir = os.path.expanduser("~/.zenic_agents/data")
+            os.makedirs(data_dir, exist_ok=True)
+
+        salt_path = os.path.join(data_dir, ".fernet-salt")
+
+        # Load existing salt if available and valid
+        if os.path.exists(salt_path):
+            try:
+                with open(salt_path, "rb") as f:
+                    salt = f.read()
+                if len(salt) >= 16:
+                    return salt
+            except Exception as exc:
+                logger.debug("EncryptionManager: Failed to read salt file: %s", exc)
+
+        # Generate new random salt
+        salt = secrets.token_bytes(32)
+        try:
+            with open(salt_path, "wb") as f:
+                f.write(salt)
+            os.chmod(salt_path, 0o600)
+            logger.info("EncryptionManager: Generated new instance-unique Fernet salt")
+        except Exception as exc:
+            logger.warning("EncryptionManager: Failed to persist salt file: %s", exc)
+
+        return salt
 
     @staticmethod
     def _get_hardware_fingerprint() -> str:
@@ -287,7 +328,24 @@ class EncryptionManager:
             return None
 
         try:
-            pw = passphrase or self._passphrase or "default-key"
+            # FIX SEC-5: Removed "default-key" fallback. SQLCipher requires a real passphrase.
+            pw = passphrase or self._passphrase or os.environ.get("ZENIC_DB_PASSPHRASE")
+            if not pw:
+                if os.environ.get("NODE_ENV") == "production":
+                    raise RuntimeError(
+                        "ZENIC_DB_PASSPHRASE is required for SQLCipher in production. "
+                        "Generate with: python -c \"import secrets; print(secrets.token_hex(32))\""
+                    )
+                logger.warning(
+                    "EncryptionManager: No passphrase configured for SQLCipher. "
+                    "Returning unencrypted connection (no false sense of security)."
+                )
+                return None
+            if len(pw) < 32:
+                logger.warning(
+                    "EncryptionManager: SQLCipher passphrase is less than 32 characters. "
+                    "Consider using a longer passphrase for production."
+                )
             conn = _helper_get_conn(db_path, pw, verify=True)
             return conn
         except Exception as exc:

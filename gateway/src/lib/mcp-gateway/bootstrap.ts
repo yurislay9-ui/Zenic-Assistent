@@ -3,6 +3,7 @@
 // Singleton pattern for the engine — created once, reused across requests.
 // Phase 2: Now wraps engine with ObservableGatewayEngine for tracing.
 
+import { createHmac, randomBytes } from "crypto";
 import { RateLimiter } from "./rate-limiter";
 import { AuthService } from "./auth";
 import { MerkleAuditService } from "./audit/merkle-audit";
@@ -22,7 +23,7 @@ let auditServiceRef: MerkleAuditService | null = null;
 let initPromise: Promise<GatewayEngine> | null = null;
 
 /** Get or create the gateway engine with all services wired (async-safe) */
-export function initializeGateway(): GatewayEngine {
+export function initializeGateway(): GatewayEngine { // NOTE: Uses sync crypto for dev keys; async import for node:crypto
   if (engineInstance) return engineInstance;
 
   // If initialization is already in progress, we still create synchronously
@@ -37,25 +38,64 @@ export function initializeGateway(): GatewayEngine {
   auditServiceRef = auditService;
   const registry = getRegistry();
 
-  // 2. Register default API keys (demo)
+  // 2. Register API keys from environment variables (SECURITY FIX: no hardcoded keys)
   // FIX #11: Demo keys ahora expiran en 30 días en vez de nunca.
+  // FIX SEC-1/2: API keys moved to environment variables with fail-closed in production.
   const DEMO_KEY_EXPIRY = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 días
+  const ADMIN_KEY = process.env.ZENIC_ADMIN_KEY;
+  const DEMO_KEY = process.env.ZENIC_DEMO_KEY;
 
-  authService.registerApiKey({
-    key: "zenic_demo_key_2024",
-    tenantId: "default",
-    name: "demo-client",
-    scopes: ["tool:execute", "tool:read"],
-    expiresAt: DEMO_KEY_EXPIRY,
-  });
-
-  authService.registerApiKey({
-    key: "zenic_admin_key_2024",
-    tenantId: "default",
-    name: "admin-client",
-    scopes: ["*"],
-    expiresAt: DEMO_KEY_EXPIRY,
-  });
+  if (process.env.NODE_ENV === "production") {
+    // PRODUCTION: Fail-closed — keys MUST be configured
+    if (!ADMIN_KEY || ADMIN_KEY.length < 32) {
+      throw new Error(
+        "[SECURITY] ZENIC_ADMIN_KEY is required in production (min 32 characters). " +
+        "Generate with: openssl rand -hex 32"
+      );
+    }
+    if (!DEMO_KEY || DEMO_KEY.length < 32) {
+      throw new Error(
+        "[SECURITY] ZENIC_DEMO_KEY is required in production (min 32 characters). " +
+        "Generate with: openssl rand -hex 32"
+      );
+    }
+    authService.registerApiKey({
+      key: ADMIN_KEY,
+      tenantId: "default",
+      name: "admin-client",
+      scopes: ["*"],
+      expiresAt: DEMO_KEY_EXPIRY,
+    });
+    authService.registerApiKey({
+      key: DEMO_KEY,
+      tenantId: "default",
+      name: "demo-client",
+      scopes: ["tool:execute", "tool:read"],
+      expiresAt: DEMO_KEY_EXPIRY,
+    });
+  } else {
+    // DEVELOPMENT: Ephemeral random keys with explicit warning
+    const devAdmin = ADMIN_KEY || randomBytes(32).toString("hex");
+    const devDemo = DEMO_KEY || randomBytes(32).toString("hex");
+    console.warn(
+      "[SECURITY] Using ephemeral dev API keys. " +
+      "Set ZENIC_ADMIN_KEY and ZENIC_DEMO_KEY for persistent keys."
+    );
+    authService.registerApiKey({
+      key: devAdmin,
+      tenantId: "default",
+      name: "admin-client",
+      scopes: ["*"],
+      expiresAt: DEMO_KEY_EXPIRY,
+    });
+    authService.registerApiKey({
+      key: devDemo,
+      tenantId: "default",
+      name: "demo-client",
+      scopes: ["tool:execute", "tool:read"],
+      expiresAt: DEMO_KEY_EXPIRY,
+    });
+  }
 
   // Register tenants
   authService.registerTenant({

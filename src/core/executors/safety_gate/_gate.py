@@ -2,16 +2,30 @@
 Safety Gate — Core Classes.
 
 Contains ActionRateLimiter and SafetyGate classes.
+
+FIX A2 (Hallazgos #9, #10):
+  - Added _denied_actions: Set[str] to track which action_ids were DENY'd
+  - confirm_action() now checks _denied_actions and returns False for denied actions
+  - approve_action() now checks _denied_actions and returns False for denied actions
+  - Added _generate_action_id() for unique action identification (mirrors Rust state.rs)
+  - Added is_denied() method
+  - Updated get_stats() with denied_actions count
+  - check() now generates action_id and stores it in SafetyCheckResult
+  - Rate-limited actions are also tracked in _denied_actions
 """
 
+import itertools
 import logging
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from ._types import SafetyVerdict, ActionCategory, SafetyRule, SafetyCheckResult, SAFETY_RULES
 
 logger = logging.getLogger(__name__)
+
+# Monotonic counter for generating unique action IDs (mirrors Rust ACTION_ID_COUNTER)
+_action_id_counter = itertools.count(1)
 
 
 class ActionRateLimiter:
@@ -72,6 +86,11 @@ class SafetyGate:
 
     INVARIANT: If SafetyGate returns DENY, the action CANNOT proceed.
     No override mechanism exists. This is by design.
+
+    FIX A2: The DENY invariant is now enforced in confirm_action() and
+    approve_action(). If an action_id was recorded as DENY'd, neither
+    confirmation nor approval will succeed — mirroring the Rust pybridge
+    state.rs behavior exactly.
     """
 
     def __init__(
@@ -83,8 +102,25 @@ class SafetyGate:
         self._rate_limiter = rate_limiter or ActionRateLimiter()
         self._confirmations: Dict[str, float] = {}
         self._approvals: Dict[str, str] = {}
+        self._denied_actions: Set[str] = set()          # FIX A2 (#10): track denied action_ids
         self._denied_count: int = 0
         self._allowed_count: int = 0
+
+    # ── Action ID generation ─────────────────────────────────
+    # Mirrors Rust state.rs generate_action_id()
+
+    @staticmethod
+    def _generate_action_id() -> str:
+        """Generate a unique action ID for each safety validation.
+
+        Format: "act_{timestamp_ms}_{counter}" — deterministic within a
+        process but unique across calls. This is the ONLY key used in
+        _denied_actions, _confirmations, and _approvals to prevent the
+        key-mismatch bypass.
+        """
+        ts_ms = int(time.time() * 1000)
+        counter = next(_action_id_counter)
+        return f"act_{ts_ms}_{counter}"
 
     def check(
         self,
@@ -94,16 +130,22 @@ class SafetyGate:
     ) -> SafetyCheckResult:
         """Run all safety checks for an action."""
         context = context or {}
+        action_id = self._generate_action_id()             # FIX A2: unique ID per check
         category = self._classify_action(action_type, config)
 
         rule_result = self._check_rules(action_type, config)
         if rule_result:
+            rule_result.action_id = action_id               # FIX A2: assign action_id
+            if rule_result.verdict == SafetyVerdict.DENY:
+                self._denied_actions.add(action_id)         # FIX A2: track denied
             return rule_result
 
         rate_reason = self._rate_limiter.check(action_type, category)
         if rate_reason:
             self._denied_count += 1
+            self._denied_actions.add(action_id)             # FIX A2: track rate-limited as denied
             return SafetyCheckResult(
+                action_id=action_id,                        # FIX A2: include action_id
                 verdict=SafetyVerdict.RATE_LIMITED,
                 category=category,
                 reason=rate_reason,
@@ -116,6 +158,7 @@ class SafetyGate:
             self._allowed_count += 1
 
         return SafetyCheckResult(
+            action_id=action_id,                            # FIX A2: include action_id
             verdict=verdict,
             category=category,
             reason=f"Action classified as {category.value}",
@@ -126,15 +169,41 @@ class SafetyGate:
         )
 
     def confirm_action(self, action_id: str) -> bool:
-        """Record user confirmation for an action that required it."""
+        """Record user confirmation for an action that required it.
+
+        FIX A2 (#9): DENY INVARIANT — Cannot confirm a DENY'd action.
+        Always returns False for actions that received a DENY verdict.
+        This mirrors the Rust pybridge state.rs confirm_action() exactly.
+        """
+        # ── DENY invariant enforcement ─────────────────────────
+        if action_id in self._denied_actions:
+            logger.warning(
+                "SafetyGate: Cannot confirm DENIED action %s — DENY is absolute",
+                action_id,
+            )
+            return False
+
         self._confirmations[action_id] = time.time()
-        logger.info(f"SafetyGate: Action {action_id} confirmed by user")
+        logger.info("SafetyGate: Action %s confirmed by user", action_id)
         return True
 
     def approve_action(self, action_id: str, approver_role: str) -> bool:
-        """Record role-based approval for an action that required it."""
+        """Record role-based approval for an action that required it.
+
+        FIX A2 (#9): DENY INVARIANT — Cannot approve a DENY'd action.
+        Always returns False for actions that received a DENY verdict.
+        This mirrors the Rust pybridge state.rs approve_action() exactly.
+        """
+        # ── DENY invariant enforcement ─────────────────────────
+        if action_id in self._denied_actions:
+            logger.warning(
+                "SafetyGate: Cannot approve DENIED action %s — DENY is absolute",
+                action_id,
+            )
+            return False
+
         self._approvals[action_id] = approver_role
-        logger.info(f"SafetyGate: Action {action_id} approved by {approver_role}")
+        logger.info("SafetyGate: Action %s approved by %s", action_id, approver_role)
         return True
 
     def is_confirmed(self, action_id: str) -> bool:
@@ -145,11 +214,20 @@ class SafetyGate:
         """Check if an action has been approved."""
         return action_id in self._approvals
 
+    def is_denied(self, action_id: str) -> bool:
+        """Check if an action was denied.
+
+        FIX A2 (#10): Enables callers to verify DENY status by action_id,
+        mirroring the Rust DENIED_ACTIONS check in state.rs.
+        """
+        return action_id in self._denied_actions
+
     def get_stats(self) -> Dict[str, Any]:
         """Get safety gate statistics."""
         return {
             "allowed": self._allowed_count,
             "denied": self._denied_count,
+            "denied_actions": len(self._denied_actions),        # FIX A2
             "pending_confirmations": len(self._confirmations),
             "pending_approvals": len(self._approvals),
             "rules_count": len(self._rules),

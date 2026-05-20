@@ -12,6 +12,7 @@ import hashlib
 import hmac
 import logging
 import os
+import secrets
 from typing import Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -32,7 +33,22 @@ class ECDSASigner:
         self._private_key = None
         self._public_key = None
         self._use_fallback = True
-        self._fallback_key = os.environ.get("ZENIC_SIGNING_KEY", "default-signing-key-change-me")
+        # FIX SEC-4: Removed hardcoded fallback key. Use env var or ephemeral key.
+        signing_key = os.environ.get("ZENIC_SIGNING_KEY")
+        if signing_key:
+            self._fallback_key = signing_key
+        elif os.environ.get("NODE_ENV") == "production":
+            raise RuntimeError(
+                "ZENIC_SIGNING_KEY is required in production when "
+                "ECDSA is unavailable. Generate with: python -c \"import secrets; print(secrets.token_hex(32))\""
+            )
+        else:
+            self._fallback_key = secrets.token_hex(32)
+            logger.warning(
+                "ECDSASigner: No ZENIC_SIGNING_KEY configured. "
+                "Using ephemeral HMAC key — signatures will NOT survive restart. "
+                "Set ZENIC_SIGNING_KEY for persistent signing."
+            )
 
         if private_key_pem or public_key_pem:
             self._try_load_keys(private_key_pem, public_key_pem)

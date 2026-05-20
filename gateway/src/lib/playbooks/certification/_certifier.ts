@@ -20,7 +20,35 @@ import { generatePlaybookFingerprint, reconstructDocument } from "./_workflow";
 // ─── Server-side secret for HMAC signing ─────────────────────────────
 
 /** In production this would come from a secrets manager / HSM */
-const CERTIFICATION_SECRET = process.env.PLAYBOOK_CERT_SECRET ?? "zenic-agents-v3-certification-key-2024";
+// FIX SEC-3: Removed hardcoded certification key fallback. Must be set via env var.
+function getCertificationSecret(): string {
+  const secret = process.env.PLAYBOOK_CERT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error(
+        "[SECURITY] PLAYBOOK_CERT_SECRET is required in production. " +
+        "Generate with: openssl rand -hex 32"
+      );
+    }
+    // Dev mode: ephemeral key — certifications not portable across restarts
+    const { randomBytes } = require("crypto") as typeof import("crypto");
+    const ephemeralKey = randomBytes(32).toString("hex");
+    console.warn(
+      "[SECURITY] PLAYBOOK_CERT_SECRET not set. Using ephemeral key " +
+      "(certifications will not survive restart)."
+    );
+    return ephemeralKey;
+  }
+  if (secret.length < 32) {
+    throw new Error(
+      "[SECURITY] PLAYBOOK_CERT_SECRET must be at least 32 characters. " +
+      `Current length: ${secret.length}`
+    );
+  }
+  return secret;
+}
+
+const CERTIFICATION_SECRET = getCertificationSecret();
 
 // ─── Request Certification ───────────────────────────────────────────
 

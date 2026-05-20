@@ -14,7 +14,7 @@ use super::types::*;
 ///
 /// This is the core validation function that:
 /// 1. Classifies the action into a risk category
-/// 2. Checks all 10 deterministic safety rules (regex matching)
+/// 2. Checks all 14 deterministic safety rules (regex matching)
 /// 3. Applies per-action and per-category rate limiting
 /// 4. Returns the verdict with full details
 ///

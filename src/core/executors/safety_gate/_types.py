@@ -53,6 +53,7 @@ class SafetyCheckResult:
     category: ActionCategory
     reason: str
     rule_name: str
+    action_id: str = ""                                  # FIX A2: unique action ID for DENY tracking
     requires_confirmation: bool = False
     requires_approval: bool = False
     risk_score: float = 0.0
