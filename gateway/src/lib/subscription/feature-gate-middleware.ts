@@ -1,7 +1,20 @@
 /**
  * @deprecated This module is superseded by the pricing-engine feature gate.
- * New code should use `@/lib/pricing-engine/feature-gate` instead.
- * This module will be removed in a future release.
+ * New code MUST use `@/lib/pricing-engine/feature-gate` instead.
+ *
+ * H-97 CONSOLIDATION NOTICE:
+ * This module used snake_case feature names (mcp_gateway, rbac_basic)
+ * and a different DB table (tenantSubscription) than the CANONICAL
+ * pricing-engine module (subscription table, PascalCase feature names).
+ *
+ * Migration guide:
+ *   OLD: checkFeatureGate(tenantId, 'mcp_gateway')
+ *   NEW: checkFeatureAccess({ feature: 'McpToolExecution', userId, tenantId })
+ *
+ *   OLD: withFeatureGate('rbac_basic', handler)
+ *   NEW: requireFeature('RbacBasicRoles', handler)  [from pricing-engine]
+ *
+ * This module will be REMOVED once all routes migrate.
  * See: H-97 architectural finding — feature gate consolidation.
  */
 

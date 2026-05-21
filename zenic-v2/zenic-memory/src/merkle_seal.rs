@@ -258,24 +258,41 @@ impl MerkleSeal {
     }
 
     /// Computes the seal from a slice of leaf data.
+    ///
+    /// FIX: Now uses the same chain strategy as `update_root()` to ensure
+    /// `compute()` and `verify()` produce the same root hash as incremental
+    /// `seal_mapping()` calls. Previously, `compute()` used flat concatenation
+    /// `H(leaf₁ || leaf₂ || leaf₃)` while `update_root()` used chain
+    /// `H(H(H([0;32] || h₁) || h₂) || h₃)`, causing verification failures.
     pub fn compute(&mut self, leaves: &[Vec<u8>]) {
         self.leaf_count = leaves.len() as u64;
-        let mut hasher = blake3::Hasher::new();
+        // Chain strategy: H(H(H(root || h₁) || h₂) || h₃) — same as update_root()
+        let mut root = [0u8; 32];
         for leaf in leaves {
-            hasher.update(leaf);
+            let leaf_hash = blake3::hash(leaf);
+            let mut hasher = blake3::Hasher::new();
+            hasher.update(&root);
+            hasher.update(leaf_hash.as_bytes());
+            root = *hasher.finalize().as_bytes();
         }
-        self.root_hash = *hasher.finalize().as_bytes();
+        self.root_hash = root;
         self.verified = true;
     }
 
     /// Verifies the seal against the current data.
+    ///
+    /// FIX: Uses the same chain strategy as `compute()` and `update_root()`.
     pub fn verify(&self, leaves: &[Vec<u8>]) -> Result<bool, MemoryError> {
-        let mut hasher = blake3::Hasher::new();
+        // Reconstruct root using same chain strategy
+        let mut root = [0u8; 32];
         for leaf in leaves {
-            hasher.update(leaf);
+            let leaf_hash = blake3::hash(leaf);
+            let mut hasher = blake3::Hasher::new();
+            hasher.update(&root);
+            hasher.update(leaf_hash.as_bytes());
+            root = *hasher.finalize().as_bytes();
         }
-        let computed = hasher.finalize();
-        Ok(*computed.as_bytes() == self.root_hash)
+        Ok(root == self.root_hash)
     }
 
     /// Returns the root hash.

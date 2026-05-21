@@ -85,7 +85,7 @@ _HAS_SQLCIPHER: bool = HAS_SQLCIPHER
 #  DEFAULT PRAGMA CONFIGURATION
 # ──────────────────────────────────────────────────────────────
 
-_DEFAULT_KDF_ITERATIONS: int = 64_000
+_DEFAULT_KDF_ITERATIONS: int = 256_000  # OWASP 2024: ≥256K for PBKDF2-SHA256; matches Rust zenic-pybridge/src/db.rs
 _DEFAULT_CIPHER_PAGE_SIZE: int = 4096
 _DEFAULT_CIPHER_HMAC: str = "HMAC_SHA256"
 _DEFAULT_CIPHER_KDF: str = "PBKDF2_HMAC_SHA256"
@@ -116,7 +116,7 @@ def get_sqlcipher_connection(
     db_path: str,
     passphrase: str,
     *,
-    kdf_iterations: int = _DEFAULT_KDF_ITERATIONS,
+    kdf_iterations: int = _DEFAULT_KDF_ITERATIONS,  # 256K (H-98: was 64K, aligned with Rust)
     cipher_page_size: int = _DEFAULT_CIPHER_PAGE_SIZE,
     row_factory: Any = sqlite3.Row,
     apply_pragmas: bool = True,

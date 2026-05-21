@@ -525,25 +525,59 @@ class EncryptionManager:
         try:
             # Derive new key with new passphrase
             from cryptography.fernet import Fernet
-            from cryptography.hazmat.primitives import hashes
-            from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
             new_salt = secrets.token_bytes(32)
             if self._enable_hw_binding:
                 new_salt = self._hardware_bound_salt(new_salt)
 
-            kdf = PBKDF2HMAC(
-                algorithm=hashes.SHA256(),
-                length=32,
-                salt=new_salt,
-                iterations=self._pbkdf2_iterations,
-            )
-            new_key = base64.urlsafe_b64encode(kdf.derive(new_passphrase.encode()))
+            # H-94 FIX: Try Argon2id first (same as _init_fernet), then PBKDF2 fallback
+            new_key: bytes
+            kdf_used: str = self._kdf_algorithm
+            try:
+                import argon2
+
+                key_bytes = argon2.low_level.hash_secret_raw(
+                    secret=new_passphrase.encode(),
+                    salt=new_salt,
+                    time_cost=3,
+                    memory_cost=65536,  # 64 MB
+                    parallelism=4,
+                    hash_len=32,
+                    type=argon2.low_level.Type.ID,
+                )
+                new_key = base64.urlsafe_b64encode(key_bytes)
+                kdf_used = "Argon2id"
+            except ImportError:
+                from cryptography.hazmat.primitives import hashes
+                from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+                kdf = PBKDF2HMAC(
+                    algorithm=hashes.SHA256(),
+                    length=32,
+                    salt=new_salt,
+                    iterations=self._pbkdf2_iterations,
+                )
+                new_key = base64.urlsafe_b64encode(kdf.derive(new_passphrase.encode()))
+                kdf_used = "PBKDF2-SHA256"
+            except Exception as exc:
+                from cryptography.hazmat.primitives import hashes
+                from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+                logger.warning("EncryptionManager: Argon2id failed during rotation (%s), falling back to PBKDF2", exc)
+                kdf = PBKDF2HMAC(
+                    algorithm=hashes.SHA256(),
+                    length=32,
+                    salt=new_salt,
+                    iterations=self._pbkdf2_iterations,
+                )
+                new_key = base64.urlsafe_b64encode(kdf.derive(new_passphrase.encode()))
+                kdf_used = "PBKDF2-SHA256"
 
             with self._lock:
                 self._fernet = Fernet(new_key)
                 self._fernet_key = new_key
                 self._passphrase = new_passphrase
+                self._kdf_algorithm = kdf_used
 
             # Persist new salt
             self._persist_salt(new_salt)

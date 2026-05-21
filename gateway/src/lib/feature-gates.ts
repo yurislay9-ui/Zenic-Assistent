@@ -1,9 +1,23 @@
 /**
  * DB-stored feature gates with HMAC-signed tokens.
- * This complements (not duplicates) the pricing-engine feature gate:
- * - Pricing engine: evaluates tier/usage limits via WASM
- * - This module: manages DB-stored gates + generates tamper-proof tokens
- * Both should be used together: pricing-engine for evaluation, this for tokens.
+ *
+ * H-97 CONSOLIDATION NOTICE:
+ * This module is being consolidated into the CANONICAL pricing-engine
+ * feature gate at `@/lib/pricing-engine/feature-gate.ts`. The three
+ * feature-gate modules used different naming schemes:
+ *   - This module:     `mcp:list`, `approval:review`  (domain:action)
+ *   - Pricing engine:  `McpToolExecution`             (PascalCase)
+ *   - Subscription MW:  `mcp_gateway`                  (snake_case) [DEPRECATED]
+ *
+ * Migration guide:
+ *   OLD: checkFeatureGate('mcp:call-tool', userRole)
+ *   NEW: checkFeatureAccess({ feature: 'McpToolExecution', userId, tenantId })
+ *
+ * The HMAC token system (generateFeatureToken/verifyFeatureToken) is
+ * retained here as it serves a different purpose (tamper-proof tokens)
+ * and is NOT duplicated in the pricing-engine module.
+ *
+ * Target removal: after all routes migrate to pricing-engine checks.
  * See: H-97 architectural finding — feature gate consolidation.
  */
 

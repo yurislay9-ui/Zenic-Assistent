@@ -1,11 +1,19 @@
 // ─── MCP Gateway — Execute Tool ─────────────────────────────────────
+// FIX: Now uses the class-based GatewayEngine with full 8-step security
+// pipeline (auth, RBAC, rate limit, policy engine, Merkle audit).
+// Previously used the deprecated functional evaluateExecution() which
+// skipped all security checks.
 
 import { NextRequest, NextResponse } from "next/server";
-import { evaluateExecution } from "@/lib/mcp-gateway/services/gateway-engine";
+import { GatewayEngine } from "@/lib/mcp-gateway/engine/gateway-engine";
+import { getRateLimiter } from "@/lib/mcp-gateway/rate-limiter/rate-limiter";
+import { getAuthService } from "@/lib/mcp-gateway/auth/auth-service";
+import { getToolRegistry } from "@/lib/mcp-gateway/sdk/tool-registry";
+import { getMerkleAuditService } from "@/lib/mcp-gateway/audit/merkle-audit";
+import type { ApiResponse, GatewayRequest } from "@/lib/mcp-gateway/types";
 import { recordAudit } from "@/lib/mcp-gateway/services/audit-service";
-import type { ApiResponse, ExecutionRequest, VerdictResponse } from "@/lib/mcp-gateway/types";
 
-/** POST /api/mcp/gateway — Execute a tool through the gateway */
+/** POST /api/mcp/gateway — Execute a tool through the gateway (SECURED) */
 export async function POST(request: NextRequest) {
   try {
     const body: {
@@ -30,31 +38,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build execution request
-    const executionRequest: ExecutionRequest = {
-      toolName: body.toolName,
-      input: body.input,
-      executorId: body.executorId,
-      correlationId: body.correlationId,
+    // ── Extract auth context from request ──────────────────────
+    // FIX: Server-side auth verification — don't trust client-supplied executorId
+    const authService = getAuthService();
+    const authContext = await authService.extractFromRequest(request);
+
+    if (!authContext.authenticated) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required", code: "AUTH_REQUIRED" } as const,
+        { status: 401 }
+      );
+    }
+
+    // ── Build GatewayRequest with verified auth ────────────────
+    const gatewayRequest: GatewayRequest = {
+      toolCall: {
+        name: body.toolName,
+        arguments: body.input,
+        _meta: {
+          traceId: body.correlationId,
+        },
+      },
+      auth: {
+        authenticated: true,
+        method: authContext.method,
+        executorId: authContext.executorId ?? body.executorId,
+        tenantId: authContext.tenantId,
+        roles: authContext.roles,
+      },
     };
 
-    // Evaluate execution through gateway engine
-    const verdict: VerdictResponse = await evaluateExecution(executionRequest);
+    // ── Use class-based GatewayEngine with full security pipeline ──
+    const engine = new GatewayEngine({
+      rateLimiter: getRateLimiter(),
+      authService,
+      toolRegistry: getToolRegistry(),
+      auditService: getMerkleAuditService(),
+    });
 
-    const response: ApiResponse<VerdictResponse> = {
-      success: true,
-      data: verdict,
-      message: verdict.verdict === "allow"
+    const response = await engine.execute(gatewayRequest);
+
+    const apiResponse: ApiResponse<typeof response> = {
+      success: response.verdict === "allow",
+      data: response,
+      message: response.verdict === "allow"
         ? "Execution authorized"
-        : verdict.verdict === "conditional"
+        : response.verdict === "conditional"
           ? "Execution requires approval"
-          : "Execution denied",
+          : response.reason ?? "Execution denied",
     };
 
     // Return appropriate status based on verdict
-    const status = verdict.verdict === "allow" ? 200 : verdict.verdict === "conditional" ? 202 : 403;
+    const status = response.verdict === "allow" ? 200 : response.verdict === "conditional" ? 202 : 403;
 
-    return NextResponse.json(response, { status });
+    return NextResponse.json(apiResponse, { status });
   } catch (error) {
     console.error("[POST /api/mcp/gateway]", error);
 

@@ -10,6 +10,19 @@ from ._api_mixin import APIMixin
 from ._phase7_mixin import Phase7Mixin
 from ._phase8_mixin import Phase8Mixin
 from ._compat_mixin import CompatMixin
+from ._phases import (  # H-83: Extracted init phases
+    OrchestratorPhase,
+    CommonStatePhase,
+    PipelinePhase,
+    AIArchitecturePhase,
+    ExtendedArchitecturePhase,
+    Phase7EnginesPhase,
+    Phase8IntelligencePhase,
+    DecomposedModulesPhase,
+    AgentFrameworkPhase,
+    GodLevelImprovementsPhase,
+    PHASE_ORDER,
+)
 from ._imports import (
     logger, Path, Dict, Any, List, Optional,
     initialize_databases, get_projects_dir, load_settings,
@@ -48,6 +61,18 @@ class BaseOrchestrator(InitMixin, APIMixin, Phase7Mixin, Phase8Mixin, CompatMixi
 
 __all__ = [
     "BaseOrchestrator",
+    # H-83: OrchestratorPhase classes for testable init pipeline
+    "OrchestratorPhase",
+    "CommonStatePhase",
+    "PipelinePhase",
+    "AIArchitecturePhase",
+    "ExtendedArchitecturePhase",
+    "Phase7EnginesPhase",
+    "Phase8IntelligencePhase",
+    "DecomposedModulesPhase",
+    "AgentFrameworkPhase",
+    "GodLevelImprovementsPhase",
+    "PHASE_ORDER",
     # Re-export all imports for backward compatibility
     "logger", "Path", "Dict", "Any", "List", "Optional",
     "initialize_databases", "get_projects_dir", "load_settings",

@@ -70,7 +70,7 @@ class SQLCipherAdapter:
         db_path: str = ":memory:",
         passphrase: str = "",
         pool_size: int = 5,
-        kdf_iterations: int = 64000,
+        kdf_iterations: int = 256_000,  # H-98: was 64K, aligned with Rust + OWASP 2024
         cipher_page_size: int = 4096,
         hardware_bind: bool = False,
     ) -> None:
