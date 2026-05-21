@@ -218,7 +218,7 @@ class AC3FallbackMixin:
                 results["invariant_safety"] = {
                     "status": "LIKELY_PROVEN" if not invariants else "UNKNOWN",
                     "solver_type": "AC3",
-                    "verified": not invariants,
+                    "verified": False,  # LIKELY_PROVEN ≠ PROVEN; AC-3 pattern check is not formal proof
                     "counterexamples": [],
                     "proof": f"AC-3 pattern check: {len(invariants)} patterns found",
                 }

@@ -15,6 +15,7 @@ from ._constants import (
 )
 
 from src.core.shared.deterministic import ControllableJitter
+from src.core.verdict_engine_module import _validate_ai_verdict  # H-88: AI output validation
 
 if _RESILIENCE_AVAILABLE:
     from ._constants import (  # noqa: F401 — conditional import
@@ -86,13 +87,21 @@ class VerdictHelpersMixin:
             self._verdict_resilience.audit_verdict(entry)
 
     def _verdict_llm_call(self, user_prompt: str) -> Optional[str]:
-        """LLM call specific for verdicts."""
+        """LLM call specific for verdicts.
+
+        H-88: All AI output is validated through _validate_ai_verdict()
+        to ensure strictly binary YES/NO responses.
+        """
         try:
-            return self._call_llm(
+            raw = self._call_llm(
                 system_prompt=VERDICT_SYSTEM_PROMPT,
                 user_prompt=user_prompt,
                 max_tokens=10,  # VERDICT_MAX_TOKENS
             )
+            if raw is None:
+                return None
+            # H-88: Validate AI output is strictly binary before passing to parser
+            return _validate_ai_verdict(raw)
         except Exception as e:
             logger.warning(f"VerdictMixin: LLM call failed: {e}")
             return None
@@ -101,6 +110,9 @@ class VerdictHelpersMixin:
     def _parse_verdict_response(response: str) -> Optional[str]:
         """
         Parse the LLM response. Only accepts YES or NO.
+
+        H-88: Strict parsing — NO substring matching.
+        "YESTERDAY" → None, "NOTICE" → None.
 
         Rules:
           - "YES" → "YES"
@@ -119,13 +131,11 @@ class VerdictHelpersMixin:
         # Take only the first word
         first_word = clean.split()[0].upper() if clean.split() else ""
 
+        # SECURITY (H-88): Only exact matches accepted. No substring fallback.
+        # "YESTERDAY"→YES was possible with the old substring check.
         if first_word == "YES":
             return "YES"
         elif first_word == "NO":
-            return "NO"
-        elif "YES" in first_word:
-            return "YES"
-        elif "NO" in first_word:
             return "NO"
 
         # Ambiguous = None → converted to NO

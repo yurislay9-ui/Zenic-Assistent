@@ -15,7 +15,9 @@ FIX A2 (Hallazgos #9, #10):
 """
 
 import itertools
+import json
 import logging
+import os
 import threading
 import time
 from typing import Any, Dict, List, Optional, Set
@@ -385,17 +387,78 @@ _default_safety_gate: Optional[SafetyGate] = None
 _safety_gate_lock = threading.Lock()
 
 
+# ── DENY Persistence Configuration ─────────────────────────
+# When configured, denied action IDs are persisted to disk so they
+# survive reset_safety_gate() calls. This enforces the DENY invariant.
+
+_DENY_PERSIST_DIR: Optional[str] = None
+
+
+def configure_deny_persistence(log_dir: str) -> None:
+    """Configure persistent deny-action logging.
+
+    When configured, denied action IDs are written to a file
+    so they survive reset_safety_gate() calls. This prevents
+    accidental bypass of the DENY invariant.
+
+    Args:
+        log_dir: Directory path for the deny-persistence file.
+    """
+    global _DENY_PERSIST_DIR
+    _DENY_PERSIST_DIR = log_dir
+    logger.info("SafetyGate: DENY persistence configured at %s", log_dir)
+
+
 def get_default_safety_gate() -> SafetyGate:
-    """Get or create the global SafetyGate instance (double-checked locking)."""
+    """Get or create the global SafetyGate instance (double-checked locking).
+
+    If deny-persistence is configured, previously denied actions are
+    restored on recreation, preserving the DENY invariant across resets.
+    """
     global _default_safety_gate
     if _default_safety_gate is None:
         with _safety_gate_lock:
             if _default_safety_gate is None:
-                _default_safety_gate = SafetyGate()
+                gate = SafetyGate()
+                # Restore denied actions from persistence
+                if _DENY_PERSIST_DIR:
+                    deny_path = os.path.join(_DENY_PERSIST_DIR, ".safety-denied-actions.json")
+                    if os.path.exists(deny_path):
+                        try:
+                            with open(deny_path, "r") as f:
+                                data = json.load(f)
+                            for action_id in data.get("denied_actions", []):
+                                gate._denied_actions.add(action_id)
+                            logger.info(
+                                "SafetyGate: Restored %d denied actions from persistence",
+                                len(gate._denied_actions),
+                            )
+                        except Exception as exc:
+                            logger.warning("SafetyGate: Failed to restore denied actions: %s", exc)
+                _default_safety_gate = gate
     return _default_safety_gate
 
 
 def reset_safety_gate() -> None:
-    """Reset the global SafetyGate (for testing)."""
+    """Reset the global SafetyGate (for testing).
+
+    SECURITY: If deny-persistence is configured, denied actions
+    are preserved across resets. This prevents accidental bypass
+    of the DENY invariant.
+    """
     global _default_safety_gate
-    _default_safety_gate = None
+
+    # Save denied actions before reset
+    if _default_safety_gate is not None and _DENY_PERSIST_DIR:
+        denied = list(_default_safety_gate._denied_actions)
+        try:
+            os.makedirs(_DENY_PERSIST_DIR, exist_ok=True)
+            deny_path = os.path.join(_DENY_PERSIST_DIR, ".safety-denied-actions.json")
+            with open(deny_path, "w") as f:
+                json.dump({"denied_actions": denied, "ts": time.time()}, f)
+            logger.info("SafetyGate: Persisted %d denied actions before reset", len(denied))
+        except Exception as exc:
+            logger.error("SafetyGate: Failed to persist denied actions: %s", exc)
+
+    with _safety_gate_lock:
+        _default_safety_gate = None

@@ -3,6 +3,7 @@
 // financial endpoints. No access without verified identity.
 
 import { NextRequest } from 'next/server';
+import { timingSafeEqual } from 'crypto';
 
 // ─── Tenant Authentication ───
 
@@ -21,16 +22,29 @@ export function extractTenantId(req: NextRequest | Request): string | null {
 }
 
 /**
+ * Constant-time string comparison to prevent timing attacks (SAST H-64).
+ * Returns true if both strings are equal, false otherwise.
+ * When lengths differ, performs a dummy comparison to avoid leaking length info.
+ */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'utf-8');
+  const bufB = Buffer.from(b, 'utf-8');
+  if (bufA.length !== bufB.length) {
+    // Still perform a comparison to avoid leaking length via timing
+    return !timingSafeEqual(bufA, bufA);
+  }
+  return timingSafeEqual(bufA, bufB);
+}
+
+/**
  * Verifies that the request comes from an authenticated tenant.
  *
  * For the local/Termux deployment model (INVARIANT 3), this uses
  * header-based authentication with a shared secret via env var.
  *
- * If ZENIC_TENANT_SECRET is not set (development mode), all requests
- * with a valid x-tenant-id header are accepted.
- *
- * INVARIANT 4: If the secret IS set but the token doesn't match,
- * access is DENIED.
+ * SECURITY (SAST H-63): If ZENIC_TENANT_SECRET is not set, access is DENIED
+ * unless ZENIC_DEV_MODE=1 is explicitly enabled. This aligns with
+ * verifyAdminAuth()'s fail-closed behavior (INVARIANT 4).
  */
 export function verifyTenantAuth(req: NextRequest | Request): AuthenticatedTenant | null {
   const tenantId = extractTenantId(req);
@@ -40,13 +54,22 @@ export function verifyTenantAuth(req: NextRequest | Request): AuthenticatedTenan
   const tenantToken = req.headers.get('x-tenant-token');
   const expectedToken = process.env.ZENIC_TENANT_SECRET;
 
-  // If no secret configured, allow (development/offline mode per INVARIANT 3)
+  // SECURITY (SAST H-63): Fail-closed when no secret is configured.
+  // Dev override requires explicit ZENIC_DEV_MODE=1 + development environment.
   if (!expectedToken) {
-    return { tenantId, role: 'owner' };
+    if (process.env.ZENIC_DEV_MODE === '1' && process.env.NODE_ENV === 'development') {
+      console.warn(
+        `[Tenant Auth] ⚠️ DEV MODE: No ZENIC_TENANT_SECRET set. ` +
+        `Tenant ${tenantId} auto-authenticated as owner.`
+      );
+      return { tenantId, role: 'owner' };
+    }
+    // INVARIANT 4: No secret configured = tenant endpoints LOCKED
+    return null;
   }
 
-  // INVARIANT 4: Token mismatch = deny
-  if (tenantToken !== expectedToken) return null;
+  // INVARIANT 4: Token mismatch = deny (timing-safe comparison — SAST H-64)
+  if (!tenantToken || !safeEqual(tenantToken, expectedToken)) return null;
   return { tenantId, role: 'owner' };
 }
 
@@ -76,7 +99,8 @@ export function verifyAdminAuth(req: Request | NextRequest): AdminUser | null {
     return null;
   }
 
-  if (adminKey !== expectedKey) return null;
+  // SECURITY (SAST H-64): Constant-time comparison prevents timing attacks
+  if (!adminKey || !safeEqual(adminKey, expectedKey)) return null;
 
   const adminUserId = req.headers.get('x-admin-user-id') || 'admin';
   return { userId: adminUserId, role: 'admin' };

@@ -45,7 +45,7 @@ export function loadPlaybookFromYaml(
 
   let raw: unknown;
   try {
-    raw = yaml.load(yamlContent);
+    raw = yaml.load(yamlContent, { schema: yaml.DEFAULT_SAFE_SCHEMA });
   } catch (err) {
     throw new PlaybookCompilationError(
       `YAML parse error: ${err instanceof Error ? err.message : String(err)}`,

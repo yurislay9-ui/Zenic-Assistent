@@ -1,5 +1,10 @@
 // ─── Safety Gate Action Classification ───────────────────────────────────
 // classify_action_inner(), config_to_searchable(), get_config_string(), classify_action() (pub)
+//
+// IMPORTANT: This classification logic must stay synchronized with
+// zenic-safety/src/engine/gate.rs classify_action(). Any changes here
+// MUST be mirrored there, and vice versa.
+// See: H-84 architectural finding — classification divergence.
 
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyList, PyTuple};
@@ -104,6 +109,7 @@ pub(crate) fn classify_action_inner(action_type: &str, config: &Bound<'_, PyDict
         }
         "transform" | "data_transform" => ActionCategory::Safe,
         "discord" => ActionCategory::Moderate,
+        "niche_onboarding" => ActionCategory::Moderate,
         _ => ActionCategory::Moderate,
     }
 }

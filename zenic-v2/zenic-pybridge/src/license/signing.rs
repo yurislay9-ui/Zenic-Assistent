@@ -43,17 +43,12 @@ pub fn sign_data(data: &str, secret_key: &str) -> PyResult<String> {
 #[pyo3(signature = (data, signature, secret_key))]
 pub fn verify_signature(data: &str, signature: &str, secret_key: &str) -> PyResult<bool> {
     let expected = hmac_sha256(secret_key.as_bytes(), data.as_bytes());
-    let expected_hex = hex_encode(&expected);
-
-    if signature.len() == expected_hex.len() {
-        return Ok(constant_time_compare(
-            signature.as_bytes(),
-            expected_hex.as_bytes(),
-        ));
-    }
-
-    match hex_decode(signature) {
-        Ok(sig_bytes) => Ok(constant_time_compare(&sig_bytes, &expected)),
-        Err(_) => Ok(false),
-    }
+    let expected_bytes = hex_decode(&hex_encode(&expected)).unwrap_or_default();
+    let signature_bytes = hex_decode(signature)
+        .unwrap_or_else(|_| {
+            // Pad to expected length to avoid timing leak on length mismatch
+            let len = expected_bytes.len().max(32);
+            vec![0u8; len]
+        });
+    Ok(constant_time_compare(&expected_bytes, &signature_bytes))
 }

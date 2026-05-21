@@ -85,6 +85,22 @@ class ZenicOrchestrator(BaseOrchestrator):
     """
 
     def __init__(self) -> None:
+        # ══════════════════════════════════════════════════════
+        # H-83 NOTE: This __init__ has 8 initialization phases.
+        # Each phase should ideally be an OrchestratorPhase class.
+        # TODO(architecture): Extract each phase into a separate class:
+        #   Phase 1: CommonStatePhase    (_init_common_state)
+        #   Phase 2: PipelinePhase       (_init_pipeline_components)
+        #   Phase 3: AIArchitecturePhase (_init_ai_architecture + VerdictEngine)
+        #   Phase 4: ExtendedPhase       (_init_extended_with_defaults)
+        #   Phase 5: DecomposedPhase     (_init_decomposed_modules)
+        #   Phase 6: AgentFrameworkPhase (_init_agent_framework)
+        #   Phase 7: GodLevelPhase       (_init_god_level_improvements)
+        #   Phase 8: ScanPhase           (_scan_project)
+        # This will reduce coupling and make the orchestrator testable
+        # at each phase boundary.
+        # ══════════════════════════════════════════════════════
+
         # 1. Common state
         settings = load_settings()
         self._init_common_state()

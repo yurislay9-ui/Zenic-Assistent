@@ -1,28 +1,34 @@
-"""Singleton functions for ResourceGovernor."""
+"""ResourceGovernor singleton — uses shared Singleton class."""
 
-import threading
+from src.core.shared.singleton import Singleton
 
-from ._imports import logger
-from .governor import ResourceGovernor
-
-_governor = None
-_governor_lock = threading.Lock()
-
-
-def get_governor() -> 'ResourceGovernor':
-    """Obtiene el singleton del ResourceGovernor (thread-safe with double-checked locking)."""
-    global _governor
-    if _governor is None:
-        with _governor_lock:
-            if _governor is None:
-                _governor = ResourceGovernor()
-    return _governor
+_resource_governor = Singleton(
+    lambda: __import__("src.core.shared.governor_parts.governor", fromlist=["ResourceGovernor"]).ResourceGovernor(),
+    name="ResourceGovernor",
+)
 
 
-def init_governor(ram_limit_mb=None) -> 'ResourceGovernor':
-    """Inicializa el governor con configuracion custom (thread-safe)."""
-    global _governor
-    with _governor_lock:
-        _governor = ResourceGovernor(ram_limit_mb=ram_limit_mb)
-        _governor.start_monitoring()
-    return _governor
+def get_governor():
+    """Get or create the ResourceGovernor singleton."""
+    return _resource_governor.get()
+
+
+def init_governor(ram_limit_mb=None):
+    """Initialize ResourceGovernor with custom parameters (thread-safe).
+
+    Raises:
+        RuntimeError: If ResourceGovernor is already initialized.
+    """
+    from .governor import ResourceGovernor
+
+    def factory():
+        return ResourceGovernor(ram_limit_mb=ram_limit_mb)
+
+    instance = _resource_governor.init(factory)
+    instance.start_monitoring()
+    return instance
+
+
+def reset_governor():
+    """Reset the ResourceGovernor singleton (for testing)."""
+    _resource_governor.reset()

@@ -1,4 +1,11 @@
 /**
+ * @deprecated This module is superseded by the pricing-engine feature gate.
+ * New code should use `@/lib/pricing-engine/feature-gate` instead.
+ * This module will be removed in a future release.
+ * See: H-97 architectural finding — feature gate consolidation.
+ */
+
+/**
  * Feature Gate Middleware for API Routes
  *
  * Checks subscription tier before allowing access to features.

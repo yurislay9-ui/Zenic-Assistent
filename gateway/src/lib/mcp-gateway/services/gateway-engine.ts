@@ -1,3 +1,11 @@
+/**
+ * @deprecated This functional gateway engine is superseded by the class-based
+ * GatewayEngine at @/lib/mcp-gateway/engine/gateway-engine.ts which provides
+ * the full 8-step security pipeline (auth, RBAC, rate limit, policy engine, Merkle audit).
+ * This module skips all security checks and should NOT be used for production routes.
+ * See: H-97 architectural finding — gateway engine consolidation.
+ */
+
 // ─── Zenic-Agents MCP Gateway — Gateway Engine Service ────────────────
 // Functional gateway engine — used by API routes for execution evaluation.
 // This is the simpler, functional interface that wraps the class-based

@@ -74,7 +74,8 @@ pub(crate) fn rate_limit_check(action_type: &str, category: &ActionCategory) -> 
             action_type, max_per_minute
         ));
     }
-    ts.push(now);
+    // NOTE: ts.push(now) deferred — only record after ALL checks pass
+    // (H-89 fix: recording before category check caused false rate limits)
 
     // ── Per-category per-hour check ────────────────────────────
     let cat_ts = state
@@ -110,6 +111,9 @@ pub(crate) fn rate_limit_check(action_type: &str, category: &ActionCategory) -> 
             }
         }
     }
+
+    // ALL checks passed — now record timestamps (H-89 fix)
+    ts.push(now);
     cat_ts.push(now);
 
     None

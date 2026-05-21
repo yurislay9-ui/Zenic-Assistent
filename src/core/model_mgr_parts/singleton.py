@@ -1,33 +1,37 @@
-"""Singleton functions for ModelManager."""
+"""ModelManager singleton — uses shared Singleton class."""
 
-import threading
+from src.core.shared.singleton import Singleton
 
-from ._imports import IDLE_TIMEOUT_S, RAM_BUDGET_MB, ENABLE_LAZY_LOAD
-
-_manager = None
-_singleton_lock = threading.Lock()
+_model_manager = Singleton(
+    lambda: __import__("src.core.model_mgr_parts.manager", fromlist=["ModelManager"]).ModelManager(),
+    name="ModelManager",
+)
 
 
 def get_model_manager():
-    """Obtiene el singleton del ModelManager."""
-    global _manager
-    if _manager is None:
-        with _singleton_lock:
-            if _manager is None:
-                from .manager import ModelManager
-                _manager = ModelManager()
-    return _manager
+    """Get or create the ModelManager singleton."""
+    return _model_manager.get()
 
 
-def init_model_manager(lazy_load: bool = True, idle_timeout_s: int = None,
-                       ram_budget_mb: int = None):
-    """Inicializa el ModelManager con configuracion custom."""
-    global _manager
-    from .manager import ModelManager
-    _manager = ModelManager(
-        lazy_load=lazy_load,
-        idle_timeout_s=idle_timeout_s,
-        ram_budget_mb=ram_budget_mb,
-    )
-    _manager.start_auto_unload_monitor()
-    return _manager
+def init_model_manager(lazy_load=True, idle_timeout_s=None, ram_budget_mb=None):
+    """Initialize ModelManager with custom parameters (thread-safe).
+
+    Raises:
+        RuntimeError: If ModelManager is already initialized.
+    """
+    def factory():
+        from .manager import ModelManager
+        return ModelManager(
+            lazy_load=lazy_load,
+            idle_timeout_s=idle_timeout_s,
+            ram_budget_mb=ram_budget_mb,
+        )
+
+    instance = _model_manager.init(factory)
+    instance.start_auto_unload_monitor()
+    return instance
+
+
+def reset_model_manager():
+    """Reset the ModelManager singleton (for testing)."""
+    _model_manager.reset()

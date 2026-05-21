@@ -171,7 +171,7 @@ class ConstraintSolver:
             return {"status": "TIMEOUT", "verified": False, "counterexamples": violations}
         if violations:
             return {"status": "LIKELY_VIOLATED", "verified": False, "counterexamples": violations}
-        return {"status": "LIKELY_PROVEN", "verified": True, "counterexamples": [], "checked": samples}
+        return {"status": "LIKELY_PROVEN", "verified": False, "counterexamples": [], "checked": samples}  # LIKELY_PROVEN ≠ PROVEN; bounded sampling is not formal proof
 
     def _ac3(self, domains, constraints):
         """Algoritmo AC-3 para consistencia de arcos.

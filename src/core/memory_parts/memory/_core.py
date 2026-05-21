@@ -28,15 +28,34 @@ from ..longterm import LongTermMixin
 from ..episodes import EpisodesMixin
 from ._tenant_mixin import TenantMixin
 from ._session_mixin import SessionMixin
-# Tenant module removed — use fallback anonymous context
+# Tenant module removed — use tenant_utils for multi-tenant context
 # from src.core.tenant._context import get_current_tenant, set_current_tenant, TenantContext
-from src.core.shared.tenant_utils import ANONYMOUS_TENANT
+from src.core.shared.tenant_utils import (
+    ANONYMOUS_TENANT,
+    resolve_tenant_id,
+    set_tenant_context,
+    clear_tenant_context,
+)
+
 
 class _FallbackTenantContext:
-    """Minimal fallback for removed TenantContext."""
+    """Minimal fallback for removed TenantContext.
+
+    Backed by tenant_utils thread-local context so the tenant ID
+    is always consistent with set_tenant_context()/resolve_tenant_id().
+
+    H-78: In production (no ZENIC_DEV_MODE), if no tenant is set, this
+    raises RuntimeError instead of silently using ANONYMOUS_TENANT.
+    This enforces the fail-closed multi-tenant invariant.
+    """
     def __init__(self):
-        self.tenant_id = ANONYMOUS_TENANT
-        self.effective_tenant_id = ANONYMOUS_TENANT
+        # H-78: resolve_tenant_id() raises RuntimeError in production
+        # if no tenant is set. We do NOT silently fall back to
+        # ANONYMOUS_TENANT — that defeats the fail-closed invariant.
+        # In dev mode (ZENIC_DEV_MODE=1), resolve_tenant_id() already
+        # returns ANONYMOUS_TENANT without raising.
+        self.tenant_id = resolve_tenant_id()
+        self.effective_tenant_id = self.tenant_id
         self.user_id = 0
         self.username = ""
         self.role = "viewer"
@@ -48,11 +67,19 @@ class _FallbackTenantContext:
         self.is_authenticated = False
         self.extra = {}
 
+
 def get_current_tenant():
     return _FallbackTenantContext()
 
+
 def set_current_tenant(ctx):
-    pass
+    """Propagate tenant ID to the thread-local tenant_utils context.
+
+    H-78: Does NOT silently skip invalid tenant IDs in production.
+    If ctx.tenant_id is ANONYMOUS_TENANT and ZENIC_DEV_MODE is not set,
+    this raises ValueError (fail-closed). In dev mode, it's allowed.
+    """
+    set_tenant_context(ctx.tenant_id)
 
 class SmartMemory(DatabaseMixin, CacheMixin, LongTermMixin, EpisodesMixin, TenantMixin, SessionMixin):
     """
@@ -77,9 +104,11 @@ class SmartMemory(DatabaseMixin, CacheMixin, LongTermMixin, EpisodesMixin, Tenan
         self._client_id = 'default'  # Brecha B: Multi-client isolation
         self._last_vacuum_time = 0.0  # Instance variable (was class var)
 
-        # Phase 2: Tenant-aware initialization
-        ctx = get_current_tenant()
-        self._tenant_id: str = ctx.effective_tenant_id
+        # Phase 2: Tenant-aware initialization (H-78 fail-closed)
+        # resolve_tenant_id() raises RuntimeError in production if no
+        # tenant is set. In dev mode (ZENIC_DEV_MODE=1), it returns
+        # ANONYMOUS_TENANT. We do NOT silently fall back to anonymous.
+        self._tenant_id: str = resolve_tenant_id()
         logger.info(
             f"SmartMemory: Initialized with tenant_id='{_sanitize_client(self._tenant_id)}', "
             f"client_id='{_sanitize_client(self._client_id)}'"

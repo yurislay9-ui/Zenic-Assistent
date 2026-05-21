@@ -27,7 +27,16 @@ class ECDSASigner:
 
     The fallback is NOT cryptographically equivalent to ECDSA
     but provides integrity verification in constrained environments.
+
+    Signatures are prefixed with the algorithm used:
+        "ecdsa-p256:<hex>" for ECDSA signatures
+        "hmac-sha256:<hex>" for HMAC fallback signatures
+    This prevents an attacker from forging HMAC signatures that
+    pass ECDSA verification, and vice-versa.
     """
+
+    ALGO_ECDSA = "ecdsa-p256"
+    ALGO_HMAC = "hmac-sha256"
 
     def __init__(self, private_key_pem: str = "", public_key_pem: str = "") -> None:
         self._private_key = None
@@ -145,7 +154,8 @@ class ECDSASigner:
             data: The string data to sign.
 
         Returns:
-            Hex-encoded signature string.
+            Hex-encoded signature string with algorithm prefix.
+            Format: "ecdsa-p256:<hex>" or "hmac-sha256:<hex>"
         """
         if not self._use_fallback and self._private_key:
             try:
@@ -155,42 +165,69 @@ class ECDSASigner:
                     data.encode(),
                     ec.ECDSA(hashes.SHA256()),
                 )
-                return signature.hex()
+                return f"{self.ALGO_ECDSA}:{signature.hex()}"
             except Exception as exc:
                 logger.error("ECDSASigner: ECDSA signing failed: %s", exc)
 
-        # HMAC fallback
-        return hmac.new(
+        # HMAC fallback — requires DEV MODE in production
+        if os.environ.get("ZENIC_DEV_MODE") != "1" and not self._use_fallback:
+            raise RuntimeError(
+                "ECDSA signing failed and HMAC fallback is disabled in production. "
+                "Install the 'cryptography' package."
+            )
+
+        mac = hmac.new(
             self._fallback_key.encode(), data.encode(), hashlib.sha256,
         ).hexdigest()
+        return f"{self.ALGO_HMAC}:{mac}"
 
     def verify(self, data: str, signature_hex: str) -> bool:
         """Verify a signature against data.
 
+        Supports both algorithm-prefixed signatures (ecdsa-p256:<hex>,
+        hmac-sha256:<hex>) and legacy prefixless signatures for backward
+        compatibility during migration.
+
         Args:
             data: The original string data.
-            signature_hex: Hex-encoded signature to verify.
+            signature_hex: Hex-encoded signature to verify (optionally prefixed).
 
         Returns:
             True if the signature is valid.
         """
-        if not self._use_fallback and self._public_key:
+        # Parse algorithm prefix
+        if ":" in signature_hex:
+            algo, sig = signature_hex.split(":", 1)
+        else:
+            # Legacy: no prefix — try both algorithms for migration
+            algo = None
+            sig = signature_hex
+
+        # ECDSA verification
+        if algo == self.ALGO_ECDSA or (algo is None and not self._use_fallback):
             try:
                 from cryptography.hazmat.primitives import hashes
                 from cryptography.hazmat.primitives.asymmetric import ec
-                signature = bytes.fromhex(signature_hex)
+                signature = bytes.fromhex(sig)
                 self._public_key.verify(
                     signature, data.encode(), ec.ECDSA(hashes.SHA256()),
                 )
                 return True
             except Exception:
-                return False
+                if algo == self.ALGO_ECDSA:
+                    # ECDSA tag present — must verify as ECDSA only
+                    return False
+                # Legacy: fall through to HMAC attempt
 
-        # HMAC fallback verification
-        expected = hmac.new(
-            self._fallback_key.encode(), data.encode(), hashlib.sha256,
-        ).hexdigest()
-        return hmac.compare_digest(expected, signature_hex)
+        # HMAC verification
+        if algo == self.ALGO_HMAC or algo is None:
+            if self._fallback_key:
+                expected = hmac.new(
+                    self._fallback_key.encode(), data.encode(), hashlib.sha256,
+                ).hexdigest()
+                return hmac.compare_digest(expected, sig)
+
+        return False
 
     def get_public_key_pem(self) -> str:
         """Get the public key in PEM format."""
@@ -208,6 +245,12 @@ class ECDSASigner:
     def is_using_fallback(self) -> bool:
         """Check if using HMAC fallback instead of proper ECDSA."""
         return self._use_fallback
+
+    def get_signature_algorithm(self) -> str:
+        """Get the algorithm used for signing."""
+        if not self._use_fallback and self._private_key:
+            return self.ALGO_ECDSA
+        return self.ALGO_HMAC
 
 
 # ── Module-level helpers ──────────────────────────────────

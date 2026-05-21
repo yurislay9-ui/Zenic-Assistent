@@ -31,11 +31,17 @@ export async function requireAuth(request: NextRequest): Promise<AuthenticatedUs
   const userId = request.headers.get("x-user-id");
 
   if (!userId) {
-    // En desarrollo local, permitir con userId por defecto "local-seller"
-    if (process.env.NODE_ENV === "development") {
+    // SECURITY (SAST H-61): Dev override requires explicit ZENIC_DEV_MODE=1
+    // Never auto-authenticate as operator — maximum dev role is "viewer"
+    if (process.env.ZENIC_DEV_MODE === "1" && process.env.NODE_ENV === "development") {
+      const devUserId = request.headers.get("x-dev-user-id") || "dev-user";
+      console.warn(
+        `[RBAC Auth] ⚠️ DEV MODE OVERRIDE: userId=${devUserId}, role=viewer. ` +
+        `Set ZENIC_DEV_MODE=0 to disable.`
+      );
       return {
-        userId: "local-seller",
-        primaryRole: "operator",
+        userId: devUserId,
+        primaryRole: "viewer",
       };
     }
 

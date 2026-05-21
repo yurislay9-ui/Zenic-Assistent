@@ -26,7 +26,7 @@ from src.core.shared.db_initializer import get_connection
 from src.core.shared.constants import EXT_LANG_MAP
 from src.core.shared.retry import with_retry
 from src.core.shared.db_utils import escape_sql_like, purge_tenant_rows
-from src.core.shared.tenant_utils import resolve_tenant_id
+from src.core.shared.tenant_utils import resolve_tenant_id, set_tenant_context
 from src.core.shared.ast_utils import compute_cyclomatic_complexity, extract_function_calls, extract_class_connections
 
 logger = logging.getLogger(__name__)
@@ -54,9 +54,20 @@ class GraphASTEngine:
         self._init_db()
 
     def set_tenant_id(self, tenant_id: str) -> None:
-        """Update the current tenant_id for this AST engine instance."""
+        """Update the current tenant_id for this AST engine instance.
+
+        Also propagates the tenant ID to the thread-local tenant_utils
+        context so that resolve_tenant_id() returns the correct value
+        for downstream code.
+        """
         old = self._tenant_id
         self._tenant_id = tenant_id
+        # Propagate to thread-local context for deep call stacks
+        try:
+            set_tenant_context(tenant_id)
+        except ValueError:
+            # Anonymous tenant in production — instance is set, context is not
+            logger.warning("GraphASTEngine: Cannot set tenant_utils context to '%s'", tenant_id)
         logger.info("GraphASTEngine tenant_id changed: '%s' -> '%s'", old, tenant_id)
 
     def _init_db(self):

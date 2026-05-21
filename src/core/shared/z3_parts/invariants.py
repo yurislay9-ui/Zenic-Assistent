@@ -270,7 +270,7 @@ class Z3InvariantMixin:
         return {
             "status": "LIKELY_PROVEN",
             "solver_type": "Z3_BOUNDED",
-            "verified": True,
+            "verified": False,  # LIKELY_PROVEN ≠ PROVEN; bounded sampling is not formal proof
             "counterexamples": [],
             "checked": checked,
             "proof": f"Z3 bounded verification: no violations in {checked} samples",

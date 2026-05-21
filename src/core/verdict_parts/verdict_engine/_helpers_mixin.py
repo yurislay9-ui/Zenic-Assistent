@@ -6,6 +6,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from src.core.shared.deterministic import ControllableJitter
+from src.core.verdict_engine_module import _validate_ai_verdict  # H-88: AI output validation
 
 try:
     from ..resilience import VerdictAuditEntry
@@ -87,13 +88,21 @@ class VerdictHelpersMixin:
     # ================================================================
 
     def _call_llm_safe(self, prompt: str, max_tokens: int) -> Optional[str]:
-        """Llama al LLM de forma segura. No lanza excepciones."""
+        """Llama al LLM de forma segura. No lanza excepciones.
+
+        H-88: All AI output is validated through _validate_ai_verdict()
+        to ensure strictly binary YES/NO responses.
+        """
         try:
-            return self._mini_ai._call_llm(
+            raw = self._mini_ai._call_llm(
                 system_prompt="You are a binary decision maker. Reply with ONLY one word: YES or NO. Never explain. Never add anything else.",
                 user_prompt=prompt,
                 max_tokens=max_tokens,
             )
+            if raw is None:
+                return None
+            # H-88: Validate AI output is strictly binary before passing to parser
+            return _validate_ai_verdict(raw)
         except Exception as e:
             logger.warning(f"VerdictEngine: Safe LLM call failed: {e}")
             return None

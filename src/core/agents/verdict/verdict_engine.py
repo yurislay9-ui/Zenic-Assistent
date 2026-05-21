@@ -192,13 +192,22 @@ class VerdictEngineV18(BaseAgent[VerdictOutput]):
         )
 
     def _call_llm(self, user_prompt: str) -> Optional[str]:
-        """Call LLM via MiniAIEngine."""
+        """Call LLM via MiniAIEngine.
+
+        H-88: All AI output is validated through _validate_ai_verdict()
+        to ensure strictly binary YES/NO responses.
+        """
         try:
-            return self._mini_ai._call_llm(
+            from src.core.verdict_engine_module import _validate_ai_verdict
+            raw = self._mini_ai._call_llm(
                 system_prompt=VERDICT_SYSTEM_PROMPT,
                 user_prompt=user_prompt,
                 max_tokens=VERDICT_MAX_TOKENS,
             )
+            if raw is None:
+                return None
+            # H-88: Validate AI output is strictly binary before passing to parser
+            return _validate_ai_verdict(raw)
         except Exception:
             return None
 
@@ -222,9 +231,12 @@ class VerdictEngineV18(BaseAgent[VerdictOutput]):
         # Take first word only
         first_word = cleaned.split()[0].upper().rstrip('.,;:!?')
 
-        if first_word in ("YES", "SI", "SÍ"):
+        # SECURITY (H-88): Only exact "YES" or "NO" accepted.
+        # "SI"/"SÍ" removed — violates VALID_VERDICTS = {"YES", "NO"} invariant.
+        # System prompt explicitly requests English YES/NO.
+        if first_word == "YES":
             return "YES"
-        elif first_word in ("NO",):
+        elif first_word == "NO":
             return "NO"
         else:
             return None  # Ambiguous → treated as NO

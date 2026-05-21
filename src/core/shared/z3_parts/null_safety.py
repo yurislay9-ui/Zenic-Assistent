@@ -260,7 +260,7 @@ class Z3NullSafetyMixin:
                 return {
                     "status": "LIKELY_PROVEN",
                     "solver_type": "Z3_ENUMSORT",
-                    "verified": True,  # Best-effort: Phase 1 passed
+                    "verified": False,  # LIKELY_PROVEN ≠ PROVEN; Phase 2 timed out
                     "counterexamples": [],
                     "proof": (
                         "Z3: Phase 1 (consistency) passed, but Phase 2 (counterexample search) "

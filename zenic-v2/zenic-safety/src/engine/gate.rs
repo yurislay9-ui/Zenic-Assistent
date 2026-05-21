@@ -189,6 +189,11 @@ impl DomainSafetyGate {
     /// Classify an action into a risk category (deterministic).
     ///
     /// This mirrors the Python SafetyGate._classify_action logic.
+    ///
+    /// IMPORTANT: This classification logic must stay synchronized with
+    /// zenic-pybridge/src/safety_gate/classify.rs. Any changes here
+    /// MUST be mirrored there, and vice versa.
+    /// See: H-84 architectural finding — classification divergence.
     fn classify_action(action_type: &str, config: &serde_json::Value) -> ActionCategory {
         let action_lower = action_type.to_lowercase();
 

@@ -1,3 +1,11 @@
+/**
+ * CANONICAL feature gate implementation.
+ * This is the authoritative source for feature access checks.
+ * Uses the WASM pricing engine for evaluation.
+ * Do NOT create additional feature-gate modules — extend this one.
+ * See: H-97 architectural finding — feature gate consolidation.
+ */
+
 // ─── Zenic-Agents v3 — Feature Gate Middleware ──────────────────────────
 // USDT TRC20 ONLY. Deny-by-default feature access based on subscription tier.
 //

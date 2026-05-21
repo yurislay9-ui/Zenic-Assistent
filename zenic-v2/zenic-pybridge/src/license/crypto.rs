@@ -4,6 +4,13 @@ use hmac::Hmac;
 use sha2::Sha256;
 
 /// Constant-time comparison of two byte slices.
+///
+/// WARNING: This hand-rolled implementation is logically correct but
+/// NOT guaranteed to compile to constant-time assembly. The Rust compiler
+/// could optimize away the loop or introduce early exits.
+/// For production-grade security, consider replacing with the `subtle` crate's
+/// `ConstantTimeEq` which uses compiler barriers.
+/// TODO(security): Migrate to `subtle::ConstantTimeEq` in next iteration.
 pub(crate) fn constant_time_compare(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;

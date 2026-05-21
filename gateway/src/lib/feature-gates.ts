@@ -1,3 +1,12 @@
+/**
+ * DB-stored feature gates with HMAC-signed tokens.
+ * This complements (not duplicates) the pricing-engine feature gate:
+ * - Pricing engine: evaluates tier/usage limits via WASM
+ * - This module: manages DB-stored gates + generates tamper-proof tokens
+ * Both should be used together: pricing-engine for evaluation, this for tokens.
+ * See: H-97 architectural finding — feature gate consolidation.
+ */
+
 import { db } from '@/lib/db';
 import { hasMinRole } from '@/lib/auth';
 import crypto from 'crypto';

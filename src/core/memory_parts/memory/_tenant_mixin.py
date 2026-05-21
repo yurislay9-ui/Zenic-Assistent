@@ -16,7 +16,7 @@ from ..types import DB_PATH
 try:
     from src.core.tenant._context import get_current_tenant, set_current_tenant, TenantContext  # type: ignore[import-unresolved]
 except ImportError:
-    from src.core.shared.tenant_utils import ANONYMOUS_TENANT
+    from src.core.shared.tenant_utils import ANONYMOUS_TENANT, set_tenant_context as _set_tenant_context
 
     class TenantContext:
         """Minimal fallback for removed TenantContext."""
@@ -40,7 +40,12 @@ except ImportError:
         return TenantContext()
 
     def set_current_tenant(ctx):
-        pass
+        """Propagate tenant ID to the thread-local tenant_utils context."""
+        try:
+            _set_tenant_context(ctx.tenant_id)
+        except ValueError:
+            # Anonymous tenant in production — silently skip
+            pass
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +75,20 @@ class TenantMixin:
             raise ValueError("tenant_id must be a non-empty string")
         self._tenant_id = tenant_id.strip()
 
-        # Also update the thread-local context so nested code sees the change
+        # Propagate to tenant_utils thread-local context so all
+        # resolve_tenant_id() calls return the correct tenant.
+        try:
+            _set_tenant_context(self._tenant_id)
+        except ValueError:
+            # Anonymous tenant in production — log but continue
+            logger.warning(
+                "SmartMemory: Cannot set tenant_utils context to '%s' "
+                "(likely anonymous in production). Instance tenant_id is set.",
+                self._tenant_id
+            )
+
+        # Also update the TenantContext so nested code using
+        # get_current_tenant() sees the change
         current_ctx = get_current_tenant()
         if current_ctx.tenant_id != self._tenant_id:
             new_ctx = TenantContext(

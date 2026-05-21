@@ -10,11 +10,21 @@ import time
 import math
 import hashlib
 import logging
+import unicodedata
 from typing import Any, Dict
 
 from .chain import LogicBlock, _validate_identifier
 
 logger = logging.getLogger(__name__)
+
+# SECURITY (SAST H-65): Module-level compiled regex for ORDER BY validation.
+# \A/\Z anchors prevent bypass with embedded newlines.
+# Only allows: column_name [ASC|DESC] [, column_name [ASC|DESC]]*
+_SAFE_ORDER_RE = re.compile(
+    r'\A[a-zA-Z_][a-zA-Z0-9_]*(\s+(ASC|DESC))?'
+    r'(,\s*[a-zA-Z_][a-zA-Z0-9_]*(\s+(ASC|DESC))?)*\Z',
+    re.IGNORECASE,
+)
 
 
 # ============================================================
@@ -104,15 +114,13 @@ class CRUDReadBlock(LogicBlock):
             page_size = int(data.get("page_size", data.get("limit", 20)))
             order_by = data.get("order_by", "id DESC")
 
-            # SECURITY: Validate order_by to prevent SQL injection.
+            # SECURITY (SAST H-65): Validate order_by to prevent SQL injection.
             # order_by cannot use ? parameterization — it must be interpolated.
             # We validate each component: column names must be valid identifiers,
             # and only ASC/DESC keywords are allowed.
-            _SAFE_ORDER_RE = re.compile(
-                r'^[a-zA-Z_][a-zA-Z0-9_]*(\s+(ASC|DESC))?'
-                r'(,\s*[a-zA-Z_][a-zA-Z0-9_]*(\s+(ASC|DESC))?)*$',
-                re.IGNORECASE,
-            )
+            # Unicode normalization prevents bypass with homoglyphs.
+            # \A/\Z anchors prevent bypass with embedded newlines.
+            order_by = unicodedata.normalize('NFKC', str(order_by))
             if not _SAFE_ORDER_RE.match(order_by):
                 logger.warning("CRUDReadBlock: Invalid order_by rejected: %r", order_by)
                 order_by = "id DESC"

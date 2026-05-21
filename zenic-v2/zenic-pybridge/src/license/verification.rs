@@ -105,14 +105,17 @@ pub fn verify_license(
     let expected_hmac = hmac_sha256(public_key.as_bytes(), signable_data.as_bytes());
     let expected_hex = hex_encode(&expected_hmac);
 
-    let sig_valid = if signature.len() == expected_hex.len() {
-        constant_time_compare(signature.as_bytes(), expected_hex.as_bytes())
-    } else {
-        match hex_decode(&signature) {
-            Ok(sig_bytes) => constant_time_compare(&sig_bytes, &expected_hmac),
-            Err(_) => false,
-        }
-    };
+    // SECURITY (H-79): Always compare in constant time regardless of length.
+    // The previous `signature.len() == expected_hex.len()` early exit leaked
+    // length information via timing. Now we always decode + compare, padding
+    // with zeros on decode failure (same pattern as signing.rs fix).
+    let expected_bytes = hex_decode(&expected_hex).unwrap_or_default();
+    let signature_bytes = hex_decode(&signature)
+        .unwrap_or_else(|_| {
+            let len = expected_bytes.len().max(32);
+            vec![0u8; len]
+        });
+    let sig_valid = constant_time_compare(&expected_bytes, &signature_bytes);
 
     if !sig_valid {
         result.set_item("is_valid", false)?;

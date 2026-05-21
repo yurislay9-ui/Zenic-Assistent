@@ -22,6 +22,11 @@ import type { RateLimitResult } from "../rate-limiter/types";
 import type { RateLimitKey } from "../rate-limiter/types";
 import { RISK_LEVEL_CONFIG } from "../types";
 
+// ── Lazy import cache (H-91 fix: avoid repeated dynamic imports in hot path) ──
+let _rbacModule: Promise<any> | null = null;
+let _policyModule: Promise<any> | null = null;
+let _dbModule: Promise<any> | null = null;
+
 const DEFAULT_CONFIG: GatewayConfig = {
   defaultTimeout: 30000,
   maxRetries: 2,
@@ -129,8 +134,9 @@ export class GatewayEngine {
     // ─── Step 4: RBAC Check ─────────────────────────────
     if (this.config.enforceRbac && request.auth.executorId) {
       const rbacStep = await this.measureStepAsync("rbac_check", async () => {
-        // Lazy import to avoid circular dependencies
-        const { checkPermission } = await import("../services/rbac-service");
+        // Lazy import to avoid circular dependencies (H-91: cached)
+        if (!_rbacModule) _rbacModule = import("../services/rbac-service");
+        const { checkPermission } = await _rbacModule;
         const result = await checkPermission({
           userId: request.auth.executorId!,
           resource: "tool",
@@ -155,7 +161,9 @@ export class GatewayEngine {
     // This step checks resource/action against compiled YAML policies.
     const policyStep = await this.measureStepAsync("policy_engine", async () => {
       try {
-        const { getPolicyEvaluator } = await import("@/lib/policy-engine/evaluator");
+        // H-91: cached lazy import for policy engine
+        if (!_policyModule) _policyModule = import("@/lib/policy-engine/evaluator");
+        const { getPolicyEvaluator } = await _policyModule;
         const evaluator = getPolicyEvaluator();
         const result = await evaluator.evaluate({
           resource: `${tool.config.category}/${request.toolCall.name}`,
@@ -239,7 +247,9 @@ export class GatewayEngine {
 
       // Record pending execution in DB (lazy import)
       try {
-        const { db } = await import("@/lib/db");
+        // H-91: cached lazy import for DB
+        if (!_dbModule) _dbModule = import("@/lib/db");
+        const { db } = await _dbModule;
         await db.toolExecution.create({
           data: {
             id: executionId,
