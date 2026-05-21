@@ -1,0 +1,92 @@
+# ============================================================
+#  ZENIC-AGENTS v16 - Docker Compose (Phase 2: Scalability)
+#
+#  Infrastructure services for production / E2E testing:
+#    - PostgreSQL 16  (primary database)
+#    - Redis 7        (cache / session store)
+#
+#  Usage:
+#    docker compose up -d              # Start all services
+#    docker compose up -d postgres     # Start PostgreSQL only
+#    docker compose down               # Stop and remove containers
+#    docker compose down -v            # Stop and remove containers + volumes
+#
+#  Environment:
+#    Copy .env.example to .env and customize before deploying.
+# ============================================================
+
+services:
+  # ── PostgreSQL 16 ──────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: zenic-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: zenic_db
+      POSTGRES_USER: zenic
+      POSTGRES_PASSWORD: zenic
+      # Tune for small VPS / dev workloads
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      # pgvector: Automatically enabled on first connection
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zenic -d zenic_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - zenic-net
+    # Resource limits (optional — uncomment for production)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 512M
+    #       cpus: "1.0"
+
+  # ── Redis 7 ────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: zenic-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - zenic-net
+    # Resource limits (optional — uncomment for production)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       memory: 256M
+    #       cpus: "0.5"
+
+# ── Named Volumes ────────────────────────────────────────────
+volumes:
+  pgdata:
+    driver: local
+    name: zenic-pgdata
+  redisdata:
+    driver: local
+    name: zenic-redisdata
+
+# ── Network ──────────────────────────────────────────────────
+networks:
+  zenic-net:
+    driver: bridge
+    name: zenic-net

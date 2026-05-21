@@ -8,6 +8,19 @@ Inicializa todas las bases de datos SQLite con:
 - Indice en theorem_cache para skeleton_hash lookups rapidos
 
 Compatible con Termux + proot-distro (Debian ARM).
+
+.. deprecated:: FASE 1.3
+   The connection pool functions (get_connection, write_lock, close_all_connections)
+   are deprecated in favor of FastPool (src.core.shared.fast_connection_pool).
+   Only initialize_databases() and utility functions (get_data_dir, get_db_path)
+   should continue to be used for table creation.
+
+   Migration guide:
+   - get_connection(db) → fast_pool.get(db)
+   - write_lock(db) → fast_pool.write(db)
+   - close_all_connections() → fast_pool.close_all()
+
+   db_initializer will be fully removed once all consumers migrate to FastPool.
 """
 
 import sqlite3
@@ -157,7 +170,15 @@ def get_connection(db_name: str) -> sqlite3.Connection:
     """
     Obtiene una conexion del pool. Reutiliza conexiones existentes.
 
-    El pool mantiene una conexion por DB, thread-safe con lock.
+    .. deprecated:: FASE 1.3
+       Use FastPool.get(db_name) instead for better thread-local caching,
+       3-layer connection management, and reduced SQLITE_BUSY contention.
+
+       This function is kept for backward compatibility with existing consumers
+       (graph_ast, theorem_cache, merkle_ledger, request_log) that have not yet
+       migrated to FastPool.
+
+    The pool mantiene una conexion por DB, thread-safe con lock.
     Si la conexion esta rota, crea una nueva.
 
     When ``is_encryption_enabled()`` is True (SQLCipher available +
@@ -170,6 +191,13 @@ def get_connection(db_name: str) -> sqlite3.Connection:
     IMPORTANT: For write operations, use the connection's write lock
     via `with db_initializer.write_lock(db_name):` to ensure thread safety.
     """
+    import warnings
+    warnings.warn(
+        "db_initializer.get_connection() is deprecated since FASE 1.3. "
+        "Use FastPool.get(db_name) instead for better connection management.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     key = db_name
     # Use per-DB ReadWriteLock read context for concurrent read access
     if _HAS_RW_LOCK and key in _db_rw_locks:

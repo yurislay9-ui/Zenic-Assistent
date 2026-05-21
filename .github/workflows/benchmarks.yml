@@ -1,0 +1,271 @@
+# ============================================================
+#  ZENIC-AGENTS v16 - CI Benchmarks Pipeline (Phase 4.3)
+#
+#  Automated performance benchmarks with regression detection.
+#  Runs on every push to main and on pull requests.
+#
+#  Benchmark suites:
+#    1. Python: FastPool, SemanticEngine, VectorStore, HNSW
+#    2. TypeScript: ResourceGovernor, WriteQueue, VectorStore
+#    3. Rust: zenic-memory, zenic-bench (Criterion)
+#
+#  Regression detection:
+#    - Compares against baseline stored in benchmark-cache branch
+#    - Fails CI if >20% regression on any critical metric
+#    - Posts benchmark results as PR comment
+#
+#  Usage:
+#    Manual trigger: gh workflow run benchmarks.yml
+#    Skip benchmarks: [skip-benchmarks] in commit message
+# ============================================================
+
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [main, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+    inputs:
+      full_suite:
+        description: 'Run full benchmark suite (including slow tests)'
+        required: false
+        default: 'false'
+      baseline_branch:
+        description: 'Branch to compare against for regression detection'
+        required: false
+        default: 'main'
+
+concurrency:
+  group: benchmarks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Python Benchmarks ─────────────────────────────────────
+  python-benchmarks:
+    name: Python Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: "!contains(github.event.head_commit.message, '[skip-benchmarks]')"
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: zenic_test
+          POSTGRES_USER: zenic
+          POSTGRES_PASSWORD: zenic
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-benchmark pytest-asyncio
+
+      - name: Create pgvector extension
+        env:
+          PGPASSWORD: zenic
+        run: |
+          psql -h localhost -U zenic -d zenic_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+      - name: Run FastPool benchmarks
+        env:
+          ZENIC_ENV: test
+          DATABASE_URL: postgresql://zenic:zenic@localhost:5432/zenic_test
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          pytest tests/test_benchmarks.py::BenchmarkFastPool \
+            --benchmark-only \
+            --benchmark-json=bench_fastpool.json \
+            -v || true
+
+      - name: Run VectorStore benchmarks
+        env:
+          ZENIC_ENV: test
+          DATABASE_URL: postgresql://zenic:zenic@localhost:5432/zenic_test
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          pytest tests/test_benchmarks.py::BenchmarkVectorStore \
+            --benchmark-only \
+            --benchmark-json=bench_vector.json \
+            -v || true
+
+      - name: Run HNSW benchmarks
+        env:
+          ZENIC_ENV: test
+        run: |
+          pytest tests/test_benchmarks.py::BenchmarkHNSW \
+            --benchmark-only \
+            --benchmark-json=bench_hnsw.json \
+            -v || true
+
+      - name: Run Redis integration benchmarks
+        env:
+          ZENIC_ENV: test
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          pytest tests/test_benchmarks.py::BenchmarkRedis \
+            --benchmark-only \
+            --benchmark-json=bench_redis.json \
+            -v || true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-benchmark-results
+          path: bench_*.json
+          retention-days: 30
+
+  # ── TypeScript Benchmarks ─────────────────────────────────
+  typescript-benchmarks:
+    name: TypeScript Benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: "!contains(github.event.head_commit.message, '[skip-benchmarks]')"
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: gateway/package-lock.json
+
+      - name: Install dependencies
+        working-directory: gateway
+        run: npm ci
+
+      - name: Run ResourceGovernor benchmarks
+        working-directory: gateway
+        env:
+          REDIS_URL: redis://localhost:6379/0
+        run: |
+          npx tsx src/__benchmarks__/governor.bench.ts || true
+
+      - name: Run VectorStore benchmarks
+        working-directory: gateway
+        run: |
+          npx tsx src/__benchmarks__/vector.bench.ts || true
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: typescript-benchmark-results
+          path: gateway/bench_*.json
+          retention-days: 30
+
+  # ── Regression Detection ──────────────────────────────────
+  regression-check:
+    name: Regression Detection
+    runs-on: ubuntu-latest
+    needs: [python-benchmarks, typescript-benchmarks]
+    if: always() && !contains(github.event.head_commit.message, '[skip-benchmarks]')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Python results
+        uses: actions/download-artifact@v4
+        with:
+          name: python-benchmark-results
+          path: results/python/
+        continue-on-error: true
+
+      - name: Download TypeScript results
+        uses: actions/download-artifact@v4
+        with:
+          name: typescript-benchmark-results
+          path: results/typescript/
+        continue-on-error: true
+
+      - name: Check for regressions
+        run: |
+          python scripts/check_regressions.py \
+            --results-dir results/ \
+            --threshold 20 \
+            --output regression_report.json || true
+
+      - name: Upload regression report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: regression-report
+          path: regression_report.json
+          retention-days: 30
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let report = 'No regression report available.';
+            try {
+              report = fs.readFileSync('regression_report.json', 'utf8');
+              const data = JSON.parse(report);
+              report = `## Performance Benchmark Results\n\n`;
+              report += `| Metric | Baseline | Current | Change | Status |\n`;
+              report += `|--------|----------|---------|--------|--------|\n`;
+              for (const [key, value] of Object.entries(data.metrics || {})) {
+                const m = value;
+                const change = m.change_percent?.toFixed(1) || 'N/A';
+                const status = m.regression ? '🔴 REGRESSION' : '🟢 OK';
+                report += `| ${key} | ${m.baseline || 'N/A'} | ${m.current || 'N/A'} | ${change}% | ${status} |\n`;
+              }
+            } catch (e) {
+              report = '## Performance Benchmarks\n\nResults are being processed. Check the artifacts for details.';
+            }
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });

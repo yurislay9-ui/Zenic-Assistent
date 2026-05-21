@@ -1,7 +1,16 @@
 //! # zenic-bench
 //!
-//! Benchmarks for Zenic-Agents.
+//! Benchmarks for Zenic-Agents core components.
 //!
-//! **Stub**: Implementation pending for Phase 8.
+//! Run all benchmarks:
+//! ```sh
+//! cargo bench -p zenic-bench
+//! ```
+//!
+//! Run specific benchmark:
+//! ```sh
+//! cargo bench -p zenic-bench -- memory_cache
+//! ```
 
-pub const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
+/// Benchmark suite version
+pub const BENCH_VERSION: &str = env!("CARGO_PKG_VERSION");

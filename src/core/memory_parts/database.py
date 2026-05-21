@@ -2,6 +2,15 @@
 ZENIC-AGENTS - SmartMemory Database Mixin
 
 DB initialization, migration, connections, WAL mode, vacuum, and table eviction.
+
+FASE 1.1 Performance Fix:
+- Replaced all raw sqlite3.connect(DB_PATH) calls with FastPool.
+- FastPool provides thread-local cached connections, eliminating competing
+  connection systems that cause SQLITE_BUSY errors under concurrent access.
+- PRAGMAs are now applied automatically by FastPool when creating connections,
+  so _get_connection() and _enable_wal_mode() no longer apply PRAGMAs manually.
+- Write operations use smart_memory_pool.write() for thread-safe auto-commit.
+- Connections are NOT closed — the pool manages their lifecycle.
 """
 
 import os
@@ -12,11 +21,15 @@ import logging
 from typing import List
 
 from .types import DB_DIR, DB_PATH, logger
+from .pool import smart_memory_pool, SMART_MEMORY_DB
 
 class DatabaseMixin:
     """
     Mixin providing DB initialization, migration, connections, WAL mode,
     vacuum, and table eviction methods for SmartMemory.
+
+    FASE 1.1: All database access now goes through smart_memory_pool
+    instead of raw sqlite3.connect() calls.
     """
 
     # VACUUM interval: every 24 hours to prevent DB bloat on phone storage
@@ -38,16 +51,18 @@ class DatabaseMixin:
         WAL (Write-Ahead Logging) permite lecturas sin bloquear escrituras,
         reduce la escritura al disco (importante para flash del teléfono),
         y mejora el rendimiento de consultas frecuentes como cache lookup.
+
+        FASE 1.1: WAL mode is now handled by FastPool's PRAGMA configuration.
+        FastPool applies WAL, synchronous=NORMAL, cache_size=-8192,
+        temp_store=MEMORY, mmap_size, wal_autocheckpoint, and busy_timeout
+        on every new connection. This method is kept for backward
+        compatibility but is now effectively a no-op.
         """
-        try:
-            with sqlite3.connect(DB_PATH) as conn:
-                conn.execute("PRAGMA journal_mode=WAL")  # nosemgrep: sqlalchemy-execute-raw-query
-                conn.execute("PRAGMA synchronous=NORMAL")  # Faster than FULL, safe with WAL  # nosemgrep: sqlalchemy-execute-raw-query
-                conn.execute("PRAGMA cache_size=-4096")  # 4MB cache for mobile  # nosemgrep: sqlalchemy-execute-raw-query
-                conn.execute("PRAGMA temp_store=MEMORY")  # Temp tables in RAM  # nosemgrep: sqlalchemy-execute-raw-query
-            logger.info("SmartMemory: WAL mode enabled (optimized for mobile)")
-        except Exception as e:
-            logger.warning(f"SmartMemory: WAL mode failed, using default: {e}")
+        # FastPool already applies all WAL-related PRAGMAs when creating
+        # connections. The pool's PRAGMAs are even more optimized than the
+        # previous manual ones (8MB cache vs 4MB, mmap_size, wal_autocheckpoint,
+        # foreign_keys, etc.).
+        logger.debug("SmartMemory: WAL mode handled by FastPool (no-op)")
 
     def _maybe_vacuum(self):
         """Ejecuta VACUUM periódicamente para prevenir bloat en el almacenamiento.
@@ -55,6 +70,9 @@ class DatabaseMixin:
         En un teléfono, el espacio de almacenamiento es limitado y SQLite
         puede crecer mucho si no se compacta. VACUUM reconstruye la BD
         eliminando espacio muerto, pero es costoso → solo cada 24h.
+
+        FASE 1.1: Uses smart_memory_pool.write() instead of raw connection,
+        ensuring no SQLITE_BUSY conflicts during VACUUM.
         """
         now = time.time()
         if now - self._last_vacuum_time < self.VACUUM_INTERVAL_S:
@@ -65,7 +83,9 @@ class DatabaseMixin:
             if db_size_mb < 5.0:  # Only vacuum if DB > 5MB
                 return
 
-            with sqlite3.connect(DB_PATH) as conn:
+            # FASE 1.1: Use pool's write() for VACUUM (requires exclusive access,
+            # write lock prevents concurrent writers during checkpoint/vacuum)
+            with smart_memory_pool.write(SMART_MEMORY_DB) as conn:
                 conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")  # nosemgrep: sqlalchemy-execute-raw-query
                 conn.execute("VACUUM")  # nosemgrep: sqlalchemy-execute-raw-query
 
@@ -78,20 +98,25 @@ class DatabaseMixin:
             logger.debug(f"SmartMemory: VACUUM failed (will retry later): {e}")
 
     def _get_connection(self) -> sqlite3.Connection:
-        """Obtiene una conexión SQLite optimizada para móvil."""
-        conn = sqlite3.connect(DB_PATH)
-        conn.execute("PRAGMA journal_mode=WAL")  # nosemgrep: sqlalchemy-execute-raw-query
-        conn.execute("PRAGMA synchronous=NORMAL")  # nosemgrep: sqlalchemy-execute-raw-query
-        conn.execute("PRAGMA cache_size=-4096")  # nosemgrep: sqlalchemy-execute-raw-query
-        conn.execute("PRAGMA temp_store=MEMORY")  # nosemgrep: sqlalchemy-execute-raw-query
-        conn.execute("PRAGMA busy_timeout=5000")  # 5s timeout for concurrent access  # nosemgrep: sqlalchemy-execute-raw-query
-        return conn
+        """Obtiene una conexión SQLite optimizada para móvil.
+
+        FASE 1.1: Now uses FastPool instead of raw sqlite3.connect().
+        PRAGMAs are applied automatically by FastPool when creating connections,
+        so this method no longer applies them manually.
+        The returned connection is managed by the pool — callers should NOT close it.
+        """
+        return smart_memory_pool.get(SMART_MEMORY_DB)
 
     def _init_db(self):
-        """Crea tablas SQLite si no existen (con tenant_id para multitenancy)."""
-        conn = self._get_connection()
-        try:
-            conn.execute("""CREATE TABLE IF NOT EXISTS semantic_cache (  # nosemgrep: sqlalchemy-execute-raw-query
+        """Crea tablas SQLite si no existen (con tenant_id para multitenancy).
+
+        FASE 1.1: Uses smart_memory_pool.write() instead of _get_connection()
+        + manual commit/close. The pool auto-commits and manages connections.
+        """
+        # FASE 1.1: Use pool's write() for DDL operations (auto-commit, write-locked)
+        with smart_memory_pool.write(SMART_MEMORY_DB) as conn:
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                """CREATE TABLE IF NOT EXISTS semantic_cache (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 query_hash TEXT NOT NULL,
                 query_text TEXT NOT NULL,
@@ -107,7 +132,8 @@ class DatabaseMixin:
                 tenant_id TEXT DEFAULT '__anonymous__',
                 UNIQUE(query_hash, tenant_id)
             )""")
-            conn.execute("""CREATE TABLE IF NOT EXISTS long_term_memory (  # nosemgrep: sqlalchemy-execute-raw-query
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                """CREATE TABLE IF NOT EXISTS long_term_memory (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 query_text TEXT NOT NULL,
                 solution_summary TEXT NOT NULL,
@@ -122,18 +148,23 @@ class DatabaseMixin:
                 client_id TEXT DEFAULT 'default',
                 tenant_id TEXT DEFAULT '__anonymous__'
             )""")
-            conn.execute("""CREATE INDEX IF NOT EXISTS idx_cache_hash   # nosemgrep: sqlalchemy-execute-raw-query
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                """CREATE INDEX IF NOT EXISTS idx_cache_hash
                 ON semantic_cache(query_hash)""")
-            conn.execute("""CREATE INDEX IF NOT EXISTS idx_ltm_importance   # nosemgrep: sqlalchemy-execute-raw-query
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                """CREATE INDEX IF NOT EXISTS idx_ltm_importance
                 ON long_term_memory(importance DESC)""")
             # Additional indexes for common mobile query patterns
-            conn.execute("""CREATE INDEX IF NOT EXISTS idx_cache_client_time  # nosemgrep: sqlalchemy-execute-raw-query
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                """CREATE INDEX IF NOT EXISTS idx_cache_client_time
                 ON semantic_cache(client_id, created_at DESC)""")
-            conn.execute("""CREATE INDEX IF NOT EXISTS idx_ltm_client_success  # nosemgrep: sqlalchemy-execute-raw-query
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                """CREATE INDEX IF NOT EXISTS idx_ltm_client_success
                 ON long_term_memory(client_id, success, importance DESC)""")
 
             # === Episodic Memory ===
-            conn.execute("""CREATE TABLE IF NOT EXISTS episodic_memory (  # nosemgrep: sqlalchemy-execute-raw-query
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                """CREATE TABLE IF NOT EXISTS episodic_memory (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_type TEXT NOT NULL,
                 description TEXT NOT NULL,
@@ -146,13 +177,16 @@ class DatabaseMixin:
                 client_id TEXT DEFAULT 'default',
                 tenant_id TEXT DEFAULT '__anonymous__'
             )""")
-            conn.execute("""CREATE INDEX IF NOT EXISTS idx_episodic_type   # nosemgrep: sqlalchemy-execute-raw-query
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                """CREATE INDEX IF NOT EXISTS idx_episodic_type
                 ON episodic_memory(event_type)""")
-            conn.execute("""CREATE INDEX IF NOT EXISTS idx_episodic_time   # nosemgrep: sqlalchemy-execute-raw-query
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                """CREATE INDEX IF NOT EXISTS idx_episodic_time
                 ON episodic_memory(created_at DESC)""")
 
             # === Procedural Memory ===
-            conn.execute("""CREATE TABLE IF NOT EXISTS procedural_memory (  # nosemgrep: sqlalchemy-execute-raw-query
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                """CREATE TABLE IF NOT EXISTS procedural_memory (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 pattern_name TEXT NOT NULL UNIQUE,
                 pattern_type TEXT DEFAULT 'strategy',
@@ -169,7 +203,8 @@ class DatabaseMixin:
             )""")
 
             # === Project Memory ===
-            conn.execute("""CREATE TABLE IF NOT EXISTS project_memory (  # nosemgrep: sqlalchemy-execute-raw-query
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                """CREATE TABLE IF NOT EXISTS project_memory (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 project_name TEXT NOT NULL UNIQUE,
                 project_type TEXT DEFAULT '',
@@ -187,7 +222,8 @@ class DatabaseMixin:
             )""")
 
             # === Conversation Sessions ===
-            conn.execute("""CREATE TABLE IF NOT EXISTS conversation_sessions (  # nosemgrep: sqlalchemy-execute-raw-query
+            conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                """CREATE TABLE IF NOT EXISTS conversation_sessions (
                 id TEXT PRIMARY KEY,
                 started_at REAL DEFAULT 0,
                 ended_at REAL DEFAULT 0,
@@ -198,9 +234,8 @@ class DatabaseMixin:
                 tenant_id TEXT DEFAULT '__anonymous__'
             )""")
 
-            conn.commit()
-        finally:
-            conn.close()
+            # write() auto-commits on exit — no explicit conn.commit() needed
+        # Pool manages connections — no conn.close() needed
 
         # Brecha B: Migrate existing tables that may not have client_id column
         self._migrate_add_client_id()
@@ -215,13 +250,16 @@ class DatabaseMixin:
         self._create_tenant_id_indexes()
 
     def _migrate_add_client_id(self):
-        """Brecha B: Add client_id column to existing tables if missing."""
+        """Brecha B: Add client_id column to existing tables if missing.
+
+        FASE 1.1: Uses smart_memory_pool.write() instead of raw connection.
+        """
         tables = [
             "semantic_cache", "long_term_memory", "episodic_memory",
             "procedural_memory", "project_memory", "conversation_sessions",
         ]
-        conn = self._get_connection()
-        try:
+        # FASE 1.1: Use pool's write() for migration DDL (auto-commit, write-locked)
+        with smart_memory_pool.write(SMART_MEMORY_DB) as conn:
             for table in tables:
                 assert table in self._VALID_TABLES, f"Invalid table: {table}"
                 try:
@@ -231,26 +269,25 @@ class DatabaseMixin:
                 except sqlite3.OperationalError:
                     # Column already exists, ignore
                     pass
-            conn.commit()
-        finally:
-            conn.close()
+            # write() auto-commits on exit
 
     def _create_client_id_indexes(self):
-        """Brecha B: Create indexes on client_id for all tables."""
+        """Brecha B: Create indexes on client_id for all tables.
+
+        FASE 1.1: Uses smart_memory_pool.write() instead of raw connection.
+        """
         tables = [
             "semantic_cache", "long_term_memory", "episodic_memory",
             "procedural_memory", "project_memory", "conversation_sessions",
         ]
-        conn = self._get_connection()
-        try:
+        # FASE 1.1: Use pool's write() for index creation (auto-commit)
+        with smart_memory_pool.write(SMART_MEMORY_DB) as conn:
             for table in tables:
                 assert table in self._VALID_TABLES, f"Invalid table: {table}"
                 conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     f'CREATE INDEX IF NOT EXISTS "idx_{table}_client" ON "{table}"(client_id)'
                 )
-            conn.commit()
-        finally:
-            conn.close()
+            # write() auto-commits on exit
 
     def _migrate_add_tenant_id(self):
         """Phase 2: Add tenant_id column to existing tables if missing.
@@ -258,13 +295,15 @@ class DatabaseMixin:
         Uses ALTER TABLE to safely add the column. Default value is
         '__anonymous__' so that existing rows are grouped under the
         anonymous tenant, maintaining backward compatibility.
+
+        FASE 1.1: Uses smart_memory_pool.write() instead of raw connection.
         """
         tables = [
             "semantic_cache", "long_term_memory", "episodic_memory",
             "procedural_memory", "project_memory", "conversation_sessions",
         ]
-        conn = self._get_connection()
-        try:
+        # FASE 1.1: Use pool's write() for migration DDL (auto-commit, write-locked)
+        with smart_memory_pool.write(SMART_MEMORY_DB) as conn:
             # Validate DEFAULT_TENANT_ID contains no SQL-injectable characters
             _safe_default = self.DEFAULT_TENANT_ID
             if not _safe_default.isidentifier() and not all(c.isalnum() or c == '_' for c in _safe_default):
@@ -279,22 +318,22 @@ class DatabaseMixin:
                 except sqlite3.OperationalError:
                     # Column already exists, ignore
                     pass
-            conn.commit()
-        finally:
-            conn.close()
+            # write() auto-commits on exit
 
     def _create_tenant_id_indexes(self):
         """Phase 2: Create indexes on tenant_id for all tables.
 
         Composite indexes on (tenant_id, client_id) support the common
         query pattern of filtering by tenant first, then by client.
+
+        FASE 1.1: Uses smart_memory_pool.write() instead of raw connection.
         """
         tables = [
             "semantic_cache", "long_term_memory", "episodic_memory",
             "procedural_memory", "project_memory", "conversation_sessions",
         ]
-        conn = self._get_connection()
-        try:
+        # FASE 1.1: Use pool's write() for index creation (auto-commit)
+        with smart_memory_pool.write(SMART_MEMORY_DB) as conn:
             for table in tables:
                 assert table in self._VALID_TABLES, f"Invalid table: {table}"
                 # Single-column index on tenant_id
@@ -305,12 +344,14 @@ class DatabaseMixin:
                 conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                     f'CREATE INDEX IF NOT EXISTS "idx_{table}_tenant_client" ON "{table}"(tenant_id, client_id)'
                 )
-            conn.commit()
-        finally:
-            conn.close()
+            # write() auto-commits on exit
 
     def _evict_table(self, table_name: str, max_entries: int):
-        """Evict oldest/least important entries from a table."""
+        """Evict oldest/least important entries from a table.
+
+        FASE 1.1: Uses smart_memory_pool.write() instead of raw connection,
+        ensuring no SQLITE_BUSY conflicts during eviction.
+        """
         # SQL Injection protection: validate table_name against whitelist
         assert table_name in self._VALID_TABLES, f"Invalid table: {table_name}"
         if table_name not in self._VALID_TABLES:
@@ -318,7 +359,9 @@ class DatabaseMixin:
             return
         # SECURITY: table_name validated against _VALID_TABLES whitelist above;
         # row limit uses ? parameterization
-        with sqlite3.connect(DB_PATH) as conn:
+        # FASE 1.1: Use pool's write() for read + delete (auto-commit)
+        with smart_memory_pool.write(SMART_MEMORY_DB) as conn:
             count = conn.execute(f'SELECT COUNT(*) FROM "{table_name}"').fetchone()[0]  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
             if count > max_entries:
                 conn.execute(f'DELETE FROM "{table_name}" WHERE id IN (SELECT id FROM "{table_name}" ORDER BY importance ASC, created_at ASC LIMIT ?)', (count - max_entries + 10,))  # nosemgrep: formatted-sql-query, sqlalchemy-execute-raw-query  # validated identifier
+            # write() auto-commits on exit

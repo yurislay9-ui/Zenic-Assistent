@@ -3,21 +3,29 @@ ZENIC-AGENTS - SmartMemory Cache Mixin
 
 Semantic cache and working memory methods for SmartMemory.
 Phase 2: Fully tenant-aware — all queries scoped by tenant_id.
+
+FASE 1.2 Performance Fix:
+- Replaced all raw sqlite3.connect(DB_PATH) calls with FastPool.
+- Read operations use smart_memory_pool.get() for thread-local cached connections.
+- Write operations use smart_memory_pool.write() for thread-safe auto-commit.
+- Connections are NOT closed — the pool manages their lifecycle.
+- This eliminates SQLITE_BUSY errors from competing connection systems.
 """
 
 import time
 import json
-import sqlite3
 import hashlib
 import logging
 from typing import Optional, Dict, Any, List
 
 from .types import (
-    DB_PATH, MemoryEntry, logger,
+    MemoryEntry, logger,
     MAX_WORKING_ENTRIES, MAX_COMPRESSED_TOKENS,
     IMPORTANCE_THRESHOLD, SEMANTIC_CACHE_THRESHOLD,
 )
 from .types import HAS_NUMPY
+from .pool import smart_memory_pool, SMART_MEMORY_DB
+
 if HAS_NUMPY:
     import numpy as np
 
@@ -26,6 +34,9 @@ class CacheMixin:
     """
     Mixin providing semantic cache and working memory methods for SmartMemory.
     All queries are scoped by both tenant_id and client_id.
+
+    FASE 1.2: All database access now goes through smart_memory_pool
+    instead of raw sqlite3.connect() calls.
     """
 
     # ================================================================
@@ -39,10 +50,13 @@ class CacheMixin:
         Usa embeddings si SemanticEngine está disponible, si no usa hash exacto.
         Scoped by tenant_id and client_id.
         Returns cached response or None.
+
+        FASE 1.2: Uses smart_memory_pool for all DB access.
         """
         # First: exact hash match (fastest) — scoped by tenant AND client
+        # FASE 1.2: Use pool's write() since this includes an UPDATE (access_count)
         query_hash = hashlib.sha256(query.lower().strip().encode()).hexdigest()
-        with sqlite3.connect(DB_PATH) as conn:
+        with smart_memory_pool.write(SMART_MEMORY_DB) as conn:
             row = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """SELECT response_summary, operation, goal, importance, access_count, id
                    FROM semantic_cache
@@ -64,24 +78,24 @@ class CacheMixin:
         if self._semantic and self._semantic.is_loaded:
             query_emb = self._semantic.embed(query)
             if query_emb is not None:
-                # Load recent cache entries for this tenant+client and compare
-                with sqlite3.connect(DB_PATH) as conn:
-                    rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
-                        """SELECT id, query_text, response_summary, operation, goal, importance, embedding
-                           FROM semantic_cache
-                           WHERE tenant_id=? AND client_id=?
-                           ORDER BY id DESC LIMIT 100""",
-                        (self._tenant_id, self._client_id)
-                    ).fetchall()
+                # FASE 1.2: Use pool.get() for read-only query (no write lock needed)
+                conn = smart_memory_pool.get(SMART_MEMORY_DB)
+                rows = conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
+                    """SELECT id, query_text, response_summary, operation, goal, importance, embedding
+                       FROM semantic_cache
+                       WHERE tenant_id=? AND client_id=?
+                       ORDER BY id DESC LIMIT 100""",
+                    (self._tenant_id, self._client_id)
+                ).fetchall()
 
                 for row in rows:
                     cache_emb = self._deserialize_embedding(row[6])
                     if cache_emb is not None:
                         sim = self._semantic.similarity(query_emb, cache_emb)
                         if sim >= SEMANTIC_CACHE_THRESHOLD:
-                            # Update access count
-                            with sqlite3.connect(DB_PATH) as conn:
-                                conn.execute("UPDATE semantic_cache SET access_count=access_count+1 WHERE id=?", (row[0],))  # nosemgrep: sqlalchemy-execute-raw-query
+                            # FASE 1.2: Use pool's write() for UPDATE (access_count)
+                            with smart_memory_pool.write(SMART_MEMORY_DB) as w_conn:
+                                w_conn.execute("UPDATE semantic_cache SET access_count=access_count+1 WHERE id=?", (row[0],))  # nosemgrep: sqlalchemy-execute-raw-query
                             return {
                                 "response": row[2],
                                 "operation": row[3],
@@ -95,7 +109,10 @@ class CacheMixin:
 
     def save_to_cache(self, query: str, response: str, operation: str = "",
                        goal: str = "", importance: float = 0.5):
-        """Guarda una entrada en el cache semántico (tenant-aware)."""
+        """Guarda una entrada en el cache semántico (tenant-aware).
+
+        FASE 1.2: Uses smart_memory_pool.write() for INSERT.
+        """
         query_hash = hashlib.sha256(query.lower().strip().encode()).hexdigest()
         
         # Compute embedding if possible
@@ -108,7 +125,8 @@ class CacheMixin:
         # Truncate response for storage
         response_summary = response[:2000] if response else ""
 
-        with sqlite3.connect(DB_PATH) as conn:
+        # FASE 1.2: Use pool's write() for INSERT (auto-commit, write-locked)
+        with smart_memory_pool.write(SMART_MEMORY_DB) as conn:
             conn.execute(  # nosemgrep: sqlalchemy-execute-raw-query
                 """INSERT OR REPLACE INTO semantic_cache 
                    (query_hash, query_text, response_summary, operation, goal,
@@ -118,6 +136,7 @@ class CacheMixin:
                  importance, emb_blob, time.time(), self._session_id,
                  self._client_id, self._tenant_id)
             )
+            # write() auto-commits on exit
 
         # If high importance, also save to long-term
         if importance >= IMPORTANCE_THRESHOLD:
